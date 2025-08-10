@@ -111,6 +111,9 @@ class CustomSummaryWriter(SummaryWriter):
         )
         self.datetime = self._extract_datetime_from_log_dir(log_dir)
 
+        self.params = params
+        self.metrics = metrics
+
         if params:
             self._log_hyperparameters(params, metrics, log_dir)
 
@@ -201,6 +204,8 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.val_dataset = val_dataset
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
+        self.metrics = {}
+
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -256,6 +261,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         
         # Step the writer (handles syncing)
         self.writer.step()
+    
 
     def _log_confusion_matrix(self, epoch):
         """Generate and log confusion matrix"""
@@ -296,11 +302,28 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         if self.standard_tb_callback:
             self.standard_tb_callback.on_train_end(logs)
         
-        # # Log final metrics
-        # if logs:
-        #     for metric_name, metric_value in logs.items():
-        #         if metric_value is not None:
-        #             self.writer.add_scalar(f"Final/{metric_name}", metric_value)
+        # # Use the last recorded metrics from self.final_metrics
+        # logs = logs or {}
+
+        # self.writer._log_hyperparameters(self.params, self.metrics)
+        
+        # # Add any other metrics you want here, e.g. accuracy
+        
+        # # Assuming `self.params` holds your hparams dictionary
+        # hparam_dict = self.params.tensorboard_compatible_copy()
+        
+        # # Now write the hparams summary with final metrics
+        # self._add_hparams(hparam_dict, metrics)
+
+        logs = logs or {}
+        # Update latest_metrics with latest logs keys you want
+        for key in self.writer.metrics.keys():
+            if key in logs:
+                self.metrics[key] = logs[key]
+        
+        # Log hyperparameters + final metrics
+        self.writer._log_hyperparameters(self.writer.params, self.metrics, log_dir=self.writer.log_dir)
+        self.writer.close()
         
         print("Training completed!")
         self.writer.close()

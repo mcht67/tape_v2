@@ -22,12 +22,12 @@ model:
 train:
   features: perch_8_embeddings
   labels: polyphony_degree
+  pooling_strategy: mean
   test_split: 0.1
   val_split: 0.1
   batch_size: 32
   learning_rate: 0.03
   epochs: 1
-  tensorboard_path: logs/tensorboard
 export:
   output_file_path: models/exports/model.pth
 paths:

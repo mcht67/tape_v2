@@ -11,15 +11,15 @@ import sys
 import shutil
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, dataset, feature, epochs):
+def submit_batch_job(arguments, dataset, features, epochs):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
     env = {
         **os.environ,
-        "EXP_PARAMS": f"-S dataset.subset={dataset['subset']} -S dataset.split={dataset['split']} -S train.features={feature} -S train.epochs={epochs}",
+        "EXP_PARAMS": f"-S dataset.subset={dataset['subset']} -S dataset.split={dataset['split']} -S train.features={features} -S train.epochs={epochs}",
         "DEFAULT_DIR": os.getcwd(),
-        "TUSTU_SYNC_INTERVAL": None
+        "TUSTU_SYNC_INTERVAL": '0'
     }
 
     # For debugging and local runs
@@ -28,7 +28,7 @@ def submit_batch_job(arguments, dataset, feature, epochs):
         print(f"SLURM not available. Would submit job with:")
         print(f"  Dataset Subset: {dataset['subset']}")
         print(f"  Dataset Split: {dataset['split']}")
-        print(f'  Feature: {feature}')
+        print(f'  Feature: {features}')
         print(f"  Epochs: {epochs}")
         print(f"  Arguments: {' '.join(arguments)}")
         print(f"  Environment: EXP_PARAMS={env['EXP_PARAMS']}")
@@ -46,15 +46,9 @@ if __name__ == "__main__":
 
     arguments = sys.argv[1:]
 
-    dataset_list = [{'subset': 'HSN_xc', 'split': 'train'}]
-    features_list = ['perch_8_embeddings'] #, 'yamnet_embeddings']
+    dataset_list = [{'subset': 'HSN_xc', 'split': 'train'}] #, {'subset': 'HSN_scape', 'split': 'test_5s'}]
+    features_list = ['perch_8_embeddings']#, 'yamnet_embeddings']
     epochs_list = [1]
 
     for features, dataset, epochs in itertools.product(features_list, dataset_list, epochs_list) :
         submit_batch_job(arguments, dataset, features, epochs)
-
-    # test_split_list = [0.2, 0.3]
-    # batch_size_list = [2048, 4096]
-    # # Iterate over a cartesian product parameter grid of the test_split and batch_size lists
-    # for test_split, batch_size in itertools.product(test_split_list, batch_size_list):
-    #     submit_batch_job(arguments, test_split, batch_size)

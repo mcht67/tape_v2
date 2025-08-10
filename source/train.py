@@ -14,6 +14,7 @@ import io
 from utils.config import set_random_seeds, Params
 import datetime
 from pathlib import Path
+import model
 
 
 def split_dataset(test_split, val_split, dataset, random_seed):
@@ -97,14 +98,14 @@ def get_predictions_and_true_labels(model, dataset):
 
     return y_pred, y_true
 
-def plot_to_image(figure):
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    image = tf.image.decode_png(buf.getvalue(), channels=4)
-    image = tf.expand_dims(image, 0)
-    plt.close(figure)
-    return image
+# def plot_to_image(figure):
+#     buf = io.BytesIO()
+#     plt.savefig(buf, format='png')
+#     buf.seek(0)
+#     image = tf.image.decode_png(buf.getvalue(), channels=4)
+#     image = tf.expand_dims(image, 0)
+#     plt.close(figure)
+#     return image
 
 # Configuration
 cfg = OmegaConf.load("params.yaml")
@@ -145,7 +146,7 @@ for run in ["_run1"]:
         tensorboard_path = return_tensorboard_path()
         tensorboard_subfolder = f'{cfg.dataset.subset}'
         tensorboard_path_suffix = f'_{features}'
-        tensorboard_path = return_tensorboard_path(subfolder=tensorboard_subfolder) # './logs/' + features + version #return_tensorboard_path()
+        tensorboard_path = return_tensorboard_path(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
     os.makedirs(tensorboard_path, exist_ok=True)
     print(tensorboard_path)
     
@@ -171,7 +172,7 @@ for run in ["_run1"]:
     ])
 
     # Create a SummaryWriter object to write the tensorboard logs
-    metrics = {'Epoch_Loss/train': None, 'Epoch_Loss/test': None} #, 'Batch_Loss/train': None}
+    metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None}
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
@@ -182,10 +183,10 @@ for run in ["_run1"]:
     history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[tensorboard_callback])
     #model.save('polyReg.keras')
 
-    # Plot Confusion Matrix
-    y_pred, y_true = get_predictions_and_true_labels(model, val_dataset)
+    # # Plot Confusion Matrix
+    # y_pred, y_true = get_predictions_and_true_labels(model, val_dataset)
 
-    figure = plot_confusion_matrix(y_pred, y_true)
-    image = plot_to_image(figure)
+    # figure = plot_confusion_matrix(y_pred, y_true)
+    # image = plot_to_image(figure)
 
 dataset_splits.cleanup_cache_files()
