@@ -1,0 +1,3 @@
+_target_: model.SimpleMLP # defines the model to be instantiated
+hidden_units: [512, 256]
+dropout_rate: 0.3

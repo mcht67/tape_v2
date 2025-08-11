@@ -1,10 +1,9 @@
 features: perch_8_embeddings #
 labels: polyphony_degree
-pooling_strategy: mean
 test_split: 0.1
 val_split: 0.1
 batch_size: 32 
-learning_rate: 0.03
+learning_rate: 0.05
 epochs: 50
 # device_request: 'cuda'
 # input_file_path: 'data/processed/data.pt'

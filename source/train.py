@@ -171,6 +171,8 @@ for run in ["_run1"]:
         layers.Dense(1)  # Regression output: total polyphony degree
     ])
 
+    #model = model.SimpleMLP(input_dim=input_dim, hidden_units=[512, 256], dropout_rate=0.3)
+
     # Create a SummaryWriter object to write the tensorboard logs
     metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None}
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
@@ -180,6 +182,7 @@ for run in ["_run1"]:
 
     # Train model
     model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    #model.summary()
     history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[tensorboard_callback])
     #model.save('polyReg.keras')
 

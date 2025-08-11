@@ -56,39 +56,50 @@ stages:
       nfiles: 45
     - path: source/preprocess.py
       hash: md5
-      md5: 8b67652a109ff058a58583a4baf8ffea
-      size: 5833
+      md5: f4a60bb1e3e45abbdd7d0d5e26847300
+      size: 11595
+    - path: source/preprocess/
+      hash: md5
+      md5: 239eb7db2818b2164f1bf6e556ead6ce.dir
+      size: 8782
+      nfiles: 4
     params:
       params.yaml:
         embeddings.feature: audio
         embeddings.models:
         - perch_8
-        - yamnet
     outs:
     - path: data/preprocessed_datasets/HSN_xc_preprocessed
       hash: md5
-      md5: bfc4c2762d1e28120fa5447f34ac211e.dir
-      size: 21175060665
-      nfiles: 45
+      md5: 9d061e6911499d612b7cd9f185cc9c86.dir
+      size: 2405566081
+      nfiles: 7
   train:
     cmd: python source/train.py
     deps:
     - path: data/preprocessed_datasets/HSN_xc_preprocessed
       hash: md5
-      md5: bfc4c2762d1e28120fa5447f34ac211e.dir
-      size: 21175060665
-      nfiles: 45
+      md5: 9d061e6911499d612b7cd9f185cc9c86.dir
+      size: 2405566081
+      nfiles: 7
     - path: source/train.py
       hash: md5
-      md5: 88661cbebd7d8c80b6a0fc406eda7af6
-      size: 6873
+      md5: 08b52c58399a20714f959cbd0c8696b6
+      size: 6988
     params:
       params.yaml:
         general.random_seed: 42
-        train.batch_size: 32
-        train.epochs: 1
-        train.features: perch_8_embeddings
-        train.labels: polyphony_degree
-        train.pooling_strategy: mean
-        train.test_split: 0.1
-        train.val_split: 0.1
+        model:
+          _target_: model.SimpleMLP
+          hidden_units:
+          - 512
+          - 256
+          dropout_rate: 0.3
+        train:
+          features: perch_8_embeddings
+          labels: polyphony_degree
+          test_split: 0.1
+          val_split: 0.1
+          batch_size: 32
+          learning_rate: 0.05
+          epochs: 1

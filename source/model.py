@@ -1,5 +1,7 @@
 from torch import nn
 import tensorflow as tf
+from tensorflow.keras import layers, models
+
 class Conv1DAutoencoder(nn.Module):
     def __init__(self, input_size: int):
         super(Conv1DAutoencoder, self).__init__()
@@ -47,11 +49,8 @@ class Conv1DAutoencoder_test(nn.Module):
         return decoded
     
 class SimpleMLP(tf.keras.Model):
-    def __init__(self, input_dim, hidden_units=None, dropout_rate=0.3):
+    def __init__(self, input_dim, hidden_units=[512, 256], dropout_rate=0.3):
         super().__init__()
-        
-        if hidden_units is None:
-            hidden_units = [512, 256]
         
         # Build the sequential stack inside the model
         self.net = models.Sequential()
@@ -68,4 +67,50 @@ class SimpleMLP(tf.keras.Model):
 
     def call(self, inputs, training=False):
         return self.net(inputs, training=training)
+    
+class ResidualMLP(tf.keras.Model):
+    def __init__(self, input_dim, hidden_units=512, dropout_rate=0.3):
+        super().__init__()
+        self.input_layer = layers.InputLayer(input_shape=input_dim)
+        
+        # First block
+        self.dense1 = layers.Dense(hidden_units, activation='relu')
+        self.dropout = layers.Dropout(dropout_rate)
+        
+        # Residual block
+        self.dense_res1 = layers.Dense(hidden_units, activation='relu')
+        self.dense_res2 = layers.Dense(hidden_units, activation='relu')
+        
+        # Output
+        self.output_layer = layers.Dense(1)
+
+    def call(self, inputs, training=False):
+        x = self.input_layer(inputs)
+        x = self.dense1(x)
+        x = self.dropout(x, training=training)
+        
+        # Residual connection
+        res = self.dense_res1(x)
+        res = self.dense_res2(res)
+        x = layers.add([x, res])
+        
+        return self.output_layer(x)
+    
+class Simple1DCNN(tf.keras.Model):
+    def __init__(self, input_dim, filters=64, kernel_size=3, dropout_rate=0.3):
+        super().__init__()
+        self.reshape = layers.Reshape((input_dim[0], 1))
+        self.conv1 = layers.Conv1D(filters, kernel_size, activation='relu')
+        self.conv2 = layers.Conv1D(filters, kernel_size, activation='relu')
+        self.global_pool = layers.GlobalAveragePooling1D()
+        self.dropout = layers.Dropout(dropout_rate)
+        self.output_layer = layers.Dense(1)
+
+    def call(self, inputs, training=False):
+        x = self.reshape(inputs)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.global_pool(x)
+        x = self.dropout(x, training=training)
+        return self.output_layer(x)
 

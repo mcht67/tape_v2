@@ -36,6 +36,7 @@ stages:
     cmd: python source/preprocess.py
     deps:
       - source/preprocess.py
+      - source/preprocess/
       - ${paths.polyphonic_dataset}
     params:
       - embeddings.models
@@ -49,11 +50,7 @@ stages:
       - ${paths.preprocessed_dataset}
     params:
       - general.random_seed
-      - train.test_split
-      - train.val_split
-      - train.epochs
-      - train.features
-      - train.labels
-      - train.batch_size
-      - train.pooling_strategy
+      - train
+      - model
+      
 

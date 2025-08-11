@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "created_at": "2025-08-11T15:53:02.860404",
+    "updated_at": "2025-08-11T23:14:25.454576",
+    "version": "1.0"
+  },
+  "steps": {
+    "embeddings": {
+      "computed_at": "2025-08-11T23:14:25.454488",
+      "config_included": false,
+      "files": [
+        "/Users/maltecohrt/Documents/Coding/DeepLearning/tape/source/preprocess/embeddings.py"
+      ],
+      "hash": "b87b3b99d7a3c967c2df602bca349d2cb48a228cdad2ee7f10e505e35afaa283"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+_target_: model.Simple1DCNN # defines the model to be instantiated
+filters: 64
+kernel_size: 3
+dropout_rate: 0.3

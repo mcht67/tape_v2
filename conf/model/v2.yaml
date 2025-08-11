@@ -1,2 +1,0 @@
-_target_: model.Conv1DAutoencoder_small # defines the model to be instantiated
-input_size: 8000

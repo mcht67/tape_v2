@@ -10,23 +10,24 @@ dataset:
 embeddings:
   models:
   - perch_8
-  - yamnet
   feature: audio
 preprocess:
   input_path: data/raw/
   output_file_path: data/processed/data.pt
   test_split: 0.2
 model:
-  _target_: model.Conv1DAutoencoder
-  input_size: 8000
+  _target_: model.SimpleMLP
+  hidden_units:
+  - 512
+  - 256
+  dropout_rate: 0.3
 train:
   features: perch_8_embeddings
   labels: polyphony_degree
-  pooling_strategy: mean
   test_split: 0.1
   val_split: 0.1
   batch_size: 32
-  learning_rate: 0.03
+  learning_rate: 0.05
   epochs: 1
 export:
   output_file_path: models/exports/model.pth

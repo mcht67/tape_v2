@@ -1,0 +1,3 @@
+_target_: model.ResidualMLP # defines the model to be instantiated
+hidden_units: 512
+dropout_rate: 0.3

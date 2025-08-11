@@ -316,9 +316,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         # self._add_hparams(hparam_dict, metrics)
 
         logs = logs or {}
+        print(logs)
         # Update latest_metrics with latest logs keys you want
         for key in self.writer.metrics.keys():
+            print(key)
             if key in logs:
+                print(key)
                 self.metrics[key] = logs[key]
         
         # Log hyperparameters + final metrics
