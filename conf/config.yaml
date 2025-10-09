@@ -23,7 +23,7 @@ defaults:
   - dataset: default
   - embeddings: default
   - preprocess: default
-  - model: 'v1'
+  - model: 'SimpleMLP'
   - train: 'default'
   - export: default
   - _self_

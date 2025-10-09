@@ -8,7 +8,7 @@ from utils.dsp import resample_audio
 import os
 from tensorflow import squeeze
 from tensorflow.math import reduce_mean
-import datasets
+from datasets import concatenate_datasets
 
 # Available models
 # BIRDNET_V2_1 = 'birdnet_V2.1'
@@ -120,7 +120,7 @@ def add_embeddings_batchwise(model_keys, feature_key, dataset, cache_dir, batch_
             processed_datasets = []
             total_samples = len(dataset)
             
-            for i in range(2): #range(0, total_samples, batch_size):
+            for i in range(0, total_samples, batch_size):
                 end_idx = min(i + batch_size, total_samples)
                 print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
                 
@@ -135,7 +135,7 @@ def add_embeddings_batchwise(model_keys, feature_key, dataset, cache_dir, batch_
             
             # Concatenate all processed batches
             print(f"Concatenating {len(processed_datasets)} batches...")
-            dataset = datasets.concatenate_datasets(processed_datasets)
+            dataset = concatenate_datasets(processed_datasets)
             modified = True
     
     return dataset, modified

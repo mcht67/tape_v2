@@ -30,10 +30,11 @@ NOTES.md
 
 # Ignore local environment vars
 local.env
+
 /exp_logs
-source/import numpy as np.py
+
 debug_tmp
-dataset-env/
-source/split_dataset.py
-source/train(old).py
-source/test_preprocessing.ipynb
+
+source/exp_notebooks
+
+

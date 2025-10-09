@@ -10,6 +10,7 @@ dataset:
 embeddings:
   models:
   - perch_8
+  - yamnet
   feature: audio
 preprocess:
   input_path: data/raw/
@@ -26,9 +27,9 @@ train:
   labels: polyphony_degree
   test_split: 0.1
   val_split: 0.1
-  batch_size: 32
+  batch_size: 128
   learning_rate: 0.05
-  epochs: 1
+  epochs: 50
 export:
   output_file_path: models/exports/model.pth
 paths:

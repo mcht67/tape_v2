@@ -30,6 +30,7 @@ stages:
       - dataset.segment_duration
       - dataset.name
       - dataset.split
+      # change to - dataset
     outs:
       - ${paths.polyphonic_dataset}
   preprocess:

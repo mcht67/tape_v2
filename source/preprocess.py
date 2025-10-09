@@ -9,6 +9,7 @@ from utils.dsp import resample_audio
 import os
 import tempfile
 from preprocess.embeddings import add_embeddings_batchwise
+#from preprocess.denoising import add_denoising_batchwise
 
 import hashlib
 from pathlib import Path
@@ -268,29 +269,58 @@ def main():
         
         # Define your steps with their corresponding functions
         steps = [
-            {"name": "embeddings"}
+            {"name": "embeddings"},
+            {"name": "denoising"}
         ]
         
-        # ===================
-        # Preprocessing
-        # ===================
-
         # Print cache info
         print("Cache info:", cache.get_cache_info())
 
+        # ===================
+        # Denoising
+        # ===================
+
+        # print("Start denoising...")
+
+        # step_denoising = 'denoising'
+
+        # # Check hashes for code changes
+        # denoising_script = inspect.getfile(add_denoising_batchwise)
+        # should_recompute_denoising = cache.should_recompute(step_denoising, [denoising_script])
+
+        # # Denoise
+        # modified_dataset, modified = add_denoising_batchwise(dataset, temp_cache_dir, denoising_key='audio_denoised', batch_size=100, recompute=should_recompute_denoising)
+
+        # if should_recompute_denoising:
+        #     print(f"Recomputed {step_denoising} due to code changes.")
+        #     cache.mark_computed(step_denoising, [denoising_script])
+
+        # if modified:
+        #     dataset = modified_dataset
+        #     dataset_was_modified = True
+        # else:
+        #     print("No changes in denoised files.")
+
+        # print("Denoising completed.")
+
+        # ===================
         # Embeddings
-        embeddings_step_name = 'embeddings'
+        # ===================
+
+        print("Start embedding...")
+
+        step_embeddings = 'embeddings'
 
         # Check hashes for code changes
-        embeddings_file = inspect.getfile(add_embeddings_batchwise)
-        should_recompute = cache.should_recompute(embeddings_step_name, [embeddings_file])
+        embeddings_script = inspect.getfile(add_embeddings_batchwise)
+        should_recompute = cache.should_recompute(step_embeddings, [embeddings_script])
 
         # Compute embeddings
         modified_dataset, modified = add_embeddings_batchwise(model_keys, feature_key, dataset, temp_cache_dir, recompute=should_recompute)
 
         if should_recompute:
-            print(f"Recomputed {embeddings_step_name} due to code changes.")
-            cache.mark_computed(embeddings_step_name, [embeddings_file])
+            print(f"Recomputed {step_embeddings} due to code changes.")
+            cache.mark_computed(step_embeddings, [embeddings_script])
 
         if modified:
             dataset = modified_dataset
@@ -300,6 +330,8 @@ def main():
 
         # Print cache info
         print("Cache info:", cache.get_cache_info())
+
+        print("Embedding completed.")
 
         # ===================
         # Save dataset

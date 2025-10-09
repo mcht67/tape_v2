@@ -15,6 +15,7 @@ from utils.config import set_random_seeds, Params
 import datetime
 from pathlib import Path
 import model
+from hydra.utils import instantiate
 
 
 def split_dataset(test_split, val_split, dataset, random_seed):
@@ -128,7 +129,7 @@ batch_size = cfg.train.batch_size
 preprocessed_dataset_path =  cfg.paths.preprocessed_dataset
 
 
-for run in ["_run1"]:
+for run in ["run"]:
 
     # Setup tensorboard
     # If defined in cfg use tensorboard path (define it in params.yaml for debugging purposes)
@@ -158,38 +159,39 @@ for run in ["_run1"]:
 
     # Get input dim
     input_dim = np.array(dataset_splits['train'][0][features]).shape
-
+   
     # Get tensorflow datasets
     train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset_splits, features, labels, batch_size)
 
     # Define model
-    model = models.Sequential([
-        layers.Input(shape=input_dim), 
-        layers.Dense(512, activation='relu'),
-        layers.Dropout(0.3),
-        layers.Dense(256, activation='relu'),
-        layers.Dense(1)  # Regression output: total polyphony degree
-    ])
-
-    #model = model.SimpleMLP(input_dim=input_dim, hidden_units=[512, 256], dropout_rate=0.3)
+    model = instantiate(cfg.model, input_dim=input_dim)
+    # model = models.Sequential([
+    #     layers.Input(shape=input_dim), 
+    #     layers.Dense(512, activation='relu'),
+    #     layers.Dropout(0.3),
+    #     layers.Dense(256, activation='relu'),
+    #     layers.Dense(1)  # Regression output: total polyphony degree
+    # ])
 
     # Create a SummaryWriter object to write the tensorboard logs
     metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None}
-    writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 
-    tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5)
+    # Add hParams
+    params['dataset']['train_size'] = str(len(dataset_splits['train']))
+    params['dataset']['val_size'] = str(len(dataset_splits['validation']))
+    params['dataset']['test_size'] = str(len(dataset_splits['test']))
+    print(params)
+
+    model.build(input_dim)#input_shape=input_dim)
+    print(f'Input shape of model: {input_dim}')
+    writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
+    tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, test_dataset=test_dataset, 
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=input_dim)
 
     # Train model
     model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-    #model.summary()
+    model.summary()
     history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[tensorboard_callback])
-    #model.save('polyReg.keras')
-
-    # # Plot Confusion Matrix
-    # y_pred, y_true = get_predictions_and_true_labels(model, val_dataset)
-
-    # figure = plot_confusion_matrix(y_pred, y_true)
-    # image = plot_to_image(figure)
+    #model.save('tape.keras')
 
 dataset_splits.cleanup_cache_files()

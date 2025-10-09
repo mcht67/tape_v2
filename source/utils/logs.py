@@ -197,14 +197,15 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Custom callback that integrates with your CustomSummaryWriter
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
-    def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5):
+    def __init__(self, writer, include_standard_tensorboard=True, test_dataset=None, 
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=None):
         super().__init__()
         self.writer = writer
-        self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
         self.metrics = {}
+        self.input_shape = input_shape
 
 
          # Optionally create standard TensorBoard callback
@@ -220,11 +221,69 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 profile_batch=0,  # Disable profiling by default
                 embeddings_freq=0
             )
+
     def set_model(self, model):
         """Called when the callback is attached to a model"""
         super().set_model(model)
         if self.standard_tb_callback:
             self.standard_tb_callback.set_model(model)
+
+        # Log the model graph once
+        self._log_model_graph(model)
+
+    def _log_model_graph(self, model):
+        """Log the model computational graph to TensorBoard"""
+        try:
+            print("Logging model graph to TensorBoard...")
+            
+            # Start tracing - only graph, no profiler for simplicity
+            tf.summary.trace_on(graph=True, profiler=False)
+            
+            # # Create dummy input and run forward pass to build the graph
+            # if model.input_shape:
+            #     dummy_input = tf.zeros((1,) + tuple(self.input_shape))
+            # elif self.input_shape:
+            #     dummy_input = tf.zeros((1,) + tuple(self.input_shape))
+            # else:
+            #     raise Exception('Input shape was not found.')
+            
+            dummy_input = tf.zeros((1,) + tuple(self.input_shape))
+            
+            model(dummy_input)
+
+            log_dir_str = str(self.writer.log_dir)
+            
+            # Use tf.summary.create_file_writer instead
+            with tf.summary.create_file_writer(log_dir_str).as_default():
+                tf.summary.trace_export(
+                    name="model_trace",
+                    step=0,
+                    profiler_outdir=log_dir_str,
+                )
+            tf.summary.trace_off()
+                
+            # # Execute forward pass to capture the graph
+            # _ = model(dummy_input, training=False)
+            
+            # # Export the traced graph
+            # with self.writer.file_writer.as_default():
+            #     tf.summary.trace_export(
+            #         name="model_graph",
+            #         step=0,
+            #         profiler_outdir=None  # No profiler output needed
+            #     )
+            
+            # Clean up tracing
+            tf.summary.trace_off()
+            print("Model graph successfully logged to TensorBoard.")
+            
+        except Exception as e:
+            print(f"Failed to log model graph: {e}")
+            # Ensure tracing is turned off even if there's an error
+            try:
+                tf.summary.trace_off()
+            except:
+                pass
 
     def on_train_begin(self, logs=None):
         print("Training started with CustomSummaryWriter logging")
@@ -251,7 +310,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
         
         # Log confusion matrix every N epochs
-        if (self.log_confusion_matrix and self.val_dataset is not None 
+        if (self.log_confusion_matrix and self.test_dataset is not None 
             and (epoch + 1) % self.confusion_matrix_frequency == 0):
             self._log_confusion_matrix(epoch)
 
@@ -268,7 +327,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         try:
             
             # Get predictions and true labels
-            y_pred, y_true = self._get_predictions_and_true_labels()
+            y_pred, y_true = self._get_predictions_and_true_labels(self.test_dataset)
             
             # Generate confusion matrix plot
             figure = plot_confusion_matrix(y_pred, y_true)
@@ -281,12 +340,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         except Exception as e:
             print(f"Failed to log confusion matrix: {e}")
 
-    def _get_predictions_and_true_labels(self):
+    def _get_predictions_and_true_labels(self, dataset):
         """Get predictions and true labels from validation dataset"""
         y_pred_list = []
         y_true_list = []
         
-        for batch_x, batch_y in self.val_dataset:
+        for batch_x, batch_y in dataset:
             predictions = self.model(batch_x, training=False)
             y_pred_list.append(predictions.numpy())
             y_true_list.append(batch_y.numpy())
@@ -296,7 +355,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     def on_train_end(self, logs=None):
         """Final logging and cleanup"""
         # Log final confusion matrix
-        if self.log_confusion_matrix and self.val_dataset is not None:
+        if self.log_confusion_matrix and self.test_dataset is not None:
             self._log_confusion_matrix(epoch=-1)  # Special epoch for final
 
         if self.standard_tb_callback:
