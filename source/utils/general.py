@@ -4,6 +4,7 @@ import os
 from functools import wraps
 import numpy as np
 import tensorflow as tf
+from datasets import concatenate_datasets
 
 def with_random_state(func):
     """
@@ -263,4 +264,33 @@ def reshape_tensor_data_tf(example, column_name, target_shape, pooling_strategy=
     example[column_name + suffix] = output
     return example
 
+def process_in_batches(dataset, process_fn, cache_dir, prefix="", batch_size=100):
+    """
+    Generic batch processor for datasets.
+    
+    Args:
+        dataset: Dataset to process.
+        process_fn: Function to apply to each batch.
+        cache_dir: Directory to store batch caches.
+        prefix: Optional prefix for cache filenames.
+        batch_size: Number of samples per batch.
+    
+    Returns:
+        Concatenated processed dataset.
+    """
+    processed_datasets = []
+    total_samples = len(dataset)
+    
+    for i in range(0, total_samples, batch_size):
+        end_idx = min(i + batch_size, total_samples)
+        print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}...")
+        
+        batch_dataset = dataset.select(range(i, end_idx))
+        cache_file = os.path.join(cache_dir, f"{prefix}_batch_{i}_{end_idx}_cache.arrow")
+        batch_processed = batch_dataset.map(process_fn, cache_file_name=cache_file)
+        
+        processed_datasets.append(batch_processed)
+    
+    print(f"Concatenating {len(processed_datasets)} batches...")
+    return concatenate_datasets(processed_datasets)
 
