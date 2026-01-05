@@ -11,5 +11,5 @@
 # BEANS_BASELINE = 'beans_baseline'
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
-models: ['perch_8' ,'yamnet'] #, 'birdnet_V2.3']
+models: ['perch_8' , 'birdnet_V2.3']
 feature: 'audio'

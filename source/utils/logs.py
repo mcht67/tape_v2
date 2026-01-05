@@ -197,11 +197,11 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Custom callback that integrates with your CustomSummaryWriter
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
-    def __init__(self, writer, include_standard_tensorboard=True, test_dataset=None, 
+    def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
                  log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=None):
         super().__init__()
         self.writer = writer
-        self.test_dataset = test_dataset
+        self.val_dataset = val_dataset
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
         self.metrics = {}
@@ -310,7 +310,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
         
         # Log confusion matrix every N epochs
-        if (self.log_confusion_matrix and self.test_dataset is not None 
+        if (self.log_confusion_matrix and self.val_dataset is not None 
             and (epoch + 1) % self.confusion_matrix_frequency == 0):
             self._log_confusion_matrix(epoch)
 
@@ -327,7 +327,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         try:
             
             # Get predictions and true labels
-            y_pred, y_true = self._get_predictions_and_true_labels(self.test_dataset)
+            y_pred, y_true = self._get_predictions_and_true_labels(self.val_dataset)
             
             # Generate confusion matrix plot
             figure = plot_confusion_matrix(y_pred, y_true)
@@ -355,7 +355,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     def on_train_end(self, logs=None):
         """Final logging and cleanup"""
         # Log final confusion matrix
-        if self.log_confusion_matrix and self.test_dataset is not None:
+        if self.log_confusion_matrix and self.val_dataset is not None:
             self._log_confusion_matrix(epoch=-1)  # Special epoch for final
 
         if self.standard_tb_callback:

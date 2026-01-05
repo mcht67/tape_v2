@@ -55,6 +55,9 @@ class SimpleMLP(tf.keras.Model):
         # Build the sequential stack inside the model
         self.net = models.Sequential()
         self.net.add(layers.Input(shape=input_dim))
+
+        # Flatten spatial / multi-dim input -> (batch_size, num_features)
+        self.net.add(layers.Flatten())
         
         # Add hidden layers + dropout after first
         for i, units in enumerate(hidden_units):
@@ -110,4 +113,114 @@ class Simple1DCNN(tf.keras.Model):
         x = self.global_pool(x)
         x = self.dropout(x, training=training)
         return self.output_layer(x)
+    
+class TemporalCNNMLP(tf.keras.Model):
+    def __init__(
+        self,
+        input_dim=(16, 4, 1536),
+        conv_channels=(512, 256),
+        mlp_units=(256, 128),
+        dropout_rate=0.3,
+    ):
+        super().__init__()
+
+        self.net = models.Sequential()
+        self.net.add(layers.Input(shape=input_dim))
+
+        # --------------------------------------------------
+        # 1. Pool over frequency axis
+        # (batch, time, freq, channels) -> (batch, time, channels)
+        # --------------------------------------------------
+        self.net.add(layers.Lambda(lambda x: tf.reduce_mean(x, axis=2)))
+
+        # --------------------------------------------------
+        # 2. Temporal convolution stack
+        # --------------------------------------------------
+        for i, channels in enumerate(conv_channels):
+            self.net.add(
+                layers.Conv1D(
+                    filters=channels,
+                    kernel_size=3,
+                    padding="same",
+                    activation="relu",
+                )
+            )
+            self.net.add(layers.BatchNormalization())
+            if i == 0:
+                self.net.add(layers.Dropout(dropout_rate))
+
+        # --------------------------------------------------
+        # 3. Global temporal pooling
+        # (batch, time, channels) -> (batch, channels)
+        # --------------------------------------------------
+        self.net.add(layers.GlobalAveragePooling1D())
+
+        # --------------------------------------------------
+        # 4. MLP head
+        # --------------------------------------------------
+        for i, units in enumerate(mlp_units):
+            self.net.add(layers.Dense(units, activation="relu"))
+            if i == 0:
+                self.net.add(layers.Dropout(dropout_rate))
+
+        # Output layer
+        self.net.add(layers.Dense(1))  # regression
+
+    def call(self, inputs, training=False):
+        return self.net(inputs, training=training)
+    
+class TemporalMaxPoolCNNMLP(tf.keras.Model):
+    def __init__(
+        self,
+        input_dim=(16, 4, 1536),
+        conv_channels=(512, 256),
+        mlp_units=(256, 128),
+        dropout_rate=0.3,
+    ):
+        super().__init__()
+
+        self.net = models.Sequential()
+        self.net.add(layers.Input(shape=input_dim))
+
+        # --------------------------------------------------
+        # 1. Pool over frequency axis
+        # (batch, time, freq, channels) -> (batch, time, channels)
+        # --------------------------------------------------
+        self.net.add(layers.Lambda(lambda x: tf.reduce_max(x, axis=2)))
+
+        # --------------------------------------------------
+        # 2. Temporal convolution stack
+        # --------------------------------------------------
+        for i, channels in enumerate(conv_channels):
+            self.net.add(
+                layers.Conv1D(
+                    filters=channels,
+                    kernel_size=3,
+                    padding="same",
+                    activation="relu",
+                )
+            )
+            self.net.add(layers.BatchNormalization())
+            if i == 0:
+                self.net.add(layers.Dropout(dropout_rate))
+
+        # --------------------------------------------------
+        # 3. Global temporal pooling
+        # (batch, time, channels) -> (batch, channels)
+        # --------------------------------------------------
+        self.net.add(layers.GlobalMaxPooling1D())
+
+        # --------------------------------------------------
+        # 4. MLP head
+        # --------------------------------------------------
+        for i, units in enumerate(mlp_units):
+            self.net.add(layers.Dense(units, activation="relu"))
+            if i == 0:
+                self.net.add(layers.Dropout(dropout_rate))
+
+        # Output layer
+        self.net.add(layers.Dense(1))  # regression
+
+    def call(self, inputs, training=False):
+        return self.net(inputs, training=training)
 

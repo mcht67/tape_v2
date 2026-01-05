@@ -25,7 +25,6 @@ def submit_batch_job(arguments, dataset, features, model, epochs, hidden_units):
         env["EXP_PARAMS"] += "-S model.hidden_units={hidden_units}"
 
     # For debugging and local runs
-    
     if shutil.which('sbatch') is None:
         print(f"SLURM not available. Would submit job with:")
         print(f"  Dataset Subset: {dataset['subset']}")

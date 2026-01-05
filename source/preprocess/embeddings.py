@@ -3,7 +3,6 @@ from omegaconf import OmegaConf
 from datasets import load_from_disk, Dataset
 import numpy as np
 from functools import partial
-import shutil
 from utils.dsp import resample_audio
 import os
 from tensorflow import squeeze
@@ -50,6 +49,7 @@ def load_model_by_key(model_key):
     model_config_name = model_configs.ModelConfigName(model_key)
     preset_info = model_configs.get_preset_model_config(model_config_name)
     model = preset_info.load_model()
+    sampling_rate = preset_info.model_config["sample_rate"]
 
     # model = initialize_model(model)
 
@@ -57,12 +57,12 @@ def load_model_by_key(model_key):
     # if hasattr(model, 'model') and hasattr(model.model, 'allocate_tensors'):
     #     model.model.allocate_tensors()
 
-    return model, preset_info
+    return model, sampling_rate
 
 def embed_example(example, model, feature_key, new_feature_key, sampling_rate):
 
     audio = example[feature_key]
-    audio = resample_audio(audio, example['sampling_rate'], sampling_rate)
+    audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
     # Normalize
     audio = audio / (np.max(np.abs(audio)) + 1e-9)
@@ -83,8 +83,7 @@ def add_embeddings(model_keys, feature_key, dataset, cache_dir, recompute=False)
     for model_key in model_keys:
         new_feature_key = model_key + "_embeddings"
         if recompute or new_feature_key not in dataset.features:
-            model, preset_info = load_model_by_key(model_key)
-            sampling_rate = preset_info.model_config["sample_rate"]
+            model, sampling_rate = load_model_by_key(model_key)
             embedding_fn = partial(
                 embed_example,
                 model=model,
@@ -105,8 +104,7 @@ def add_embeddings_batchwise(model_keys, feature_key, dataset, cache_dir, batch_
         if recompute or new_feature_key not in dataset.features:
             print(f"Processing {model_key} embeddings in batches of {batch_size}...")
             
-            model, preset_info = load_model_by_key(model_key)
-            sampling_rate = preset_info.model_config["sample_rate"]
+            model, sampling_rate = load_model_by_key(model_key)
             
             embedding_fn = partial(
                 embed_example,

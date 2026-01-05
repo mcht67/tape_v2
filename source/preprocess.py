@@ -1,12 +1,10 @@
-from perch_hoplite.zoo import model_configs
-from omegaconf import OmegaConf
-from datasets import load_from_disk, Dataset
-import datasets
-import numpy as np
-from functools import partial
-import shutil
-from utils.dsp import resample_audio
+#from perch_hoplite.zoo import model_configs
 import os
+os.environ["TF_METAL_DISABLE"] = "1"
+from omegaconf import OmegaConf
+from datasets import load_dataset, Audio, load_from_disk
+import datasets
+import shutil
 import tempfile
 from preprocess.embeddings import add_embeddings_batchwise
 #from preprocess.denoising import add_denoising_batchwise
@@ -38,7 +36,7 @@ def should_recompute_feature(feature_name, code_files, dataset):
     # Compare hashes
     return current_hashes != stored_hashes
 
-def should_recompute_step(fcode_files, dataset):
+def should_recompute_step(feature_name, code_files, dataset):
 
     # Get current code hashes
     current_hashes = {str(Path(f).name): get_file_hash(f) for f in code_files}
@@ -244,15 +242,23 @@ def main():
         model_keys = cfg.embeddings.models
         feature_key = cfg.embeddings.feature
 
-        polyphonic_dataset_path = cfg.paths.polyphonic_dataset
+        polyphonic_dataset_path = cfg.dataset.huggingface_path
         preprocessed_dataset_path = cfg.paths.preprocessed_dataset
+        dataset_subset = cfg.dataset.subset
 
         # Load Dataset depending on state of preprocessing dataset
         if not os.path.exists(preprocessed_dataset_path):
-            dataset = load_from_disk(polyphonic_dataset_path)
+            dataset = load_dataset(polyphonic_dataset_path, dataset_subset, split='train')
             os.makedirs(preprocessed_dataset_path, exist_ok=True)
         else:
           dataset = load_from_disk(preprocessed_dataset_path)
+
+        # def add_sampling_rate(example):
+        #     example[feature_key]['sampling_rate'] = 22050
+        #     return example
+
+        # dataset = dataset.map(add_sampling_rate)
+        dataset = dataset.cast_column(feature_key, Audio())
         
         dataset_was_modified = False
         
@@ -267,11 +273,11 @@ def main():
         if invalidated:
             print(f"Invalidated steps with missing files: {invalidated}")
         
-        # Define your steps with their corresponding functions
-        steps = [
-            {"name": "embeddings"},
-            {"name": "denoising"}
-        ]
+        # # Define your steps with their corresponding functions
+        # steps = [
+        #     {"name": "embeddings"},
+        #     {"name": "denoising"}
+        # ]
         
         # Print cache info
         print("Cache info:", cache.get_cache_info())
@@ -315,7 +321,7 @@ def main():
         embeddings_script = inspect.getfile(add_embeddings_batchwise)
         should_recompute = cache.should_recompute(step_embeddings, [embeddings_script])
 
-        # Compute embeddings
+        # Compute embeddings if not in dataset or should_recompute
         modified_dataset, modified = add_embeddings_batchwise(model_keys, feature_key, dataset, temp_cache_dir, recompute=should_recompute)
 
         if should_recompute:

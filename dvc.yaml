@@ -1,54 +1,37 @@
-# # This file defines the dvc stages and its depencies
-# vars:
-#   - birdset_python: /opt/birdset-env/bin/python
+# This file defines the dvc stages and its depencies
 
 stages:
-  load_raw_data:
+  load_dataset:
     cmd:
-      python source/load_raw_data.py
+      python source/load_dataset.py
     deps:
-      - source/load_raw_data.py
+      - source/load_data.py
     params:
-      - general.random_seed
       - dataset.name
-      - dataset.subset
-      - dataset.split
       - dataset.sampling_rate
     outs:
-      - ${paths.raw_dataset}
-  mix_audio:
-    cmd: 
-      #${birdset_python} source/dataset.py
-      python source/mix_audio.py #venv/bin/python
+      - path.dataset_metadata
+
+  embed_with_perch_v1:
+    cmd: python source/embed_with_perch.py --model_keys ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
     deps:
-      - source/mix_audio.py 
-      - ${paths.raw_dataset}
-    params:
-      - general.random_seed
-      - dataset.sampling_rate
-      - dataset.max_polyphony_degree
-      - dataset.segment_duration
-      - dataset.name
-      - dataset.split
-      # change to - dataset
-    outs:
-      - ${paths.polyphonic_dataset}
-  preprocess:
-    cmd: python source/preprocess.py
+      - source/embed_with_perch.py
+
+  embed_with_perch_v2:
+    cmd: python source/embed_with_perch.py --model_keys ${embeddings.perch_v2_models} --compute_embeddings ${embeddings.compute_embeddings}
     deps:
-      - source/preprocess.py
-      - source/preprocess/
-      - ${paths.polyphonic_dataset}
-    params:
-      - embeddings.models
-      - embeddings.feature
-    outs:
-    - ${paths.preprocessed_dataset}
+      - source/embed_with_perch.py
+
+  embed_with_birdset:
+    cmd: python source/embed_with_birdset.py --model_keys ${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
+    deps:
+      - source/embed_with_birdset.py
+
   train:
     cmd: python source/train.py
     deps:
       - source/train.py
-      - ${paths.preprocessed_dataset}
+      - ${path.dataset}
     params:
       - general.random_seed
       - train

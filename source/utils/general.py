@@ -5,6 +5,7 @@ from functools import wraps
 import numpy as np
 import tensorflow as tf
 from datasets import concatenate_datasets
+import shutil
 
 def with_random_state(func):
     """
@@ -44,81 +45,6 @@ def with_random_state(func):
 def print_memory_usage():
     process = psutil.Process(os.getpid())
     print(f"Memory usage: {process.memory_info().rss / 1024 ** 2:.2f} MB")
-
-@with_random_state
-def create_index_map(num_indices, random_state=None):
-    '''
-            Creates dictionary of integers and booleans corresponding to used and unused indices initialized to False. 
-    
-            :param num_indices: Number of indices of the dict to create
-            :type num_indices: int
-            
-            :return: Dictionary with indices as keys and booleans as values
-            :rtype: dict of int: bool
-    '''
-
-    # Handle random state if provided
-    if random_state is not None:
-        current_state = None
-        if isinstance(random_state, int):
-            # It's a seed
-            current_state = random.getstate()
-            random.seed(random_state)
-        else:
-            # It's a state tuple
-            current_state = random.getstate()
-            random.setstate(random_state)
-    try:
-        # Setup index map
-        indices = list(range(num_indices))
-        random.shuffle(indices)
-        index_map = dict(zip(indices, [False] * len(indices)))
-        return index_map
-    finally:
-        # Restore original state if changed
-        if random_state is not None and current_state is not None:
-            random.setstate(current_state)
-
-@with_random_state
-def create_index_map_from_range(range):
-    '''
-            Creates dictionary of integers and booleans corresponding to used and unused indices initialized to False. 
-    
-            :param num_indices: Number of indices of the dict to create
-            :type num_indices: int
-            
-            :return: Dictionary with indices as keys and booleans as values
-            :rtype: dict of int: bool
-    '''
-
-    # Setup random indexing
-    indices = list(range)
-    random.shuffle(indices)
-    index_map = dict(zip(indices, [False] * len(indices)))
-    return index_map
-
-def pop_random_index(index_map):
-    '''
-            Gets next false key from index map and sets it to True. 
-            
-            :return: Pseudo random index
-            :rtype: int
-    '''
-    # Find the keys where the value is False
-    false_keys = [key for key, value in index_map.items() if value is False]
-
-    first_key = false_keys[0]
-
-    index_map[first_key] = True
-
-    return first_key
-
-def reset_index_map(index_map):
-    '''
-            Resets the index map by setting all values to False
-    '''
-    for key, value in index_map.items():
-        index_map[key] = False
 
 def reshape_tensor_data(example, column_name, target_shape, pooling_strategy="mean", pad_value=0.0, suffix="_reshaped"):
     """
@@ -293,4 +219,23 @@ def process_in_batches(dataset, process_fn, cache_dir, prefix="", batch_size=100
     
     print(f"Concatenating {len(processed_datasets)} batches...")
     return concatenate_datasets(processed_datasets)
+
+def overwrite_dataset(dataset, dataset_path, store_backup=True):
+    # Save to temporary location
+    temp_path = dataset_path + "_temp"
+    os.makedirs(temp_path, exist_ok=True)
+    dataset.save_to_disk(temp_path)
+
+    # Move old data to backup
+    backup_path = dataset_path + "_backup"
+    os.makedirs(backup_path, exist_ok=True)
+    if os.path.exists(dataset_path):
+        shutil.move(dataset_path, backup_path)
+
+    # Move temp data into place
+    shutil.move(temp_path, dataset_path)
+
+    # Optionally remove backup
+    if not store_backup:
+        shutil.rmtree(backup_path)
 

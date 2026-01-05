@@ -1,9 +1,0 @@
-[core]
-    remote = myremote
-[cache]
-    shared = group
-    type = symlink
-[hydra]
-    enabled = True
-['remote "myremote"']
-    url = webdavs://tubcloud.tu-berlin.de/remote.php/dav/files/f4e45218-beda-103b-869d-abc707021ca2

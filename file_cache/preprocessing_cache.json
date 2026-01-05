@@ -1,25 +1,17 @@
 {
   "metadata": {
-    "created_at": "2025-08-11T15:53:02.860404",
-    "updated_at": "2025-08-18T11:34:46.283800",
+    "created_at": "2025-12-29T09:38:11.257781",
+    "updated_at": "2025-12-29T09:39:32.541786",
     "version": "1.0"
   },
   "steps": {
-    "denoising": {
-      "computed_at": "2025-08-14T17:32:58.808710",
-      "config_included": false,
-      "files": [
-        "/Users/maltecohrt/Documents/Coding/DeepLearning/tape/source/preprocess/denoising.py"
-      ],
-      "hash": "ceb2885ed4aee2032b7baaeeabe339f2569827060126fa8f0ff09fbb3c44deb6"
-    },
     "embeddings": {
-      "computed_at": "2025-08-18T11:34:46.283712",
+      "computed_at": "2025-12-29T09:39:32.541712",
       "config_included": false,
       "files": [
-        "/Users/maltecohrt/Documents/Coding/DeepLearning/tape/source/preprocess/embeddings.py"
+        "/Users/maltecohrt/Documents/Coding/DeepLearning/tape_v2/source/preprocess/embeddings.py"
       ],
-      "hash": "71893b726d36a7578ed18303024c9ca4a7084ad1fee82e131a7e14e59012a2cb"
+      "hash": "0ac6a81783befc7e8034619e643c88ccb3388767c0ad1cc0dc6b23ef9594ff34"
     }
   }
 }

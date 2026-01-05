@@ -1,38 +1,43 @@
+# Do not change paths, this could break dvc tracking
+paths:
+  dataset: dataset
+  dataset_metadata: dataset/metadata.json
+
 general:
   random_seed: 42
+
 dataset:
-  name: DBD-research-group/BirdSet
-  subset: HSN_xc
+  huggingface_path: mcht67/PolyphonicBirdSet
+  subset: HSN
   split: train
-  sampling_rate: 32000
-  segment_duration: 5
-  max_polyphony_degree: 7
+
 embeddings:
-  models:
+  compute_embedding: 'True'
+  perch_v1_models:
+  - birdnet_V2.3
   - perch_8
-  - yamnet
-  feature: audio
-preprocess:
-  input_path: data/raw/
-  output_file_path: data/processed/data.pt
-  test_split: 0.2
+  perch_v2_models:
+  - perch_v2_cpu
+  birdset_models:
+  - bird_mae
+  feature: no_noise_audio
+
 model:
-  _target_: model.SimpleMLP
-  hidden_units:
-  - 512
-  - 256
-  dropout_rate: 0.3
+  _target_: model.TemporalMaxPoolCNNMLP
+  # hidden_units:
+  # - 512
+  # - 256
+  # dropout_rate: 0.3
+
 train:
-  features: perch_8_embeddings
+  features: perch_v2_cpu_spatial_embeddings
   labels: polyphony_degree
   test_split: 0.1
   val_split: 0.1
   batch_size: 128
-  learning_rate: 0.05
-  epochs: 50
-export:
-  output_file_path: models/exports/model.pth
-paths:
-  raw_dataset: data/raw_datasets/HSN_xc
-  polyphonic_dataset: data/polyphonic_datasets/HSN_xc_polyphonic
-  preprocessed_dataset: data/preprocessed_datasets/HSN_xc_preprocessed
+  learning_rate: 0.001
+  epochs: 20
+  tensorboard_path: debug_tensorboard
+
+
+

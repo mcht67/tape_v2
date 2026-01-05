@@ -1,6 +1,3 @@
-  name: DBD-research-group/BirdSet
-  subset: HSN_xc
-  split: train
-  sampling_rate: 32000 # perch 32kHz
-  segment_duration: 5
-  max_polyphony_degree: 7
+huggingface_path: mcht67/PolyphonicBirdSet
+subset: HSN
+split: train

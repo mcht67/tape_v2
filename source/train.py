@@ -1,21 +1,34 @@
-from datasets import load_from_disk, DatasetDict, concatenate_datasets
-from transformers import DefaultDataCollator
-from omegaconf import OmegaConf
-from tensorflow.keras import layers, models
-import numpy as np
-from utils.general import reshape_tensor_data
-from functools import partial
+# import matplotlib
+# matplotlib.use("Agg")
 import tensorflow as tf
-import os
+import numpy as np
+from datasets import load_from_disk, DatasetDict, concatenate_datasets
+from omegaconf import OmegaConf
+from utils.general import reshape_tensor_data
 from utils.logs import return_tensorboard_path, plot_confusion_matrix, CustomSummaryWriter, CustomSummaryWriterCallback
-from tensorflow.keras.callbacks import TensorBoard
-import matplotlib.pyplot as plt
-import io
+import os
 from utils.config import set_random_seeds, Params
 import datetime
 from pathlib import Path
 import model
 from hydra.utils import instantiate
+
+
+#from transformers import DefaultDataCollator
+
+#from tensorflow.keras import layers, models
+
+
+#from functools import partial
+
+
+
+#from tensorflow.keras.callbacks import TensorBoard
+#import matplotlib.pyplot as plt
+#import io
+
+
+
 
 
 def split_dataset(test_split, val_split, dataset, random_seed):
@@ -35,13 +48,24 @@ def split_dataset(test_split, val_split, dataset, random_seed):
         'test': train_test['test']        
     })
 
+def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
+    X = np.stack(hf_dataset[features]).astype(np.float32)
+    y = np.array(hf_dataset[labels]).astype(np.float32)
+
+    ds = tf.data.Dataset.from_tensor_slices((X, y))
+    if shuffle:
+        ds = ds.shuffle(buffer_size=len(X))
+    ds = ds.batch(batch_size)
+    return ds
+
+
 def get_tf_datasets(dataset, features, labels, batch_size):
     train_dataset = dataset['train'].to_tf_dataset(
         columns=features,
         label_cols=labels, 
         batch_size=batch_size,
         shuffle=True,
-        prefetch=True
+        prefetch=False
     )
 
     test_dataset = dataset_splits['test'].to_tf_dataset(
@@ -49,7 +73,7 @@ def get_tf_datasets(dataset, features, labels, batch_size):
         label_cols=labels,
         batch_size=batch_size,
         shuffle=False,
-        prefetch=True
+        prefetch=False
     )
 
     val_dataset = dataset_splits['validation'].to_tf_dataset(
@@ -57,7 +81,7 @@ def get_tf_datasets(dataset, features, labels, batch_size):
         label_cols=labels,
         batch_size=batch_size,
         shuffle=False,
-        prefetch=True
+        prefetch=False
     )
 
     return train_dataset, test_dataset, val_dataset
@@ -108,6 +132,7 @@ def get_predictions_and_true_labels(model, dataset):
 #     plt.close(figure)
 #     return image
 
+
 # Configuration
 cfg = OmegaConf.load("params.yaml")
 
@@ -126,7 +151,7 @@ labels = cfg.train.labels
 
 batch_size = cfg.train.batch_size
 
-preprocessed_dataset_path =  cfg.paths.preprocessed_dataset
+dataset_path =  cfg.paths.dataset
 
 
 for run in ["run"]:
@@ -136,13 +161,16 @@ for run in ["run"]:
     # else use return_tensorboard_path (default with dvc run)
     if 'tensorboard_path' in cfg.train.keys():
         default_dir = os.getcwd()
-        dvc_exp_name = 'debug'
+        #dvc_exp_name = 'debug'
         current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
         os.environ['DEFAULT_DIR'] = default_dir
+        tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.features}'
+        tensorboard_path_suffix = f'_{features}'
 
         tensorboard_path = Path(
-            f"{default_dir}/{cfg.train.tensorboard_path}/debug/{current_datetime}_{dvc_exp_name}"
+            f"{default_dir}/{cfg.train.tensorboard_path}/{tensorboard_subfolder}/{tensorboard_path_suffix}{current_datetime}"
         )
+        
     else:
         tensorboard_path = return_tensorboard_path()
         tensorboard_subfolder = f'{cfg.dataset.subset}'
@@ -152,26 +180,32 @@ for run in ["run"]:
     print(tensorboard_path)
     
     # Load dataset
-    preprocessed_dataset = load_from_disk(preprocessed_dataset_path)
+    dataset = load_from_disk(dataset_path)
 
     # Split dataset
-    dataset_splits = split_dataset(test_split, val_split, preprocessed_dataset, random_seed)
+    dataset_splits = split_dataset(test_split, val_split, dataset, random_seed)
 
     # Get input dim
+    embeddings = dataset_splits['train'][0][features]
+    print(np.shape(embeddings))
     input_dim = np.array(dataset_splits['train'][0][features]).shape
-   
+
     # Get tensorflow datasets
     train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset_splits, features, labels, batch_size)
 
+    # Squeeze singelton dimension
+    # TODO: Remove once recomputed spatial embeddings with tf.squeeze
+    train_dataset = train_dataset.map(
+        lambda x, y: (tf.squeeze(x, axis=1), y),
+        num_parallel_calls=tf.data.AUTOTUNE
+    )
+    val_dataset = val_dataset.map(
+        lambda x, y: (tf.squeeze(x, axis=1), y),
+        num_parallel_calls=tf.data.AUTOTUNE
+    )
+
     # Define model
-    model = instantiate(cfg.model, input_dim=input_dim)
-    # model = models.Sequential([
-    #     layers.Input(shape=input_dim), 
-    #     layers.Dense(512, activation='relu'),
-    #     layers.Dropout(0.3),
-    #     layers.Dense(256, activation='relu'),
-    #     layers.Dense(1)  # Regression output: total polyphony degree
-    # ])
+    model = instantiate(cfg.model)#, input_dim=input_dim)
 
     # Create a SummaryWriter object to write the tensorboard logs
     metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None}
@@ -185,12 +219,13 @@ for run in ["run"]:
     model.build(input_dim)#input_shape=input_dim)
     print(f'Input shape of model: {input_dim}')
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
-    tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, test_dataset=test_dataset, 
+    tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
                  log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=input_dim)
 
     # Train model
     model.compile(optimizer='adam', loss='mse', metrics=['mae'])
     model.summary()
+
     history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[tensorboard_callback])
     #model.save('tape.keras')
 

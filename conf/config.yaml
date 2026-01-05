@@ -25,7 +25,6 @@ defaults:
   - preprocess: default
   - model: 'SimpleMLP'
   - train: 'default'
-  - export: default
   - _self_
 
   
