@@ -23,7 +23,7 @@ embeddings:
   feature: no_noise_audio
 
 model:
-  _target_: model.TemporalMaxPoolCNNMLP
+  _target_: model.TemporalCNNMultiTask
   # hidden_units:
   # - 512
   # - 256
@@ -31,12 +31,14 @@ model:
 
 train:
   features: perch_v2_cpu_spatial_embeddings
-  labels: polyphony_degree
+  labels: 
+    - polyphony_degree
+    - perch2_event_logits
   test_split: 0.1
   val_split: 0.1
   batch_size: 128
   learning_rate: 0.001
-  epochs: 20
+  epochs: 50
   tensorboard_path: debug_tensorboard
 
 

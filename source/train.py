@@ -1,8 +1,10 @@
 # import matplotlib
 # matplotlib.use("Agg")
 import tensorflow as tf
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
 import numpy as np
-from datasets import load_from_disk, DatasetDict, concatenate_datasets
+from datasets import load_from_disk, DatasetDict, concatenate_datasets, Sequence, Value
 from omegaconf import OmegaConf
 from utils.general import reshape_tensor_data
 from utils.logs import return_tensorboard_path, plot_confusion_matrix, CustomSummaryWriter, CustomSummaryWriterCallback
@@ -12,24 +14,10 @@ import datetime
 from pathlib import Path
 import model
 from hydra.utils import instantiate
+from functools import partial
 
-
-#from transformers import DefaultDataCollator
-
-#from tensorflow.keras import layers, models
-
-
-#from functools import partial
-
-
-
-#from tensorflow.keras.callbacks import TensorBoard
-#import matplotlib.pyplot as plt
-#import io
-
-
-
-
+from utils.general import build_event_logits
+from utils.dsp import num_samples_to_duration_s
 
 def split_dataset(test_split, val_split, dataset, random_seed):
     # Split into train/test first (e.g., 90/10) -> test size = 0.1 * number of items
@@ -153,7 +141,6 @@ batch_size = cfg.train.batch_size
 
 dataset_path =  cfg.paths.dataset
 
-
 for run in ["run"]:
 
     # Setup tensorboard
@@ -182,13 +169,44 @@ for run in ["run"]:
     # Load dataset
     dataset = load_from_disk(dataset_path)
 
+    def add_duration(example):
+        example["segment_duration_s"] = 5
+        return example
+    
+    dataset = dataset.map(
+        add_duration,
+        keep_in_memory=False,
+    )
+
+    # Add event logits
+    def add_event_logits(example, num_event_logits, logits_name):
+        all_events = []
+        for events in example['raw_files_time_freq_bounds']:
+            all_events.extend(events)
+
+        # sampling_rate = example['audio']['sampling_rate']
+        # segment_sum_samples = len(example['audio']['array'])
+        segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
+        event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
+
+        example[logits_name] = event_logits
+
+        return example
+
+    add_event_logits_fn = partial(add_event_logits, num_event_logits=16, logits_name='perch2_event_logits')
+    #dataset = dataset.cast_column('audio', Audio()) 
+    dataset = dataset.map(add_event_logits_fn, keep_in_memory=False)
+    event_logits_feature = Sequence(Value("float32"))
+    dataset = dataset.cast_column('perch2_event_logits', event_logits_feature)
+
     # Split dataset
     dataset_splits = split_dataset(test_split, val_split, dataset, random_seed)
 
     # Get input dim
     embeddings = dataset_splits['train'][0][features]
     print(np.shape(embeddings))
-    input_dim = np.array(dataset_splits['train'][0][features]).shape
+    input_dim = tf.squeeze(np.array(dataset_splits['train'][0][features])).shape
+    train_data = dataset_splits['train']
 
     # Get tensorflow datasets
     train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset_splits, features, labels, batch_size)
@@ -204,6 +222,8 @@ for run in ["run"]:
         num_parallel_calls=tf.data.AUTOTUNE
     )
 
+    example = train_dataset.take(0)
+
     # Define model
     model = instantiate(cfg.model)#, input_dim=input_dim)
 
@@ -216,17 +236,84 @@ for run in ["run"]:
     params['dataset']['test_size'] = str(len(dataset_splits['test']))
     print(params)
 
-    model.build(input_dim)#input_shape=input_dim)
+    # Define loss weights as variables
+    event_loss_weight = tf.Variable(1.0, trainable=False, dtype=tf.float32)
+    count_loss_weight = tf.Variable(0.3, trainable=False, dtype=tf.float32)
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    mse = tf.keras.losses.MeanSquaredError()
+
+    def weighted_event_loss(y_true, y_pred):
+        return event_loss_weight * bce(y_true, y_pred)
+
+    def weighted_count_loss(y_true, y_pred):
+        return count_loss_weight * mse(y_true, y_pred)
+    class LossWeightScheduler(tf.keras.callbacks.Callback):
+        def __init__(self, switch_epochs, event_loss_weights, count_loss_weights):
+            super().__init__()
+            self.switch_epochs = switch_epochs
+            self.event_loss_weights = event_loss_weights
+            self.count_loss_weight = count_loss_weights
+
+        def on_epoch_begin(self, epoch, logs=None):
+            for switch_epoch, event_weight, count_weight in zip(self.switch_epochs, self.event_loss_weights, self.count_loss_weight):
+                if epoch == switch_epoch:
+                    event_loss_weight.assign(event_weight)
+                    count_loss_weight.assign(count_weight)
+
+                    print(
+                        f"\n[LossWeightScheduler] "
+                        f"Switched loss weights at epoch {epoch}: "
+                        f"event={event_weight}, "
+                        f"count={count_weight}"
+                    )
+    # class LossWeightScheduler(tf.keras.callbacks.Callback):
+    #     def __init__(self, switch_epoch):
+    #         super().__init__()
+    #         self.switch_epoch = switch_epoch
+
+    #     def on_epoch_begin(self, epoch, logs=None):
+    #         if epoch == self.switch_epoch:
+    #             event_loss_weight.assign(0.5)
+    #             count_loss_weight.assign(1.0)
+
+    #             print(
+    #                 f"\n[LossWeightScheduler] "
+    #                 f"Switched loss weights at epoch {epoch}: "
+    #                 f"event={event_loss_weight.numpy()}, "
+    #                 f"count={count_loss_weight.numpy()}"
+    #             )
+
+    model.build(input_dim)
     print(f'Input shape of model: {input_dim}')
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
                  log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=input_dim)
 
     # Train model
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    #model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    learning_rate = 0.0001
+    # model.compile(
+    #     optimizer=Adam(learning_rate),
+    #     loss={
+    #         "perch2_event_logits": BinaryCrossentropy(from_logits=True),
+    #         "polyphony_degree": MeanSquaredError(),
+    #     },
+    #     loss_weights={
+    #         "perch2_event_logits": 0.5,
+    #         "polyphony_degree": 2.0,
+    #     },
+    # )
+    model.compile(
+    optimizer=Adam(learning_rate),
+    loss={
+        "perch2_event_logits": weighted_count_loss,
+        "polyphony_degree": weighted_event_loss,
+    },
+)
+
     model.summary()
 
-    history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[tensorboard_callback])
+    history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0]),tensorboard_callback])
     #model.save('tape.keras')
 
 dataset_splits.cleanup_cache_files()

@@ -239,3 +239,49 @@ def overwrite_dataset(dataset, dataset_path, store_backup=True):
     if not store_backup:
         shutil.rmtree(backup_path)
 
+import numpy as np
+
+def build_event_logits(
+    events,
+    segment_duration_sec,
+    num_event_logits,
+):
+    """
+    Build binary temporal event labels.
+
+    Parameters
+    ----------
+    events : list of tuples
+        Each tuple is (start_sec, end_sec, low_freq_hz, high_freq_hz)
+    segment_duration_sec : float
+        Total duration of the audio segment in seconds
+    num_event_logits : int
+        Number of temporal bins (e.g. 16)
+
+    Returns
+    -------
+    event_logits : np.ndarray, shape (num_event_logits,)
+        Binary array indicating event presence per time bin
+    """
+
+    event_logits = np.zeros(num_event_logits, dtype=np.float32)
+
+    # Length of one time bin in seconds
+    bin_size = segment_duration_sec / num_event_logits
+
+    for i in range(num_event_logits):
+        bin_start = i * bin_size
+        bin_end = (i + 1) * bin_size
+
+        # Check if ANY event overlaps this time bin
+        for event in events:
+            event_start, event_end, _, _ = event
+
+            # Overlap condition
+            if event_start < bin_end and event_end > bin_start:
+                event_logits[i] = 1.0
+                break
+
+    return event_logits
+
+

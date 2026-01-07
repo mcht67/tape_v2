@@ -11,3 +11,9 @@ def resample_audio(audio, orig_sampling_rate, target_sampling_rate):
 
 # def get_mono_signal_by_channel_avg(signal):
 #     return pf.Signal(np.mean(signal.time, axis=0), signal.sampling_rate)
+
+def num_samples_to_duration_s(num_samples, sampling_rate):
+    return num_samples / sampling_rate
+
+def duration_s_to_num_samples(duration_s, sampling_rate):
+    return duration_s * sampling_rate
