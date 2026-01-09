@@ -31,8 +31,9 @@ else:
 
 def plot_confusion_matrix(y_pred, y_true):
     # Convert to flat NumPy arrays
-    y_true =  np.concatenate(y_true, axis=0) #np.array(y_true)
-    y_pred = np.concatenate(y_pred, axis=0) #np.array(y_pred)
+    # y_true =  np.concatenate(y_true, axis=0) #np.array(y_true)
+    # y_pred = np.concatenate(y_pred, axis=0) #np.array(y_pred)
+    y_pred
 
     # Get predictions and ground truth as int
     y_true_rounded = y_true.astype(int)
@@ -72,6 +73,63 @@ def plot_confusion_matrix(y_pred, y_true):
     plt.ylabel("True Polyphony Degree")
     plt.tight_layout()
     return figure
+
+def prepare_polyphony_for_cm(y_true, y_pred):
+    """
+    y_true: (N,) or (N, 1)
+    y_pred: (N, 1)
+    """
+    y_true = np.asarray(y_true).squeeze().astype(int)
+    y_pred = np.asarray(y_pred).squeeze()
+
+    y_pred = np.round(y_pred).astype(int)
+
+    return y_true, y_pred
+
+def prepare_event_logits_for_cm(y_true, y_pred_logits, threshold=0.5):
+    """
+    y_true: (N, T)
+    y_pred_logits: (N, T)
+    """
+    y_true = np.asarray(y_true).astype(int)
+
+    # sigmoid
+    y_pred_probs = 1 / (1 + np.exp(-y_pred_logits))
+    y_pred = (y_pred_probs >= threshold).astype(int)
+
+    # flatten time
+    y_true_flat = y_true.reshape(-1)
+    y_pred_flat = y_pred.reshape(-1)
+
+    return y_true_flat, y_pred_flat
+
+def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
+
+    with np.errstate(all="ignore"):
+        cm_percent = cm / cm.sum(axis=1, keepdims=True) * 100
+
+    annot = np.empty_like(cm).astype(str)
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            annot[i, j] = f"{cm[i, j]}\n({cm_percent[i, j]:.1f}%)"
+
+    fig = plt.figure(figsize=(6, 5))
+    sns.heatmap(
+        cm,
+        annot=annot,
+        fmt="",
+        cmap="Blues",
+        xticklabels=labels,
+        yticklabels=labels,
+    )
+
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.title(title)
+    plt.tight_layout()
+    return fig
+
 
 class CustomSummaryWriter(SummaryWriter):
     """
@@ -198,15 +256,15 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=None):
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
+        self.confusion_matrix_specs = confusion_matrix_specs or []
         self.metrics = {}
         self.input_shape = input_shape
-
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -310,9 +368,17 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
         
         # Log confusion matrix every N epochs
-        if (self.log_confusion_matrix and self.val_dataset is not None 
-            and (epoch + 1) % self.confusion_matrix_frequency == 0):
-            self._log_confusion_matrix(epoch)
+        if (
+            self.val_dataset is not None
+            and self.confusion_matrix_specs
+            and (epoch + 1) % self.confusion_matrix_frequency == 0
+        ):
+            for spec in self.confusion_matrix_specs:
+                self._log_confusion_matrix(epoch, spec)
+
+        # if (self.log_confusion_matrix and self.val_dataset is not None 
+        #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
+        #     self._log_confusion_matrix(epoch)
 
         # Call standard TensorBoard callback
         if self.standard_tb_callback:
@@ -320,43 +386,142 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         
         # Step the writer (handles syncing)
         self.writer.step()
-    
 
-    def _log_confusion_matrix(self, epoch):
-        """Generate and log confusion matrix"""
+    def _log_confusion_matrix(self, epoch, spec):
         try:
-            
-            # Get predictions and true labels
-            y_pred, y_true = self._get_predictions_and_true_labels(self.val_dataset)
-            
-            # Generate confusion matrix plot
-            figure = plot_confusion_matrix(y_pred, y_true)
-            
-            # Convert to image and log
-            self.writer.add_figure("Confusion_Matrix", figure, epoch)
-            
-            print(f"Confusion matrix logged at epoch {epoch + 1}")
-            
-        except Exception as e:
-            print(f"Failed to log confusion matrix: {e}")
+            target = spec["name"]
+            cm_type = spec["type"]
+            threshold = spec.get("threshold", 0.5)
 
-    def _get_predictions_and_true_labels(self, dataset):
-        """Get predictions and true labels from validation dataset"""
-        y_pred_list = []
-        y_true_list = []
-        
+            y_pred, y_true = self._get_predictions_and_true_labels(
+                self.val_dataset, target
+            )
+
+            if cm_type == "regression_round":
+                yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
+                labels = np.unique(yt)
+                title = "Polyphony Degree"
+
+            elif cm_type == "binary":
+                yt, yp = prepare_event_logits_for_cm(
+                    y_true, y_pred, threshold=threshold
+                )
+                labels = [0, 1]
+                title = "Event Detection"
+
+            else:
+                raise ValueError(f"Unknown confusion matrix type: {cm_type}")
+
+            fig = plot_confusion_matrix_sklearn(
+                yt, yp, labels=labels, title=title
+            )
+
+            self.writer.add_figure(
+                f"Confusion_Matrix/{target}",
+                fig,
+                epoch,
+            )
+
+            print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
+
+        except Exception as e:
+            print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
+
+    # def _log_confusion_matrix(self, epoch, spec):
+    #     try:
+    #         target = spec["name"]
+    #         cm_type = spec["type"]
+    #         threshold = spec.get("threshold", 0.5)
+
+    #         y_pred, y_true = self._get_predictions_and_true_labels(
+    #             self.val_dataset, target
+    #         )
+
+    #         if cm_type == "regression_round":
+    #             y_pred_cls = y_pred #np.rint(y_pred).astype(int)
+    #             y_true_cls = y_true.astype(int)
+
+    #         elif cm_type == "binary":
+    #             y_pred_cls = (y_pred >= threshold).astype(int)
+    #             y_true_cls = y_true.astype(int)
+
+    #         else:
+    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
+
+    #         figure = plot_confusion_matrix(y_pred_cls, y_true_cls)
+
+    #         self.writer.add_figure(
+    #             f"Confusion_Matrix/{target}",
+    #             figure,
+    #             epoch,
+    #         )
+
+    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
+
+    #     except Exception as e:
+    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
+
+    # def _log_confusion_matrix(self, epoch):
+    #     """Generate and log confusion matrix"""
+    #     try:
+            
+    #         # Get predictions and true labels
+    #         y_pred, y_true = self._get_predictions_and_true_labels(self.val_dataset)
+            
+    #         # Generate confusion matrix plot
+    #         figure = plot_confusion_matrix(y_pred, y_true)
+            
+    #         # Convert to image and log
+    #         self.writer.add_figure("Confusion_Matrix", figure, epoch)
+            
+    #         print(f"Confusion matrix logged at epoch {epoch + 1}")
+            
+    #     except Exception as e:
+    #         print(f"Failed to log confusion matrix: {e}")
+
+    def _get_predictions_and_true_labels(self, dataset, target_name):
+        y_pred_all = []
+        y_true_all = []
+
         for batch_x, batch_y in dataset:
-            predictions = self.model(batch_x, training=False)
-            y_pred_list.append(predictions.numpy())
-            y_true_list.append(batch_y.numpy())
+            preds = self.model(batch_x, training=False)
+
+            # Model outputs
+            if isinstance(preds, dict):
+                batch_pred = preds[target_name]
+            else:
+                batch_pred = preds #.squeeze(axis=-1)??
+
+            # Labels
+            if isinstance(batch_y, dict):
+                batch_true = batch_y[target_name]
+            else:
+                batch_true = batch_y
+
+            
+            y_pred_all.append(batch_pred.numpy())
+            y_true_all.append(batch_true.numpy())
+
+        return np.concatenate(y_pred_all), np.concatenate(y_true_all)
+
+    # def _get_predictions_and_true_labels(self, dataset):
+    #     """Get predictions and true labels from validation dataset"""
+    #     y_pred_list = []
+    #     y_true_list = []
         
-        return y_pred_list, y_true_list
+    #     for batch_x, batch_y in dataset:
+    #         predictions = self.model(batch_x, training=False)
+    #         y_pred_list.append(predictions.numpy())
+    #         y_true_list.append(batch_y.numpy())
+        
+    #     return y_pred_list, y_true_list
 
     def on_train_end(self, logs=None):
         """Final logging and cleanup"""
         # Log final confusion matrix
         if self.log_confusion_matrix and self.val_dataset is not None:
-            self._log_confusion_matrix(epoch=-1)  # Special epoch for final
+            for spec in self.confusion_matrix_specs:
+                self._log_confusion_matrix(epoch=-1, spec=spec) # Special epoch for final
 
         if self.standard_tb_callback:
             self.standard_tb_callback.on_train_end(logs)

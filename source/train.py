@@ -16,7 +16,7 @@ import model
 from hydra.utils import instantiate
 from functools import partial
 
-from utils.general import build_event_logits
+from utils.general import build_event_logits, build_framewise_polyphony
 from utils.dsp import num_samples_to_duration_s
 
 def split_dataset(test_split, val_split, dataset, random_seed):
@@ -183,21 +183,34 @@ for run in ["run"]:
         all_events = []
         for events in example['raw_files_time_freq_bounds']:
             all_events.extend(events)
-
-        # sampling_rate = example['audio']['sampling_rate']
-        # segment_sum_samples = len(example['audio']['array'])
         segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
         event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
-
         example[logits_name] = event_logits
-
         return example
-
-    add_event_logits_fn = partial(add_event_logits, num_event_logits=16, logits_name='perch2_event_logits')
+    
+    num_time_steps = 16
+    add_event_logits_fn = partial(add_event_logits, num_event_logits=num_time_steps, logits_name='perch2_event_logits')
     #dataset = dataset.cast_column('audio', Audio()) 
     dataset = dataset.map(add_event_logits_fn, keep_in_memory=False)
     event_logits_feature = Sequence(Value("float32"))
     dataset = dataset.cast_column('perch2_event_logits', event_logits_feature)
+
+    # Add framewise polyphony labels
+    def add_framewise_polyphony(example, num_frames, feature_name):
+        time_freq_bounds_per_raw_file = example['raw_files_time_freq_bounds']
+        segment_durations_s = example["segment_duration_s"]
+        framewise_polyphony_array = build_framewise_polyphony(time_freq_bounds_per_raw_file, segment_durations_s, num_frames)
+        example[feature_name] = framewise_polyphony_array
+        return example
+    
+    framewise_polyphony_feature_name = 'frame_polyphony'
+    add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_time_steps, feature_name=framewise_polyphony_feature_name)
+    dataset = dataset.map(add_framewise_polyphony_fn, keep_in_memory=False)
+    framewise_polyphony_feature = Sequence(Value("float32"))
+    dataset = dataset.cast_column(framewise_polyphony_feature_name, framewise_polyphony_feature)
+    for i in range(5):
+        print(dataset[i][framewise_polyphony_feature_name])
+        print(dataset[i]['polyphony_degree'])
 
     # Split dataset
     dataset_splits = split_dataset(test_split, val_split, dataset, random_seed)
@@ -239,33 +252,71 @@ for run in ["run"]:
     # Define loss weights as variables
     event_loss_weight = tf.Variable(1.0, trainable=False, dtype=tf.float32)
     count_loss_weight = tf.Variable(0.3, trainable=False, dtype=tf.float32)
+    frame_loss_weight = tf.Variable(1.0, trainable=False, dtype=tf.float32)
+
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
     mse = tf.keras.losses.MeanSquaredError()
+    frame_mse = tf.keras.losses.MeanSquaredError()
 
     def weighted_event_loss(y_true, y_pred):
         return event_loss_weight * bce(y_true, y_pred)
 
     def weighted_count_loss(y_true, y_pred):
-        return count_loss_weight * mse(y_true, y_pred)
+        return count_loss_weight * mse(y_true, y_pred) 
+
+    def weighted_frame_loss(y_true, y_pred):
+        return frame_loss_weight * frame_mse(y_true, y_pred)
+
     class LossWeightScheduler(tf.keras.callbacks.Callback):
-        def __init__(self, switch_epochs, event_loss_weights, count_loss_weights):
+        def __init__(
+            self,
+            switch_epochs,
+            event_loss_weights,
+            frame_loss_weights,
+            count_loss_weights,
+        ):
             super().__init__()
             self.switch_epochs = switch_epochs
             self.event_loss_weights = event_loss_weights
-            self.count_loss_weight = count_loss_weights
+            self.frame_loss_weights = frame_loss_weights
+            self.count_loss_weights = count_loss_weights
 
         def on_epoch_begin(self, epoch, logs=None):
-            for switch_epoch, event_weight, count_weight in zip(self.switch_epochs, self.event_loss_weights, self.count_loss_weight):
-                if epoch == switch_epoch:
-                    event_loss_weight.assign(event_weight)
-                    count_loss_weight.assign(count_weight)
+            for e, ew, fw, cw in zip(
+                self.switch_epochs,
+                self.event_loss_weights,
+                self.frame_loss_weights,
+                self.count_loss_weights,
+            ):
+                if epoch == e:
+                    event_loss_weight.assign(ew)
+                    frame_loss_weight.assign(fw)
+                    count_loss_weight.assign(cw)
 
                     print(
-                        f"\n[LossWeightScheduler] "
-                        f"Switched loss weights at epoch {epoch}: "
-                        f"event={event_weight}, "
-                        f"count={count_weight}"
+                        f"\n[LossWeightScheduler] epoch {epoch} | "
+                        f"event={ew}, frame={fw}, count={cw}"
                     )
+
+    # class LossWeightScheduler(tf.keras.callbacks.Callback):
+    #     def __init__(self, switch_epochs, event_loss_weights, count_loss_weights):
+    #         super().__init__()
+    #         self.switch_epochs = switch_epochs
+    #         self.event_loss_weights = event_loss_weights
+    #         self.count_loss_weight = count_loss_weights
+
+    #     def on_epoch_begin(self, epoch, logs=None):
+    #         for switch_epoch, event_weight, count_weight in zip(self.switch_epochs, self.event_loss_weights, self.count_loss_weight):
+    #             if epoch == switch_epoch:
+    #                 event_loss_weight.assign(event_weight)
+    #                 count_loss_weight.assign(count_weight)
+
+    #                 print(
+    #                     f"\n[LossWeightScheduler] "
+    #                     f"Switched loss weights at epoch {epoch}: "
+    #                     f"event={event_weight}, "
+    #                     f"count={count_weight}"
+    #                 )
     # class LossWeightScheduler(tf.keras.callbacks.Callback):
     #     def __init__(self, switch_epoch):
     #         super().__init__()
@@ -285,9 +336,15 @@ for run in ["run"]:
 
     model.build(input_dim)
     print(f'Input shape of model: {input_dim}')
+    # Define confusion matrix specs
+    confusion_matrix_specs = [
+            {"name": "polyphony_degree", "type": "regression_round", "threshold": 0.5}, 
+            {"name": "perch2_event_logits", "type": "binary", "threshold": 0.5,},
+        ]
+
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, input_shape=input_dim)
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim)
 
     # Train model
     #model.compile(optimizer='adam', loss='mse', metrics=['mae'])
@@ -306,14 +363,16 @@ for run in ["run"]:
     model.compile(
     optimizer=Adam(learning_rate),
     loss={
-        "perch2_event_logits": weighted_count_loss,
-        "polyphony_degree": weighted_event_loss,
+        "perch2_event_logits": weighted_event_loss,
+        "frame_polyphony": weighted_frame_loss,
+        "polyphony_degree": weighted_count_loss, 
     },
 )
 
     model.summary()
 
-    history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0]),tensorboard_callback])
+    history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40], event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1], frame_loss_weights=[5.0, 10.0, 5.0, 1.0, 0.5], count_loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0]),tensorboard_callback]) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
     #model.save('tape.keras')
 
 dataset_splits.cleanup_cache_files()
+

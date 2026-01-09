@@ -23,7 +23,7 @@ embeddings:
   feature: no_noise_audio
 
 model:
-  _target_: model.TemporalCNNMultiTask
+  _target_: model.TemporalCNNMultiTask_v2
   # hidden_units:
   # - 512
   # - 256
@@ -33,6 +33,7 @@ train:
   features: perch_v2_cpu_spatial_embeddings
   labels: 
     - polyphony_degree
+    - frame_polyphony
     - perch2_event_logits
   test_split: 0.1
   val_split: 0.1

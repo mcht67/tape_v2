@@ -284,4 +284,62 @@ def build_event_logits(
 
     return event_logits
 
+import numpy as np
+
+
+def build_framewise_polyphony(
+    time_freq_bounds_per_individual,
+    segment_duration_s,
+    num_frames,
+):
+    """
+    Vectorized frame-wise polyphony computation.
+
+    Args
+    ----
+    time_freq_bounds_per_individual : list[list[tuple]]
+        Outer list = individuals
+        Inner list = events of that individual
+        Event tuple = (start_time, end_time, freq_low, freq_high)
+
+    segment_duration_s : float
+        Segment duration in seconds
+
+    num_frames : int
+        Number of temporal bins (e.g. 16)
+
+    Returns
+    -------
+    frame_polyphony : np.ndarray, shape (num_frames,)
+    """
+
+    # Frame boundaries
+    frame_edges = np.linspace(
+        0.0, segment_duration_s, num_frames + 1
+    )
+    frame_start = frame_edges[:-1]   # (T,)
+    frame_end = frame_edges[1:]      # (T,)
+
+    frame_polyphony = np.zeros(num_frames, dtype=np.int32)
+
+    for individual_events in time_freq_bounds_per_individual:
+        if len(individual_events) == 0:
+            continue
+
+        events = np.asarray(individual_events)
+
+        event_start = events[:, 0][:, None]  # (E, 1)
+        event_end = events[:, 1][:, None]    # (E, 1)
+
+        # Overlap: (E, T)
+        overlaps = (event_end > frame_start) & (event_start < frame_end)
+
+        # Does this individual overlap each frame? (T,)
+        individual_active = overlaps.any(axis=0)
+
+        frame_polyphony += individual_active.astype(np.int32)
+
+    return frame_polyphony
+
+
 

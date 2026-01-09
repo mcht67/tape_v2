@@ -242,11 +242,11 @@ class TemporalCNNMultiTask(tf.keras.Model):
             # Pool over frequency
             layers.Lambda(lambda x: tf.reduce_mean(x, axis=2)),  # (B, 16, 1536)
 
-            layers.Conv1D(512, kernel_size=3, padding="same", activation="relu"),
+            layers.Conv1D(conv_channels[0], kernel_size=3, padding="same", activation="relu"),
             layers.BatchNormalization(),
             layers.Dropout(dropout_rate),
 
-            layers.Conv1D(256, kernel_size=3, padding="same", activation="relu"),
+            layers.Conv1D(conv_channels[1], kernel_size=3, padding="same", activation="relu"),
             layers.BatchNormalization(),
         ])
 
@@ -282,5 +282,85 @@ class TemporalCNNMultiTask(tf.keras.Model):
             "perch2_event_logits": event_logits,
             
         }
+    
+class TemporalCNNMultiTask_v2(tf.keras.Model):
+    def __init__(
+        self,
+        input_dim=(16, 4, 1536),
+        conv_channels=(512, 256),
+        dropout_rate=0.3,
+        enable_frame_polyphony=True,  # <-- optional switch
+    ):
+        super().__init__()
+        self.enable_frame_polyphony = enable_frame_polyphony
+
+        # -----------------------
+        # Shared encoder
+        # -----------------------
+        self.encoder = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=input_dim),
+
+            # Pool over frequency
+            tf.keras.layers.Lambda(
+                lambda x: tf.reduce_mean(x, axis=2)
+            ),  # (B, 16, 1536)
+
+            tf.keras.layers.Conv1D(
+                conv_channels[0], 3, padding="same", activation="relu"
+            ),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dropout(dropout_rate),
+
+            tf.keras.layers.Conv1D(
+                conv_channels[1], 3, padding="same", activation="relu"
+            ),
+            tf.keras.layers.BatchNormalization(),
+        ])
+
+        # -----------------------
+        # Event detection head
+        # -----------------------
+        self.event_head = tf.keras.Sequential([
+            tf.keras.layers.Conv1D(1, kernel_size=1),
+        ])
+
+        # -----------------------
+        # Frame-wise polyphony head
+        # -----------------------
+        if self.enable_frame_polyphony:
+            self.frame_polyphony_head = tf.keras.Sequential([
+                tf.keras.layers.Conv1D(1, kernel_size=1),
+            ])
+
+        # -----------------------
+        # Segment polyphony head
+        # -----------------------
+        self.count_head = tf.keras.Sequential([
+            tf.keras.layers.GlobalAveragePooling1D(),
+            tf.keras.layers.Dense(128, activation="relu"),
+            tf.keras.layers.Dropout(dropout_rate),
+            tf.keras.layers.Dense(1),
+        ])
+
+    def call(self, inputs, training=False):
+        features = self.encoder(inputs, training=training)
+
+        outputs = {}
+
+        # Event detection (B, 16)
+        event_logits = self.event_head(features, training=training)
+        outputs["perch2_event_logits"] = tf.squeeze(event_logits, axis=-1)
+
+        # Frame-wise polyphony (B, 16)
+        if self.enable_frame_polyphony:
+            frame_poly = self.frame_polyphony_head(features, training=training)
+            outputs["frame_polyphony"] = tf.squeeze(frame_poly, axis=-1)
+
+        # Segment-level polyphony (B, 1)
+        outputs["polyphony_degree"] = self.count_head(features, training=training)
+
+        return outputs
+
+
 
 
