@@ -1,40 +1,54 @@
 # This file defines the dvc stages and its depencies
 
 stages:
-  load_dataset:
-    cmd:
-      python source/load_dataset.py
-    deps:
-      - source/load_data.py
+  # load_dataset:
+  #   cmd:
+  #     python source/load_dataset.py
+  #   deps:
+  #     - source/load_data.py
+  #   params:
+  #     - dataset.name
+  #     - dataset.sampling_rate
+  #   outs:
+  #     - path.dataset_metadata
+
+  embed_with_perch1:
+    cmd: perch2-venv/bin/python source/embed_with_perch.py --version perch_v1 #--model_keys ${train.embeddings}  ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
     params:
-      - dataset.name
-      - dataset.sampling_rate
-    outs:
-      - path.dataset_metadata
-
-  embed_with_perch_v1:
-    cmd: python source/embed_with_perch.py --model_keys ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
+      - embeddings
     deps:
-      - source/embed_with_perch.py
+      - source/embed_audio.py
+      - ${path.dataset_metadata}
 
-  embed_with_perch_v2:
-    cmd: python source/embed_with_perch.py --model_keys ${embeddings.perch_v2_models} --compute_embeddings ${embeddings.compute_embeddings}
+  embed_with_perch2:
+    cmd: perch2-venv/bin/python source/embed_with_perch.py  --version perch_v2 #--model_keys ${train.embeddings}  ${embeddings.perch_v2_models} --compute_embeddings ${embeddings.compute_embeddings}
+    params:
+      - embeddings
     deps:
-      - source/embed_with_perch.py
+      - source/embed_audio.py
+      - ${path.dataset_metadata}
 
   embed_with_birdset:
-    cmd: python source/embed_with_birdset.py --model_keys ${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
-    deps:
-      - source/embed_with_birdset.py
-
-  train:
-    cmd: python source/train.py
-    deps:
-      - source/train.py
-      - ${path.dataset}
+    cmd: python source/embed_with_birdset.py --version birdset #${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
     params:
-      - general.random_seed
-      - train
-      - model
+      - embeddings
+    deps:
+      - source/embed_audio.py
+      - ${path.dataset_metadata}
+
+  # add_labels:
+  #   cmd: python source/add_labels.py
+  #   deps:
+  #     - source/add_labels.py
+
+  # train:
+  #   cmd: python source/train.py
+  #   deps:
+  #     - source/train.py
+  #     - path.dataset_metadata
+  #   params:
+  #     - general.random_seed
+  #     - train
+  #     - model
       
 
