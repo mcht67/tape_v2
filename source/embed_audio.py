@@ -115,7 +115,7 @@ def add_embeddings(model_family, model_keys, input_feature, dataset, cache_dir, 
         elif model_family == 'perch_v2':
             model, sampling_rate = load_perch2_model(model_key)
         elif model_family == 'birdset':
-            load_birdset_model = load_birdset_model(model_key)
+            model, sampling_rate = load_birdset_model(model_key)
         else:
             raise Exception("Model family unknown. Can not load model.")
         embedding_fn = partial(
@@ -123,6 +123,7 @@ def add_embeddings(model_family, model_keys, input_feature, dataset, cache_dir, 
             model=model,
             input_feature=input_feature,
             model_key=model_key,
+            model_family = model_family,
             sampling_rate=sampling_rate,
         )
         cache_file = os.path.join(cache_dir, f"{model_key}_cache.arrow")
@@ -140,6 +141,8 @@ def add_embeddings_batchwise(model_family, model_keys, input_feature, dataset, c
         
         print(f"Processing {model_key} embeddings in batches of {batch_size}...")
 
+        model_family = 'perch_v1'
+
         if model_family == 'perch_v1':
             model, sampling_rate = load_perch1_model(model_key)
         elif model_family == 'perch_v2':
@@ -152,6 +155,8 @@ def add_embeddings_batchwise(model_family, model_keys, input_feature, dataset, c
         embedding_fn = partial(
             embed_example,
             model=model,
+            model_key=model_key,
+            model_family=model_family,
             input_feature=input_feature,
             sampling_rate=sampling_rate,
         )
@@ -228,16 +233,17 @@ def main():
         # Configuration
         # ===================
 
-        parser = argparse.ArgumentParser()
-        #parser.add_argument("--model_keys", nargs="*", type=str, default=None)
-        parser.add_argument("--version", type=str, default=None)
-        args = parser.parse_args()
-        print(args)
+        # parser = argparse.ArgumentParser()
+        # #parser.add_argument("--model_keys", nargs="*", type=str, default=None)
+        # parser.add_argument("--version", type=str, default=None)
+        # args = parser.parse_args()
+        # print(args)
 
         cfg = OmegaConf.load("params.yaml")
         input_feature = cfg.embeddings.input_feature
         embedding_model = cfg.embeddings.model
         dataset_path = cfg.path.dataset
+        metadata_path = cfg.path.dataset_metadata
 
         print(embedding_model)
 
@@ -283,13 +289,14 @@ def main():
         print("Start embedding...")
         # Compute embeddings
         for split in dataset.keys():
+            dataset[split] = dataset[split].select(range(20)) # TODO: remove
             dataset[split] = add_embeddings_batchwise(args.version, model_keys, input_feature, dataset[split], temp_cache_dir)
         print("Embedding completed.")
 
         # ===================
         # Save dataset
         # ===================
-        overwrite_dataset(dataset, dataset_path, store_backup=False)
+        overwrite_dataset(dataset, dataset_path, metadata_path=metadata_path, store_backup=False)
 
 if __name__ == "__main__":
     main()

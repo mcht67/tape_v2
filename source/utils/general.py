@@ -6,6 +6,8 @@ import numpy as np
 import tensorflow as tf
 from datasets import concatenate_datasets
 import shutil
+import json
+from datetime import datetime
 
 def with_random_state(func):
     """
@@ -220,26 +222,89 @@ def process_in_batches(dataset, process_fn, cache_dir, prefix="", batch_size=100
     print(f"Concatenating {len(processed_datasets)} batches...")
     return concatenate_datasets(processed_datasets)
 
-def overwrite_dataset(dataset, dataset_path, store_backup=True):
+# def overwrite_dataset(dataset, dataset_path, store_backup=True):
+    
+#     # Save to temporary location
+#     temp_path = os.path.join(dataset_path, "_temp")
+#     os.makedirs(temp_path, exist_ok=True)
+    
+#     try:
+#         dataset.save_to_disk(temp_path)
+        
+#         # Load metadata json if it exists
+#         metadata = None
+#         metadata_path = os.path.join(dataset_path, 'dataset_metadata.json')
+#         if os.path.exists(metadata_path):
+#             with open(metadata_path, 'r') as f:
+#                 metadata = json.load(f)
+        
+#         # Move old data to backup
+#         if store_backup:
+#             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#             backup_path = f"{dataset_path}_backup_{timestamp}"
+#             if os.path.exists(dataset_path):
+#                 shutil.move(dataset_path, backup_path)
+#         # else:
+#         #     # Remove old dataset without backup
+#         #     if os.path.exists(dataset_path):
+#         #         shutil.rmtree(dataset_path)
+        
+#         # Move temp data into place
+#         shutil.move(temp_path, dataset_path)
+        
+#         # Restore metadata json if it existed
+#         if metadata is not None:
+#             with open(metadata_path, 'w') as f:
+#                 json.dump(metadata, f, indent=2)
+        
+#         # Optionally remove backup
+#         if not store_backup:
+#             shutil.rmtree(backup_path)
+                
+#     except Exception as e:
+#         # Cleanup temp on failure
+#         if os.path.exists(temp_path):
+#             shutil.rmtree(temp_path)
+#         raise e
+
+def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=True):
     # Save to temporary location
-    temp_path = dataset_path + "_temp"
+    temp_path = f"{dataset_path}_temp"
     os.makedirs(temp_path, exist_ok=True)
     dataset.save_to_disk(temp_path)
 
+    # Load metadata json
+    metadata = None
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                content = f.read()
+                if content.strip():  # Check if file has content
+                    metadata = json.loads(content)
+                else:
+                    print(f"Warning: {metadata_path} is empty, skipping metadata preservation")
+        except json.JSONDecodeError as e:
+            print(f"Warning: Could not parse {metadata_path}: {e}")
+            print("Skipping metadata preservation")
+
     # Move old data to backup
-    backup_path = dataset_path + "_backup"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = f'{dataset_path}_backup_{timestamp}'
     os.makedirs(backup_path, exist_ok=True)
     if os.path.exists(dataset_path):
         shutil.move(dataset_path, backup_path)
 
     # Move temp data into place
     shutil.move(temp_path, dataset_path)
+    
+    # Dump metadata json
+    if metadata:
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
     # Optionally remove backup
     if not store_backup:
         shutil.rmtree(backup_path)
-
-import numpy as np
 
 def build_event_logits(
     events,
@@ -283,9 +348,6 @@ def build_event_logits(
                 break
 
     return event_logits
-
-import numpy as np
-
 
 def build_framewise_polyphony(
     time_freq_bounds_per_individual,
