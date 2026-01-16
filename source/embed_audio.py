@@ -59,7 +59,7 @@ def load_birdset_model(model_key):
     raise Exception("Not implemented.")
     return model, sampling_rate
 
-def embed_example(example, model, model_key, model_family, input_feature, sampling_rate):
+def embed_example(example, model, model_key, embedding_type, input_feature, sampling_rate):
 
     audio = example[input_feature]
     audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
@@ -71,11 +71,11 @@ def embed_example(example, model, model_key, model_family, input_feature, sampli
     audio = audio / (np.max(np.abs(audio)) + 1e-9)
 
     # Get spatial embedding
-    if model_family == 'perch_v1':
+    if embedding_type == 'perch_v1':
         example[embeddings_key] = embed_with_perch1(model, audio)
-    elif model_family == 'perch_v2':
+    elif embedding_type == 'perch_v2':
         example[embeddings_key], example[spatial_embeddigns_key]= embed_with_perch2(model, audio)
-    elif model_family == 'birdset':
+    elif embedding_type == 'birdset':
         example[embeddings_key] = embed_with_birdset(model, audio)
     else:
         raise Exception("Model family is not supported.")
@@ -106,15 +106,15 @@ def embed_with_birdset(model, audio):
     return embeddings
 
 
-def add_embeddings(model_family, model_keys, input_feature, dataset, cache_dir, recompute=False):
+def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir, recompute=False):
     modified = False
     for model_key in model_keys:
         #if recompute or new_feature_key not in dataset.features:
-        if model_family == 'perch_v1':
+        if embedding_type == 'perch_v1':
             model, sampling_rate = load_perch1_model(model_key)
-        elif model_family == 'perch_v2':
+        elif embedding_type == 'perch_v2':
             model, sampling_rate = load_perch2_model(model_key)
-        elif model_family == 'birdset':
+        elif embedding_type == 'birdset':
             model, sampling_rate = load_birdset_model(model_key)
         else:
             raise Exception("Model family unknown. Can not load model.")
@@ -123,7 +123,7 @@ def add_embeddings(model_family, model_keys, input_feature, dataset, cache_dir, 
             model=model,
             input_feature=input_feature,
             model_key=model_key,
-            model_family = model_family,
+            embedding_type = embedding_type,
             sampling_rate=sampling_rate,
         )
         cache_file = os.path.join(cache_dir, f"{model_key}_cache.arrow")
@@ -131,7 +131,7 @@ def add_embeddings(model_family, model_keys, input_feature, dataset, cache_dir, 
         modified = True
     return dataset, modified
 
-def add_embeddings_batchwise(model_family, model_keys, input_feature, dataset, cache_dir, batch_size=100):
+def add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset, cache_dir, batch_size=100):
     for model_key in model_keys:
         embedding_key = model_key + "_" + input_feature + "_embeddings"
 
@@ -141,13 +141,11 @@ def add_embeddings_batchwise(model_family, model_keys, input_feature, dataset, c
         
         print(f"Processing {model_key} embeddings in batches of {batch_size}...")
 
-        model_family = 'perch_v1'
-
-        if model_family == 'perch_v1':
+        if embedding_type == 'perch_v1':
             model, sampling_rate = load_perch1_model(model_key)
-        elif model_family == 'perch_v2':
+        elif embedding_type == 'perch_v2':
             model, sampling_rate = load_perch2_model(model_key)
-        elif model_family == 'birdset':
+        elif embedding_type == 'birdset':
             load_birdset_model = load_birdset_model(model_key)
         else:
              raise Exception("Model family unknown. Can not load model.")
@@ -156,7 +154,7 @@ def add_embeddings_batchwise(model_family, model_keys, input_feature, dataset, c
             embed_example,
             model=model,
             model_key=model_key,
-            model_family=model_family,
+            embedding_type=embedding_type,
             input_feature=input_feature,
             sampling_rate=sampling_rate,
         )
@@ -245,8 +243,6 @@ def main():
         dataset_path = cfg.path.dataset
         metadata_path = cfg.path.dataset_metadata
 
-        print(embedding_model)
-
         # perch v1 available models
         # BIRDNET_V2_1 = 'birdnet_V2.1'
         # BIRDNET_V2_2 = 'birdnet_V2.2'
@@ -261,20 +257,38 @@ def main():
         # AVES = 'aves'
         # PLACEHOLDER = 'placeholder'
 
-        perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
-        if args.version=='perch_v1' and embedding_model not in perch_v1_models:
-            print("Requested embedding is no perch_v1 model, exiting.")
-            exit(0)
+        # perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+        # if args.version=='perch_v1' and embedding_model not in perch_v1_models:
+        #     print("Requested embedding is no perch_v1 model, exiting.")
+        #     exit(0)
 
-        perch_v2_models = ['perch_v2', 'perch_v2_cpu']
-        if args.version=='perch_v2' and embedding_model not in perch_v2_models:
-                    print("Requested embedding is no perch_v2 model, exiting.")
-                    exit(0)
+        # perch_v2_models = ['perch_v2', 'perch_v2_cpu']
+        # if args.version=='perch_v2' and embedding_model not in perch_v2_models:
+        #             print("Requested embedding is no perch_v2 model, exiting.")
+        #             exit(0)
         
+        # birdset_models = []
+        # if args.version=='birdset' and embedding_model not in birdset_models:
+        #             print("Requested embedding is no birdset model, exiting.")
+        #             exit(0)
+
+        # Define availabel models
+        perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+        perch_v2_models = ['perch_v2', 'perch_v2_cpu']
         birdset_models = []
-        if args.version=='birdset' and embedding_model not in birdset_models:
-                    print("Requested embedding is no birdset model, exiting.")
-                    exit(0)
+
+        # Get embedding type [perch_v1, perch_v2, birdset]
+        if embedding_model in perch_v1_models:
+            embedding_type = 'perch_v1'
+        elif embedding_model in perch_v2_models:
+            embedding_type = 'perch_v2'
+        elif embedding_model in birdset_models:
+            embedding_type = 'birdset'
+        else:
+            print("Embedding model is not supported, skipping!")
+            return 0
+        
+        print(embedding_model, "is a ", embedding_type, "model.")
 
         model_keys = [embedding_model]
 
@@ -290,7 +304,7 @@ def main():
         # Compute embeddings
         for split in dataset.keys():
             dataset[split] = dataset[split].select(range(20)) # TODO: remove
-            dataset[split] = add_embeddings_batchwise(args.version, model_keys, input_feature, dataset[split], temp_cache_dir)
+            dataset[split] = add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset[split], temp_cache_dir)
         print("Embedding completed.")
 
         # ===================

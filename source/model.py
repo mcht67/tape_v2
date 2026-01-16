@@ -282,15 +282,18 @@ class TemporalCNNMultiTask(tf.keras.Model):
             "perch2_event_logits": event_logits,
             
         }
-    
+from keras.saving import register_keras_serializable
+@register_keras_serializable(package="model", name="TemporalCNNMultiTask_v2")
 class TemporalCNNMultiTask_v2(tf.keras.Model):
     def __init__(
         self,
         input_dim=(16, 4, 1536),
         conv_channels=(512, 256),
         dropout_rate=0.3,
-        enable_frame_polyphony=True,  # <-- optional switch
-    ):
+        enable_frame_polyphony=True,):  # <-- optional switch
+    #**kwargs):
+          # ADD **kwargs HERE
+        #super().__init__(**kwargs)  # PASS **kwargs to parent
         super().__init__()
         self.enable_frame_polyphony = enable_frame_polyphony
 
@@ -354,7 +357,7 @@ class TemporalCNNMultiTask_v2(tf.keras.Model):
         # Frame-wise polyphony (B, 16)
         if self.enable_frame_polyphony:
             frame_poly = self.frame_polyphony_head(features, training=training)
-            outputs["frame_polyphony"] = tf.squeeze(frame_poly, axis=-1)
+            outputs["framewise_polyphony"] = tf.squeeze(frame_poly, axis=-1)
 
         # Segment-level polyphony (B, 1)
         outputs["polyphony_degree"] = self.count_head(features, training=training)

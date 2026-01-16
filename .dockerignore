@@ -3,3 +3,5 @@
 # Except this files
 !requirements.txt
 !global.env
+!.dvc/config.local
+!secrets/

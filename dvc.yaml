@@ -13,7 +13,7 @@ stages:
   #     - path.dataset_metadata
 
   embed_with_perch:
-    cmd: envs/perch-venv/bin/python source/embed_audio.py --version perch_v1 #--model_keys ${train.embeddings}  ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
+    cmd: envs/perch-venv/bin/python source/embed_audio.py # --version perch_v1 #--model_keys ${train.embeddings}  ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
     params:
       - embeddings
     deps:
@@ -28,13 +28,13 @@ stages:
   #     - source/embed_audio.py
   #     - ${path.dataset_metadata}
 
-  embed_with_birdset:
-    cmd: python source/embed_audio.py #--version birdset #${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
-    params:
-      - embeddings
-    deps:
-      - source/embed_audio.py
-      - ${path.dataset_metadata}
+  # embed_with_birdset:
+  #   cmd: python source/embed_audio.py #--version birdset #${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
+  #   params:
+  #     - embeddings
+  #   deps:
+  #     - source/embed_audio.py
+  #     - ${path.dataset_metadata}
 
   # add_labels:
   #   cmd: python source/add_labels.py

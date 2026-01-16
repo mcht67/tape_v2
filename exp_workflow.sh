@@ -47,6 +47,9 @@ git ls-files;
 if [ -f ".dvc/config.local" ]; then
     echo ".dvc/config.local";
 fi;
+if [ -f "secrets/dvc-token.json" ]; then
+    echo "secrets/dvc-token.json"
+fi
 echo ".git";
 } | while read file; do
     # --chown flag is needed for docker to avoid permission issues
@@ -61,9 +64,9 @@ echo "Setting DVC cache directory..." &&
 dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 
 # Pull the data from the DVC remote repository
-if [ -f "data/raw.dvc" ]; then
+if [ -f "dataset.dvc" ]; then
     echo "Pulling data with DVC..." 
-    dvc pull data/raw;
+    dvc pull dataset;
 fi &&
 
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.

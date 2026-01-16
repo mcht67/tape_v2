@@ -27,6 +27,10 @@ debug_tensorboard
 !logs/*/.gitkeep
 !*.dvc
 
+# Ignore secrets
+.dvc/config.local
+secrets/
+
 # Ignore personal notes
 NOTES.md
 

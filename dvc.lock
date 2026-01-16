@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  embed_with_perch:
+    cmd: envs/perch-venv/bin/python source/embed_audio.py
+    deps:
+    - path: dataset/metadata.json
+      hash: md5
+      md5: 16d8354635dd0cb486dede61cddc7b78
+      size: 144
+    - path: source/embed_audio.py
+      hash: md5
+      md5: ca04ad9ede7e0cdca43d2211a2366f23
+      size: 12468
+    params:
+      params.yaml:
+        embeddings:
+          input_feature: audio
+          model: perch_8
