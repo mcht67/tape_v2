@@ -64,8 +64,8 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     audio = example[input_feature]
     audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
-    embeddings_key = model_key + "_embeddings"
-    spatial_embeddigns_key = model_key + "_spatial_embeddings"
+    embeddings_key = model_key + "_" + input_feature + "_embeddings"
+    spatial_embeddings_key = model_key + "_" + input_feature + "_spatial_embeddings"
 
     # Normalize
     audio = audio / (np.max(np.abs(audio)) + 1e-9)
@@ -74,7 +74,7 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     if embedding_type == 'perch_v1':
         example[embeddings_key] = embed_with_perch1(model, audio)
     elif embedding_type == 'perch_v2':
-        example[embeddings_key], example[spatial_embeddigns_key]= embed_with_perch2(model, audio)
+        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio)
     elif embedding_type == 'birdset':
         example[embeddings_key] = embed_with_birdset(model, audio)
     else:
@@ -139,7 +139,7 @@ def add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset,
              print("Embedding with model", model_key, "for", input_feature, "has already been calculated, skipping.")
              break
         
-        print(f"Processing {model_key} embeddings in batches of {batch_size}...")
+        print(f"Processing {embedding_key} in batches of {batch_size}...")
 
         if embedding_type == 'perch_v1':
             model, sampling_rate = load_perch1_model(model_key)
@@ -242,6 +242,7 @@ def main():
         embedding_model = cfg.embeddings.model
         dataset_path = cfg.path.dataset
         metadata_path = cfg.path.dataset_metadata
+        embedding_name = cfg.embeddings.name
 
         # perch v1 available models
         # BIRDNET_V2_1 = 'birdnet_V2.1'

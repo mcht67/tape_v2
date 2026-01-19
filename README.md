@@ -64,6 +64,17 @@ Save the python version of your virtual environment to the global environment fi
 
 #### Configure your DVC Remote
 
+## Dataset Setup (REQUIRED for first run)
+
+1. **You need your own Google Drive folder** for datasets
+2. `./setup_dvc_remote.sh` → Enter YOUR folder ID  
+3. Authenticate with YOUR Google account/service account
+4. `dvc pull` → Downloads to your local `.dvc/cache`
+
+**Note**: This repo contains experiment code + pipeline structure only.
+Datasets live in YOUR Google Drive, not mine.
+[DVC Documentation](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive#using-a-custom-google-cloud-project-recommended)
+
 Choose a [supported storage type](https://dvc.org/doc/command-reference/remote/add#supported-storage-types) and install the required DVC plugin (e.g., for WebDAV):
 
 ##### WebDAV

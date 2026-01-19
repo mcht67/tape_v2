@@ -30,5 +30,8 @@ metadata = {
         "dataset_path": dataset_path
     }
 
+metadata_dir = os.path.dirname(dataset_metadata_path)
+if metadata_dir:
+    os.makedirs(metadata_dir, exist_ok=True)
 with open(dataset_metadata_path, "w") as f:
     json.dump(metadata, f, indent=2)

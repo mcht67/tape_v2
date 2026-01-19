@@ -59,7 +59,7 @@ ENV PATH="/envs/base-venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir dvc dvc-gdrive omegaconf
 
-# Perch venv (call explicitly in DVC stages)
+# Perch venv for embeddings
 RUN python3.12 -m venv /envs/perch-venv \
     && /envs/perch-venv/bin/pip install --no-cache-dir --upgrade pip \
     && /envs/perch-venv/bin/pip install --no-cache-dir \
@@ -67,6 +67,26 @@ RUN python3.12 -m venv /envs/perch-venv \
         tensorflow \
         omegaconf \
         datasets==3.6.0
+# Note: gcsfs 2026.1.0 conflicts with datasets 3.6.0's fsspec requirement
+# but both work in practice. Keep datasets at 3.6.0 due to cast_column(Audio()) issue.
+
+# Train venv
+RUN python3.12 -m venv /envs/train-venv \
+    && /envs/train-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /envs/train-venv/bin/pip install --no-cache-dir \
+        datasets==3.6.0 \
+        librosa \
+        soundfile \
+        omegaconf \
+        numpy \
+        tensorflow \
+        matplotlib \
+        hydra-core \
+        torch \
+        seaborn \
+        scikit-learn \
+        psutil \
+        ruamel.yaml
 
 # BIRDSET ENV
 # # Create virtual environment

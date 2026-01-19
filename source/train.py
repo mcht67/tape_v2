@@ -120,7 +120,7 @@ def get_tensorboard_path(cfg):
         #dvc_exp_name = 'debug'
         current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
         os.environ['DEFAULT_DIR'] = default_dir
-        tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.features}'
+        tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.input_feature_name}'
         tensorboard_path_suffix = f'_{features}'
 
         tensorboard_path = Path(
@@ -197,7 +197,7 @@ set_random_seeds(random_seed)
 
 epochs = cfg.train.epochs
 
-features = cfg.train.features 
+features = cfg.train.input_feature_name
 labels = cfg.train.labels
 
 batch_size = cfg.train.batch_size
@@ -212,41 +212,41 @@ for run in ["run"]:
     # Load dataset
     dataset = load_from_disk(dataset_path)
 
-    # # Add duration TODO: do in dataset creation and remove here
-    # for split in dataset.keys():
-    #     print("Add duration to dataset split", split)
-    #     dataset[split] = dataset[split].map(
-    #         add_duration,
-    #         keep_in_memory=False,
-    #     )
+    # Add duration TODO: do in dataset creation and remove here
+    for split in dataset.keys():
+        print("Add duration to dataset split", split)
+        dataset[split] = dataset[split].map(
+            add_duration,
+            keep_in_memory=False,
+        )
 
-    # # Add event logits
-    # use_event_logits = cfg.train.use_event_logits
-    # if use_event_logits:
-    #     num_event_logits = cfg.train.num_event_logits
-    #     event_logits_name = cfg.train.event_logits_name
+    # Add event logits
+    use_event_logits = cfg.train.use_event_logits
+    if use_event_logits:
+        num_event_logits = cfg.train.num_event_logits
+        event_logits_name = cfg.train.event_logits_name
 
-    #     add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, logits_name=event_logits_name)
-    #     event_logits_feature = Sequence(Value("float32"))
+        add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, logits_name=event_logits_name)
+        event_logits_feature = Sequence(Value("float32"))
         
-    #     for split in dataset.keys():
-    #         dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
-    #         dataset[split] = dataset[split].cast_column(event_logits_name, event_logits_feature)
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
+            dataset[split] = dataset[split].cast_column(event_logits_name, event_logits_feature)
 
-    # # Add framewise polyphony labels
-    # use_framewise_polyphony = cfg.train.use_framewise_polyphony
-    # if use_framewise_polyphony:
-    #     framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name
-    #     num_frames = cfg.train.num_frames
+    # Add framewise polyphony labels
+    use_framewise_polyphony = cfg.train.use_framewise_polyphony
+    if use_framewise_polyphony:
+        framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name
+        num_frames = cfg.train.num_frames
 
-    #     add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=framewise_polyphony_feature_name)
-    #     framewise_polyphony_feature = Sequence(Value("float32"))
+        add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=framewise_polyphony_feature_name)
+        framewise_polyphony_feature = Sequence(Value("float32"))
 
-    #     for split in dataset.keys():
-    #         dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
-    #         dataset[split] = dataset[split].cast_column(framewise_polyphony_feature_name, framewise_polyphony_feature)
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
+            dataset[split] = dataset[split].cast_column(framewise_polyphony_feature_name, framewise_polyphony_feature)
 
-    # overwrite_dataset(dataset, dataset_path, store_backup=False)
+    overwrite_dataset(dataset, dataset_path, store_backup=False)
 
     # Get input dim
     embeddings = dataset['train'][0][features]

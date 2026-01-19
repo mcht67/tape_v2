@@ -3,7 +3,7 @@ import psutil
 import os
 from functools import wraps
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 from datasets import concatenate_datasets
 import shutil
 import json
@@ -134,63 +134,63 @@ def reshape_tensor_data(example, column_name, target_shape, pooling_strategy="me
     
     return example
 
-def reshape_tensor_data_tf(example, column_name, target_shape, pooling_strategy="mean", pad_value=0.0, suffix="_reshaped"):
-    """
-    TensorFlow-compatible function to reshape embeddings or other tensors in a dataset.
+# def reshape_tensor_data_tf(example, column_name, target_shape, pooling_strategy="mean", pad_value=0.0, suffix="_reshaped"):
+#     """
+#     TensorFlow-compatible function to reshape embeddings or other tensors in a dataset.
 
-    Args:
-        example (dict): One dataset example, with tensors.
-        column_name (str): Key of the tensor to reshape.
-        target_shape (tuple): Desired output shape (e.g., (1280,))
-        pooling_strategy (str): "mean", "max", "first", "last", "sum", "flatten"
-        pad_value (float): Value for padding if needed.
-        suffix (str): Suffix for new key name.
+#     Args:
+#         example (dict): One dataset example, with tensors.
+#         column_name (str): Key of the tensor to reshape.
+#         target_shape (tuple): Desired output shape (e.g., (1280,))
+#         pooling_strategy (str): "mean", "max", "first", "last", "sum", "flatten"
+#         pad_value (float): Value for padding if needed.
+#         suffix (str): Suffix for new key name.
 
-    Returns:
-        dict: Updated example with new reshaped tensor under key: column_name + suffix
-    """
-    data = example[column_name]  # Tensor of shape (segments, 1, 1280) or similar
+#     Returns:
+#         dict: Updated example with new reshaped tensor under key: column_name + suffix
+#     """
+#     data = example[column_name]  # Tensor of shape (segments, 1, 1280) or similar
 
-    # Ensure data is float32
-    data = tf.cast(data, tf.float32)
+#     # Ensure data is float32
+#     data = tf.cast(data, tf.float32)
 
-    # Step 1: Remove unnecessary singleton dimensions
-    data = tf.squeeze(data, axis=1) if tf.rank(data) == 3 and data.shape[1] == 1 else data  # shape: (segments, 1280)
+#     # Step 1: Remove unnecessary singleton dimensions
+#     data = tf.squeeze(data, axis=1) if tf.rank(data) == 3 and data.shape[1] == 1 else data  # shape: (segments, 1280)
 
-    # Step 2: Pooling to reduce dimensionality
-    if pooling_strategy == "mean":
-        pooled = tf.reduce_mean(data, axis=0)
-    elif pooling_strategy == "max":
-        pooled = tf.reduce_max(data, axis=0)
-    elif pooling_strategy == "sum":
-        pooled = tf.reduce_sum(data, axis=0)
-    elif pooling_strategy == "first":
-        pooled = data[0]
-    elif pooling_strategy == "last":
-        pooled = data[-1]
-    elif pooling_strategy == "flatten":
-        pooled = tf.reshape(data, [-1])  # Just flatten everything
-    else:
-        raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
+#     # Step 2: Pooling to reduce dimensionality
+#     if pooling_strategy == "mean":
+#         pooled = tf.reduce_mean(data, axis=0)
+#     elif pooling_strategy == "max":
+#         pooled = tf.reduce_max(data, axis=0)
+#     elif pooling_strategy == "sum":
+#         pooled = tf.reduce_sum(data, axis=0)
+#     elif pooling_strategy == "first":
+#         pooled = data[0]
+#     elif pooling_strategy == "last":
+#         pooled = data[-1]
+#     elif pooling_strategy == "flatten":
+#         pooled = tf.reshape(data, [-1])  # Just flatten everything
+#     else:
+#         raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
-    # Step 3: Reshape or pad/truncate to match target shape
-    flat = tf.reshape(pooled, [-1])
-    current_size = tf.shape(flat)[0]
-    target_size = tf.reduce_prod(target_shape)
+#     # Step 3: Reshape or pad/truncate to match target shape
+#     flat = tf.reshape(pooled, [-1])
+#     current_size = tf.shape(flat)[0]
+#     target_size = tf.reduce_prod(target_shape)
 
-    def pad():
-        pad_len = target_size - current_size
-        return tf.concat([flat, tf.fill([pad_len], pad_value)], axis=0)
+#     def pad():
+#         pad_len = target_size - current_size
+#         return tf.concat([flat, tf.fill([pad_len], pad_value)], axis=0)
 
-    def truncate():
-        return flat[:target_size]
+#     def truncate():
+#         return flat[:target_size]
 
-    output = tf.cond(current_size < target_size, pad, truncate)
-    output = tf.reshape(output, target_shape)
+#     output = tf.cond(current_size < target_size, pad, truncate)
+#     output = tf.reshape(output, target_shape)
 
-    # Update dictionary
-    example[column_name + suffix] = output
-    return example
+#     # Update dictionary
+#     example[column_name + suffix] = output
+#     return example
 
 def process_in_batches(dataset, process_fn, cache_dir, prefix="", batch_size=100):
     """
@@ -275,7 +275,7 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
     # Load metadata json
     metadata = None
-    if os.path.exists(metadata_path):
+    if metadata_path and os.path.exists(metadata_path):
         try:
             with open(metadata_path, 'r') as f:
                 content = f.read()

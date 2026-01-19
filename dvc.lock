@@ -3,16 +3,40 @@ stages:
   embed_with_perch:
     cmd: envs/perch-venv/bin/python source/embed_audio.py
     deps:
-    - path: dataset/metadata.json
-      hash: md5
-      md5: 16d8354635dd0cb486dede61cddc7b78
-      size: 144
     - path: source/embed_audio.py
       hash: md5
-      md5: ca04ad9ede7e0cdca43d2211a2366f23
-      size: 12468
+      md5: 0f3ea1f7886ecef717209e5344d10678
+      size: 12550
+    - path: stage_results/dataset_metadata.json
+      hash: md5
+      md5: 6ae2ef753c43cf1c49280c71bf4ce967
+      size: 144
     params:
       params.yaml:
         embeddings:
           input_feature: audio
-          model: perch_8
+          model: perch_v2_cpu
+          name: ${embeddings.model}_${embeddings.input_feature}
+    outs:
+    - path: dataset
+      hash: md5
+      md5: 38f429c3203abe4c4d5cc6521dd8d66e.dir
+      size: 38779318
+      nfiles: 10
+  load_dataset:
+    cmd: python source/load_dataset.py
+    deps:
+    - path: source/load_dataset.py
+      hash: md5
+      md5: 999c5ae1b54868326167897e0d98b580
+      size: 999
+    params:
+      params.yaml:
+        dataset.huggingface_path: mcht67/PolyphonicBirdSet
+        dataset.subset: HSN
+        path.dataset_metadata: stage_results/dataset_metadata.json
+    outs:
+    - path: stage_results/dataset_metadata.json
+      hash: md5
+      md5: 6ae2ef753c43cf1c49280c71bf4ce967
+      size: 144

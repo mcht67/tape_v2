@@ -1,7 +1,7 @@
 # Do not change paths, this could break dvc tracking
 path:
   dataset: dataset
-  dataset_metadata: dataset/metadata.json
+  dataset_metadata: stage_results/dataset_metadata.json
 
 general:
   random_seed: 42
@@ -24,7 +24,8 @@ dataset:
 
 embeddings:
   input_feature: audio
-  model: perch_8 #perch_v2_cpu
+  model: perch_v2_cpu
+  name: ${embeddings.model}_${embeddings.input_feature}
 
 model:
   _target_: model.TemporalCNNMultiTask_v2
@@ -35,13 +36,13 @@ model:
 
 train:
   #features: perch_v2_cpu_spatial_embeddings_audio
-  input_feature_name: ${train.embedding}_embedding
+  input_feature_name: ${embeddings.name}_spatial_embeddings
   labels: 
     - polyphony_degree
     - framewise_polyphony
     - perch2_event_logits
   batch_size: 128
-  learning_rate: 0.001
+  learning_rate: 0.01
   epochs: 10
   tensorboard_path: debug_tensorboard
 
