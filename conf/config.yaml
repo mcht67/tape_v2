@@ -1,9 +1,8 @@
 # ==============================================
 # CHANGING THESE COULD BREAK DVC TRACKING
-paths: 
-  raw_dataset: data/raw_datasets/${dataset.subset}
-  polyphonic_dataset: data/polyphonic_datasets/${dataset.subset}_polyphonic
-  preprocessed_dataset: data/preprocessed_datasets/${dataset.subset}_preprocessed
+path:
+  dataset: dataset
+  dataset_metadata: stage_results/dataset_metadata.json
 # ==============================================
 
 hydra:
@@ -22,8 +21,8 @@ defaults:
   - general: default
   - dataset: default
   - embeddings: default
-  - preprocess: default
-  - model: 'SimpleMLP'
+  #- preprocess: default
+  - model: 'TemporalCNN'
   - train: 'default'
   - _self_
 

@@ -1,58 +1,35 @@
-# Do not change paths, this could break dvc tracking
-path:
-  dataset: dataset
-  dataset_metadata: stage_results/dataset_metadata.json
-
 general:
   random_seed: 42
-
 dataset:
   huggingface_path: mcht67/PolyphonicBirdSet
   subset: HSN
   split: train
-
-# embeddings:
-#   compute_embedding: 'True'
-#   perch_v1_models:
-#   - birdnet_V2.3
-#   - perch_8
-#   perch_v2_models:
-#   - perch_v2_cpu
-#   birdset_models:
-#   - bird_mae
-#   feature: audio #no_noise_audio
-
 embeddings:
   input_feature: audio
-  model: perch_v2_cpu
-  name: ${embeddings.model}_${embeddings.input_feature}
-
+  model: perch_8
+  name: perch_8_audio
+preprocess: {}
 model:
   _target_: model.TemporalCNNMultiTask_v2
-  # hidden_units:
-  # - 512
-  # - 256
-  # dropout_rate: 0.3
-
 train:
-  #features: perch_v2_cpu_spatial_embeddings_audio
-  input_feature_name: ${embeddings.name}_spatial_embeddings
-  labels: 
-    - polyphony_degree
-    - framewise_polyphony
-    - perch2_event_logits
+  input_feature_name: perch_8_audio_spatial_embeddings
+  labels:
+  - polyphony_degree
+  - framewise_polyphony
+  - perch2_event_logits
   batch_size: 128
   learning_rate: 0.01
   epochs: 10
   tensorboard_path: debug_tensorboard
-
-  use_event_logits: True
+  use_event_logits: true
   num_event_logits: 16
   event_logits_name: perch2_event_logits
-
-  use_framewise_polyphony: True
+  use_framewise_polyphony: true
   num_frames: 16
   framewise_polyphony_name: framewise_polyphony
-
-
-
+path:
+  dataset: dataset
+  dataset_metadata: stage_results/dataset_metadata.json
+  raw_dataset: data/raw_datasets/HSN
+  polyphonic_dataset: dcata/polyphonic_datasets/HSN_polyphonic
+  preprocessed_dataset: data/preprocessed_datasets/HSN_preprocessed

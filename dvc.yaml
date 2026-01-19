@@ -3,7 +3,7 @@
 stages:
   load_dataset:
     cmd:
-      python source/load_dataset.py
+      envs/base-venv/bin/python source/load_dataset.py
     deps:
       - source/load_dataset.py
     params:

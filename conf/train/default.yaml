@@ -1,10 +1,18 @@
-features: perch_8_embeddings #
-labels: polyphony_degree
-test_split: 0.1
-val_split: 0.1
-batch_size: 128 
-learning_rate: 0.05
-epochs: 50
-# device_request: 'cuda'
-# input_file_path: 'data/processed/data.pt'
-# output_file_path: 'models/checkpoints/model.pth'
+
+input_feature_name: ${embeddings.name}_spatial_embeddings
+labels: 
+  - polyphony_degree
+  - framewise_polyphony
+  - perch2_event_logits
+batch_size: 128
+learning_rate: 0.01
+epochs: 10
+tensorboard_path: debug_tensorboard
+
+use_event_logits: True
+num_event_logits: 16
+event_logits_name: perch2_event_logits
+
+use_framewise_polyphony: True
+num_frames: 16
+framewise_polyphony_name: framewise_polyphony

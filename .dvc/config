@@ -1,2 +1,4 @@
 [core]
 remote = myremote
+[hydra]
+    enabled = True

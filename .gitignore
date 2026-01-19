@@ -19,7 +19,7 @@ logs/local_rsync_output.log
 /exp_logs/*
 dataset
 debug_tensorboard
-stage_results
+stage_results/
 
 # Ignore tmp copies for experiments
 /tmp

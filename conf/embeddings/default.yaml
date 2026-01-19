@@ -11,5 +11,7 @@
 # BEANS_BASELINE = 'beans_baseline'
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
-models: ['perch_8' , 'birdnet_V2.3']
-feature: 'audio'
+
+input_feature: audio
+model: perch_8
+name: ${embeddings.model}_${embeddings.input_feature}
