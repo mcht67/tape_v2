@@ -314,21 +314,26 @@ for run in ["run"]:
     model.summary()
     print(len(train_dataset))
     history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40], event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1], frame_loss_weights=[5.0, 10.0, 5.0, 1.0, 0.5], count_loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0]),tensorboard_callback]) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+    
+    # TODO: Save usable version
     model.save('my_model.keras')
 
-    for example in [dataset['train'][220], dataset['train'][20], dataset['validation'][110], dataset['test'][110]]:
-        embedding = example['perch_v2_cpu_spatial_embeddings_audio']
-        # Extract the features and add batch dimension
-        single_input = np.expand_dims(embedding, axis=0)  # Add batch dim
-        single_input = tf.constant(single_input, dtype=tf.float32)
+    # TODO: Store config in file/logs
+    print(OmegaConf.to_yaml(cfg))
 
-        # Squeeze if needed (depends on your data)
-        #single_input = tf.squeeze(single_input, axis=1)  # If there's an extra dimension
-        predictions = model.predict(single_input)
-        print(predictions)
-        print(example['polyphony_degree'])
-        print(example['perch2_event_logits'])
-        print(example['framewise_polyphony'])
+    # for example in [dataset['train'][220], dataset['train'][20], dataset['validation'][110], dataset['test'][110]]:
+    #     embedding = example['perch_v2_cpu_spatial_embeddings_audio']
+    #     # Extract the features and add batch dimension
+    #     single_input = np.expand_dims(embedding, axis=0)  # Add batch dim
+    #     single_input = tf.constant(single_input, dtype=tf.float32)
+
+    #     # Squeeze if needed (depends on your data)
+    #     #single_input = tf.squeeze(single_input, axis=1)  # If there's an extra dimension
+    #     predictions = model.predict(single_input)
+    #     print(predictions)
+    #     print(example['polyphony_degree'])
+    #     print(example['perch2_event_logits'])
+    #     print(example['framewise_polyphony'])
 
 dataset.cleanup_cache_files()
 
