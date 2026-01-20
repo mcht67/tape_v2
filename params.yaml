@@ -1,25 +1,24 @@
 general:
-  random_seed: 42
+  random_seed: 52
 dataset:
   huggingface_path: mcht67/PolyphonicBirdSet
   subset: HSN
   split: train
 embeddings:
   input_feature: audio
-  model: perch_8
-  name: perch_8_audio
-preprocess: {}
+  model: perch_v2_cpu
+  name: perch_v2_cpu_audio
 model:
   _target_: model.TemporalCNNMultiTask_v2
 train:
-  input_feature_name: perch_8_audio_spatial_embeddings
+  input_feature_name: perch_v2_cpu_audio_spatial_embeddings
   labels:
   - polyphony_degree
   - framewise_polyphony
   - perch2_event_logits
   batch_size: 128
   learning_rate: 0.01
-  epochs: 10
+  epochs: 5
   tensorboard_path: debug_tensorboard
   use_event_logits: true
   num_event_logits: 16
@@ -30,6 +29,3 @@ train:
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json
-  raw_dataset: data/raw_datasets/HSN
-  polyphonic_dataset: dcata/polyphonic_datasets/HSN_polyphonic
-  preprocessed_dataset: data/preprocessed_datasets/HSN_preprocessed

@@ -5,26 +5,26 @@ stages:
     deps:
     - path: source/embed_audio.py
       hash: md5
-      md5: 0f3ea1f7886ecef717209e5344d10678
-      size: 12550
+      md5: 5990ef229d1d10b069e5f66e295e6f76
+      size: 12473
     - path: stage_results/dataset_metadata.json
       hash: md5
-      md5: 6ae2ef753c43cf1c49280c71bf4ce967
+      md5: 41c4ef8bed7811016a108cb28b486cfd
       size: 144
     params:
       params.yaml:
         embeddings:
           input_feature: audio
           model: perch_v2_cpu
-          name: ${embeddings.model}_${embeddings.input_feature}
+          name: perch_v2_cpu_audio
     outs:
     - path: dataset
       hash: md5
-      md5: 38f429c3203abe4c4d5cc6521dd8d66e.dir
+      md5: 3368a81bd3a985d109d7c8698cf6dd60.dir
       size: 38779318
       nfiles: 10
   load_dataset:
-    cmd: python source/load_dataset.py
+    cmd: envs/base-venv/bin/python source/load_dataset.py
     deps:
     - path: source/load_dataset.py
       hash: md5
@@ -38,5 +38,5 @@ stages:
     outs:
     - path: stage_results/dataset_metadata.json
       hash: md5
-      md5: 6ae2ef753c43cf1c49280c71bf4ce967
+      md5: 41c4ef8bed7811016a108cb28b486cfd
       size: 144

@@ -304,7 +304,6 @@ def main():
         print("Start embedding...")
         # Compute embeddings
         for split in dataset.keys():
-            dataset[split] = dataset[split].select(range(20)) # TODO: remove
             dataset[split] = add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset[split], temp_cache_dir)
         print("Embedding completed.")
 

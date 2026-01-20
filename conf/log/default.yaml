@@ -1,0 +1,3 @@
+experiment_name: 'test-experiment'
+tensorboard_subfolder: 'TestExperiment'
+tensorboard_suffix: ''

@@ -24,6 +24,7 @@ defaults:
   #- preprocess: default
   - model: 'TemporalCNN'
   - train: 'default'
+  - log: 'default'
   - _self_
 
   

@@ -207,8 +207,14 @@ dataset_path =  cfg.path.dataset
 for run in ["run"]:
 
     # Get tensorboard path based on path, dataset subset, features and datetime
-    tensorboard_path = get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
-    
+    # Set DEFAULT_DIR if not set (usually when running without dvc)
+    os.environ.setdefault('DEFAULT_DIR', os.getcwd())
+    os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
+    tensorboard_subfolder = cfg.log.tensorboard_subfolder
+    tensorboard_suffix = cfg.log.tensorboard_suffix
+    tensorboard_path = return_tensorboard_path(subfolder=tensorboard_subfolder, suffix=tensorboard_suffix ) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
+    os.makedirs(tensorboard_path, exist_ok=True)
+
     # Load dataset
     dataset = load_from_disk(dataset_path)
 
