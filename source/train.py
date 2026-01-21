@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
 import numpy as np
-from datasets import load_from_disk, DatasetDict, concatenate_datasets, Sequence, Value
+from datasets import load_from_disk, concatenate_datasets, Sequence, Value
 from omegaconf import OmegaConf
 from utils.general import reshape_tensor_data
 from utils.logs import return_tensorboard_path, plot_confusion_matrix, CustomSummaryWriter, CustomSummaryWriterCallback
@@ -18,6 +18,7 @@ from functools import partial
 
 from utils.general import build_event_logits, build_framewise_polyphony, overwrite_dataset
 from utils.dsp import num_samples_to_duration_s
+from utils.logs import plot_spectrogram_with_metrics
 
 # def split_dataset(test_split, val_split, dataset, random_seed):
 #     # Split into train/test first (e.g., 90/10) -> test size = 0.1 * number of items
@@ -218,6 +219,9 @@ for run in ["run"]:
     # Load dataset
     dataset = load_from_disk(dataset_path)
 
+    # for split in dataset:
+    #     dataset[split] = dataset[split].select(range(20))
+
     # Add duration TODO: do in dataset creation and remove here
     for split in dataset.keys():
         print("Add duration to dataset split", split)
@@ -340,6 +344,61 @@ for run in ["run"]:
     #     print(example['polyphony_degree'])
     #     print(example['perch2_event_logits'])
     #     print(example['framewise_polyphony'])
+
+    # Add some examples to tensorboard
+    import matplotlib.pyplot as plt
+
+    # Get some examples
+    for idx, (split_name, example_idx) in enumerate([
+        ('train', 2), 
+        # ('train', 220), 
+        # ('validation', 110), 
+        # ('test', 110)
+    ]):
+        example = dataset[split_name][example_idx]
+        embedding = example[features]
+        
+        # Make prediction
+        single_input = np.expand_dims(embedding, axis=0)
+        single_input = tf.constant(single_input, dtype=tf.float32)
+        predictions = model.predict(single_input)
+        
+        # Extract data
+        gt_polyphony = example['polyphony_degree']
+        gt_event_logits = example['perch2_event_logits']
+        pred_polyphony = predictions['polyphony_degree'][0][0]
+        pred_event_logits = predictions['perch2_event_logits'][0]
+        
+        # Get audio and events
+        audio_array = example['audio']['array']  # Adjust based on your data structure
+        sampling_rate = example['audio']['sampling_rate']
+
+        # Get all events
+        all_events = []
+        for events in example['raw_files_time_freq_bounds']:
+            for event in events:
+                print(event)
+                all_events.append(event)
+        
+        # Create combined figure
+        fig = plot_spectrogram_with_metrics(
+            audio_array=audio_array,
+            sampling_rate=sampling_rate,
+            split_name=split_name,
+            example_idx=example_idx,
+            gt_polyphony=gt_polyphony,
+            pred_polyphony=pred_polyphony,
+            gt_event_logits=gt_event_logits,
+            pred_event_logits=pred_event_logits,
+            events=all_events,
+            filename=example.get('filename', None)
+        )
+        
+        writer.add_figure('test_examples', fig, global_step=idx)
+        plt.close(fig)
+
+    # Flush to ensure all figures are written
+    writer.flush()
 
 dataset.cleanup_cache_files()
 
