@@ -4,10 +4,10 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
 import numpy as np
-from datasets import load_from_disk, concatenate_datasets, Sequence, Value
+from datasets import load_from_disk, concatenate_datasets
 from omegaconf import OmegaConf
 from utils.general import reshape_tensor_data
-from utils.logs import return_tensorboard_path, plot_confusion_matrix, CustomSummaryWriter, CustomSummaryWriterCallback
+from utils.logs import return_tensorboard_path, CustomSummaryWriter, CustomSummaryWriterCallback
 import os
 from utils.config import set_random_seeds, Params
 import datetime
@@ -16,26 +16,7 @@ import model
 from hydra.utils import instantiate
 from functools import partial
 
-from utils.general import build_event_logits, build_framewise_polyphony, overwrite_dataset
-from utils.dsp import num_samples_to_duration_s
 from utils.logs import plot_spectrogram_with_metrics
-
-# def split_dataset(test_split, val_split, dataset, random_seed):
-#     # Split into train/test first (e.g., 90/10) -> test size = 0.1 * number of items
-#     train_test = dataset.train_test_split(test_size=test_split, shuffle=True, seed=random_seed)
-
-#     # Split the training set further to create validation (e.g., 80/10/10) 0.1 * number of items = x * 0.9 * number of items -> x = 0.1 / 0.9 = 0.11
-#     val_split_factor = val_split / (1 - test_split) 
-#     train_val = train_test['train'].train_test_split(test_size=val_split_factor, shuffle=True, seed=random_seed)  # 0.11 * 0.9 = 0.1 of total
-
-#     # TODO: Add stratified splitting
-
-#     # Create the final dataset dictionary
-#     return DatasetDict({
-#         'train': train_val['train'],      
-#         'validation': train_val['test'],   
-#         'test': train_test['test']        
-#     })
 
 def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
     X = np.stack(hf_dataset[features]).astype(np.float32)
@@ -136,26 +117,6 @@ def get_tensorboard_path(cfg):
     os.makedirs(tensorboard_path, exist_ok=True)
     return tensorboard_path
 
-def add_duration(example):
-        example["segment_duration_s"] = 5
-        return example
-
-def add_event_logits(example, num_event_logits, logits_name):
-        all_events = []
-        for events in example['raw_files_time_freq_bounds']:
-            all_events.extend(events)
-        segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
-        event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
-        example[logits_name] = event_logits
-        return example
-
-def add_framewise_polyphony(example, num_frames, feature_name):
-        time_freq_bounds_per_raw_file = example['raw_files_time_freq_bounds']
-        segment_durations_s = example["segment_duration_s"]
-        framewise_polyphony_array = build_framewise_polyphony(time_freq_bounds_per_raw_file, segment_durations_s, num_frames)
-        example[feature_name] = framewise_polyphony_array
-        return example
-
 class LossWeightScheduler(tf.keras.callbacks.Callback):
     def __init__(
         self,
@@ -218,45 +179,6 @@ for run in ["run"]:
 
     # Load dataset
     dataset = load_from_disk(dataset_path)
-
-    # for split in dataset:
-    #     dataset[split] = dataset[split].select(range(20))
-
-    # Add duration TODO: do in dataset creation and remove here
-    for split in dataset.keys():
-        print("Add duration to dataset split", split)
-        dataset[split] = dataset[split].map(
-            add_duration,
-            keep_in_memory=False,
-        )
-
-    # Add event logits
-    use_event_logits = cfg.train.use_event_logits
-    if use_event_logits:
-        num_event_logits = cfg.train.num_event_logits
-        event_logits_name = cfg.train.event_logits_name
-
-        add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, logits_name=event_logits_name)
-        event_logits_feature = Sequence(Value("float32"))
-        
-        for split in dataset.keys():
-            dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
-            dataset[split] = dataset[split].cast_column(event_logits_name, event_logits_feature)
-
-    # Add framewise polyphony labels
-    use_framewise_polyphony = cfg.train.use_framewise_polyphony
-    if use_framewise_polyphony:
-        framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name
-        num_frames = cfg.train.num_frames
-
-        add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=framewise_polyphony_feature_name)
-        framewise_polyphony_feature = Sequence(Value("float32"))
-
-        for split in dataset.keys():
-            dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
-            dataset[split] = dataset[split].cast_column(framewise_polyphony_feature_name, framewise_polyphony_feature)
-
-    overwrite_dataset(dataset, dataset_path, store_backup=False)
 
     # Get input dim
     embeddings = dataset['train'][0][features]
@@ -330,6 +252,7 @@ for run in ["run"]:
 
     # TODO: Store config in file/logs
     print(OmegaConf.to_yaml(cfg))
+    OmegaConf.save(cfg, os.path.join(tensorboard_path, "params.yaml"))
 
     # for example in [dataset['train'][220], dataset['train'][20], dataset['validation'][110], dataset['test'][110]]:
     #     embedding = example['perch_v2_cpu_spatial_embeddings_audio']
@@ -351,9 +274,11 @@ for run in ["run"]:
     # Get some examples
     for idx, (split_name, example_idx) in enumerate([
         ('train', 2), 
-        # ('train', 220), 
-        # ('validation', 110), 
-        # ('test', 110)
+        ('train', 23), 
+        ('validation', 2), 
+        ('validation', 23), 
+        ('test', 2),
+        ('test', 23)
     ]):
         example = dataset[split_name][example_idx]
         embedding = example[features]
@@ -394,7 +319,7 @@ for run in ["run"]:
             filename=example.get('filename', None)
         )
         
-        writer.add_figure('test_examples', fig, global_step=idx)
+        writer.add_figure('test_examples_{idx}', fig, global_step=idx)
         plt.close(fig)
 
     # Flush to ensure all figures are written

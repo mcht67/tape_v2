@@ -645,128 +645,7 @@ def copy_slurm_logs(dir_name) -> None:
         print(f"SLURM log 'slurm-{current_slurm_job_id}.out' copied to {slurm_logs_destination / f.name}.")
     else:
         print("No SLURM_JOB_ID found. Skipping SLURM logs copying.")
-def plot_spectrogram_with_metrics(
-    audio_array, sampling_rate,
-    split_name=None, example_idx=None, 
-    gt_polyphony=None, pred_polyphony=None,
-    gt_event_logits=None, pred_event_logits=None,
-    events=None, filename=None
-):
-    """
-    Plot spectrogram with bounding boxes and metrics for a single example.
-    
-    Args:
-        audio_array: Audio array for spectrogram
-        sampling_rate: Sampling rate of audio
-        split_name: Name of the dataset split
-        example_idx: Index of the example
-        gt_polyphony: Ground truth polyphony degree
-        pred_polyphony: Predicted polyphony degree
-        gt_event_logits: Ground truth event logits (array)
-        pred_event_logits: Predicted event logits (array)
-        events: Event bounding boxes [(start_time, end_time, freq_low, freq_high), ...]
-        filename: Optional filename to display in title
-    """
-    # Enforce mono audio
-    if audio_array.ndim != 1:
-        audio_array = np.mean(audio_array, axis=0)
-    
-    # Compute Mel spectrogram
-    mel_spec = librosa.feature.melspectrogram(y=audio_array, sr=sampling_rate, fmax=8000)
-    S_dB = librosa.power_to_db(mel_spec, ref=np.max)
-    
-    # --- Create figure with GridSpec ---
-    fig = plt.figure(figsize=(14, 8))
-    gs = gridspec.GridSpec(3, 2, width_ratios=[20, 1], height_ratios=[1, 3, 1.2], 
-                          figure=fig, hspace=0.25, wspace=0.1)
-    
-    # --- Spectrogram components ---
-    ax_wave = fig.add_subplot(gs[0, 0])  # waveform
-    ax_spec = fig.add_subplot(gs[1, 0], sharex=ax_wave)  # spectrogram
-    cax_spec = fig.add_subplot(gs[1, 1])  # colorbar for spectrogram
-    
-    # --- Plot waveform ---
-    times = np.arange(audio_array.size) / sampling_rate
-    ax_wave.plot(times, audio_array, color="gray")
-    ax_wave.set_ylabel("Amplitude")
-    
-    # Build title
-    title = ""
-    if split_name is not None and example_idx is not None:
-        title += f"{split_name}[{example_idx}]"
-    if filename:
-        title += f" - {filename}"
-    ax_wave.set_title(title, fontsize=12, fontweight='bold')
-    ax_wave.grid(True, linestyle="--", alpha=0.3)
-    plt.setp(ax_wave.get_xticklabels(), visible=False)
-    
-    # --- Plot spectrogram ---
-    img = librosa.display.specshow(
-        S_dB,
-        x_axis="time",
-        y_axis="mel",
-        sr=sampling_rate,
-        fmax=8000,
-        ax=ax_spec,
-    )
-    
-    # Plot event bounding boxes if provided
-    if events is not None:
-        plot_event_bounding_boxes(
-            ax=ax_spec,
-            events=events,
-            edgecolor="cyan",
-            linewidth=2,
-        )
-    
-    fig.colorbar(img, cax=cax_spec, format="%+2.0f dB", label="dB")
-    ax_spec.set_xlabel("Time [s]")
-    ax_spec.set_ylabel("Mel frequency [Hz]")
-    
-    # --- Add metrics display ---
-    ax_metrics = fig.add_subplot(gs[2, :])
-    ax_metrics.axis('off')
-    
-    metrics_text = []
-    
-    # Display polyphony degree
-    if gt_polyphony is not None and pred_polyphony is not None:
-        metrics_text.append(f"Polyphony Degree - GT: {gt_polyphony:.3f}  |  Pred: {pred_polyphony:.3f}\n")
-    
-    # Display event logits element-by-element comparison
-    if gt_event_logits is not None and pred_event_logits is not None:
-        gt_array = np.array(gt_event_logits).flatten()
-        pred_array = np.array(pred_event_logits).flatten()
         
-        metrics_text.append("Event Logits Comparison:")
-        metrics_text.append("Index | Ground Truth | Prediction | Difference")
-        metrics_text.append("-" * 50)
-        
-        # Display each element
-        max_display = min(len(gt_array), len(pred_array), 10)  # Limit to 10 elements for readability
-        for i in range(max_display):
-            diff = pred_array[i] - gt_array[i]
-            metrics_text.append(f"  {i:3d}  |    {gt_array[i]:7.3f}   |   {pred_array[i]:7.3f}  |   {diff:+7.3f}")
-        
-        if len(gt_array) > max_display:
-            metrics_text.append(f"  ... ({len(gt_array) - max_display} more elements)")
-        
-        # Add summary statistics
-        metrics_text.append("")
-        metrics_text.append(f"Mean - GT: {np.mean(gt_array):.3f}  |  Pred: {np.mean(pred_array):.3f}")
-        metrics_text.append(f"Std  - GT: {np.std(gt_array):.3f}  |  Pred: {np.std(pred_array):.3f}")
-        metrics_text.append(f"MAE: {np.mean(np.abs(gt_array - pred_array)):.3f}")
-    
-    if metrics_text:
-        textstr = '\n'.join(metrics_text)
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
-        ax_metrics.text(0.5, 0.5, textstr, transform=ax_metrics.transAxes, 
-                      fontsize=9, verticalalignment='center', 
-                      horizontalalignment='center', bbox=props, family='monospace')
-    
-    plt.tight_layout()
-    return fig
-
 # def plot_spectrogram_with_metrics(
 #     audio_array, sampling_rate,
 #     split_name=None, example_idx=None, 
@@ -784,8 +663,8 @@ def plot_spectrogram_with_metrics(
 #         example_idx: Index of the example
 #         gt_polyphony: Ground truth polyphony degree
 #         pred_polyphony: Predicted polyphony degree
-#         gt_event_logits: Ground truth event logits
-#         pred_event_logits: Predicted event logits
+#         gt_event_logits: Ground truth event logits (array)
+#         pred_event_logits: Predicted event logits (array)
 #         events: Event bounding boxes [(start_time, end_time, freq_low, freq_high), ...]
 #         filename: Optional filename to display in title
 #     """
@@ -798,8 +677,8 @@ def plot_spectrogram_with_metrics(
 #     S_dB = librosa.power_to_db(mel_spec, ref=np.max)
     
 #     # --- Create figure with GridSpec ---
-#     fig = plt.figure(figsize=(12, 7))
-#     gs = gridspec.GridSpec(3, 2, width_ratios=[20, 1], height_ratios=[1, 3, 0.5], 
+#     fig = plt.figure(figsize=(14, 8))
+#     gs = gridspec.GridSpec(3, 2, width_ratios=[20, 1], height_ratios=[1, 3, 1.2], 
 #                           figure=fig, hspace=0.25, wspace=0.1)
     
 #     # --- Spectrogram components ---
@@ -845,30 +724,385 @@ def plot_spectrogram_with_metrics(
 #     ax_spec.set_xlabel("Time [s]")
 #     ax_spec.set_ylabel("Mel frequency [Hz]")
     
-#     # --- Add metrics text box ---
-#     if any(x is not None for x in [gt_polyphony, pred_polyphony, gt_event_logits, pred_event_logits]):
-#         metrics_text = []
+#     # --- Add metrics display ---
+#     ax_metrics = fig.add_subplot(gs[2, :])
+#     ax_metrics.axis('off')
+    
+#     metrics_text = []
+    
+#     # Display polyphony degree
+#     if gt_polyphony is not None and pred_polyphony is not None:
+#         metrics_text.append(f"Polyphony Degree - GT: {gt_polyphony:.3f}  |  Pred: {pred_polyphony:.3f}\n")
+    
+#     # Display event logits element-by-element comparison
+#     if gt_event_logits is not None and pred_event_logits is not None:
+#         gt_array = np.array(gt_event_logits).flatten()
+#         pred_array = np.array(pred_event_logits).flatten()
         
-#         if gt_polyphony is not None and pred_polyphony is not None:
-#             metrics_text.append(f"Polyphony Degree - GT: {gt_polyphony:.3f}  |  Pred: {pred_polyphony:.3f}")
+#         metrics_text.append("Event Logits Comparison:")
+#         metrics_text.append("Index | Ground Truth | Prediction | Difference")
+#         metrics_text.append("-" * 50)
         
-#         if gt_event_logits is not None and pred_event_logits is not None:
-#             gt_mean = np.mean(gt_event_logits)
-#             pred_mean = np.mean(pred_event_logits)
-#             metrics_text.append(f"Event Logits (mean) - GT: {gt_mean:.3f}  |  Pred: {pred_mean:.3f}")
+#         # Display each element
+#         max_display = min(len(gt_array), len(pred_array), 10)  # Limit to 10 elements for readability
+#         for i in range(max_display):
+#             diff = pred_array[i] - gt_array[i]
+#             metrics_text.append(f"  {i:3d}  |    {gt_array[i]:7.3f}   |   {pred_array[i]:7.3f}  |   {diff:+7.3f}")
         
-#         if metrics_text:
-#             textstr = '\n'.join(metrics_text)
-#             props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
-#             # Place text box below spectrogram
-#             ax_metrics = fig.add_subplot(gs[2, :])
-#             ax_metrics.axis('off')
-#             ax_metrics.text(0.5, 0.5, textstr, transform=ax_metrics.transAxes, 
-#                           fontsize=11, verticalalignment='center', 
-#                           horizontalalignment='center', bbox=props, family='monospace')
+#         if len(gt_array) > max_display:
+#             metrics_text.append(f"  ... ({len(gt_array) - max_display} more elements)")
+        
+#         # Add summary statistics
+#         metrics_text.append("")
+#         metrics_text.append(f"Mean - GT: {np.mean(gt_array):.3f}  |  Pred: {np.mean(pred_array):.3f}")
+#         metrics_text.append(f"Std  - GT: {np.std(gt_array):.3f}  |  Pred: {np.std(pred_array):.3f}")
+#         metrics_text.append(f"MAE: {np.mean(np.abs(gt_array - pred_array)):.3f}")
+    
+#     if metrics_text:
+#         textstr = '\n'.join(metrics_text)
+#         props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
+#         ax_metrics.text(0.5, 0.5, textstr, transform=ax_metrics.transAxes, 
+#                       fontsize=9, verticalalignment='center', 
+#                       horizontalalignment='center', bbox=props, family='monospace')
     
 #     plt.tight_layout()
 #     return fig
+
+# def plot_spectrogram_with_metrics(
+#     audio_array, sampling_rate,
+#     split_name=None, example_idx=None, 
+#     gt_polyphony=None, pred_polyphony=None,
+#     gt_event_logits=None, pred_event_logits=None,
+#     events=None, filename=None
+# ):
+#     """
+#     Plot spectrogram with bounding boxes and metrics for a single example.
+    
+#     Args:
+#         audio_array: Audio array for spectrogram
+#         sampling_rate: Sampling rate of audio
+#         split_name: Name of the dataset split
+#         example_idx: Index of the example
+#         gt_polyphony: Ground truth polyphony degree
+#         pred_polyphony: Predicted polyphony degree
+#         gt_event_logits: Ground truth event logits (array)
+#         pred_event_logits: Predicted event logits (array)
+#         events: Event bounding boxes [(start_time, end_time, freq_low, freq_high), ...]
+#         filename: Optional filename to display in title
+#     """
+#     # Enforce mono audio
+#     if audio_array.ndim != 1:
+#         audio_array = np.mean(audio_array, axis=0)
+    
+#     # Compute Mel spectrogram
+#     mel_spec = librosa.feature.melspectrogram(y=audio_array, sr=sampling_rate, fmax=8000)
+#     S_dB = librosa.power_to_db(mel_spec, ref=np.max)
+    
+#     # --- Create figure with GridSpec ---
+#     fig = plt.figure(figsize=(14, 9))
+#     gs = gridspec.GridSpec(4, 2, width_ratios=[20, 1], height_ratios=[1, 0.8, 3, 1.2], 
+#                           figure=fig, hspace=0.15, wspace=0.1)
+    
+#     # --- Spectrogram components ---
+#     ax_wave = fig.add_subplot(gs[0, 0])  # waveform
+#     ax_logits = fig.add_subplot(gs[1, 0], sharex=ax_wave)  # event logits bar
+#     ax_spec = fig.add_subplot(gs[2, 0], sharex=ax_wave)  # spectrogram
+#     cax_spec = fig.add_subplot(gs[2, 1])  # colorbar for spectrogram
+    
+#     # --- Plot waveform ---
+#     times = np.arange(audio_array.size) / sampling_rate
+#     ax_wave.plot(times, audio_array, color="gray")
+#     ax_wave.set_ylabel("Amplitude", fontsize=9)
+    
+#     # Build title
+#     title = ""
+#     if split_name is not None and example_idx is not None:
+#         title += f"{split_name}[{example_idx}]"
+#     if filename:
+#         title += f" - {filename}"
+#     ax_wave.set_title(title, fontsize=12, fontweight='bold')
+#     ax_wave.grid(True, linestyle="--", alpha=0.3)
+#     plt.setp(ax_wave.get_xticklabels(), visible=False)
+    
+#     # --- Plot predicted event logits as bars ---
+#     if pred_event_logits is not None:
+#         pred_array = np.array(pred_event_logits).flatten()
+#         duration = len(audio_array) / sampling_rate
+#         n_steps = len(pred_array)
+        
+#         # Create time bins for each logit step
+#         time_step = duration / n_steps
+#         time_bins = np.linspace(0, duration, n_steps + 1)
+#         time_centers = (time_bins[:-1] + time_bins[1:]) / 2
+        
+#         # Determine which logits represent predicted events (e.g., > 0.5 threshold)
+#         threshold = 0.5
+#         predicted_events = pred_array > threshold
+        
+#         # Create bar colors: highlight predicted events
+#         colors = ['#ff6b6b' if pred else '#4ecdc4' for pred in predicted_events]
+        
+#         # Plot bars
+#         ax_logits.bar(time_centers, pred_array, width=time_step * 0.95, 
+#                      color=colors, edgecolor='black', linewidth=0.5, alpha=0.8)
+        
+#         # Add threshold line
+#         ax_logits.axhline(y=threshold, color='red', linestyle='--', 
+#                          linewidth=1.5, alpha=0.7, label=f'Threshold ({threshold})')
+        
+#         ax_logits.set_ylabel("Event Logits", fontsize=9)
+#         ax_logits.set_ylim([0, max(1.0, np.max(pred_array) * 1.1)])
+#         ax_logits.grid(True, linestyle="--", alpha=0.3, axis='y')
+#         ax_logits.legend(loc='upper right', fontsize=8)
+#         plt.setp(ax_logits.get_xticklabels(), visible=False)
+        
+#         # Add legend for colors
+#         from matplotlib.patches import Patch
+#         legend_elements = [
+#             Patch(facecolor='#ff6b6b', edgecolor='black', label='Predicted Event'),
+#             Patch(facecolor='#4ecdc4', edgecolor='black', label='No Event')
+#         ]
+#         ax_logits.legend(handles=legend_elements, loc='upper left', fontsize=8, ncol=2)
+#     else:
+#         ax_logits.axis('off')
+    
+#     # --- Plot spectrogram ---
+#     img = librosa.display.specshow(
+#         S_dB,
+#         x_axis="time",
+#         y_axis="mel",
+#         sr=sampling_rate,
+#         fmax=8000,
+#         ax=ax_spec,
+#     )
+    
+#     # Plot event bounding boxes if provided
+#     if events is not None:
+#         plot_event_bounding_boxes(
+#             ax=ax_spec,
+#             events=events,
+#             edgecolor="cyan",
+#             linewidth=2,
+#         )
+    
+#     fig.colorbar(img, cax=cax_spec, format="%+2.0f dB", label="dB")
+#     ax_spec.set_xlabel("Time [s]")
+#     ax_spec.set_ylabel("Mel frequency [Hz]")
+    
+#     # --- Add metrics display ---
+#     ax_metrics = fig.add_subplot(gs[3, :])
+#     ax_metrics.axis('off')
+    
+#     metrics_text = []
+    
+#     # Display polyphony degree
+#     if gt_polyphony is not None and pred_polyphony is not None:
+#         metrics_text.append(f"Polyphony Degree - GT: {gt_polyphony:.3f}  |  Pred: {pred_polyphony:.3f}")
+    
+#     # Add summary statistics for event logits
+#     if pred_event_logits is not None:
+#         pred_array = np.array(pred_event_logits).flatten()
+#         threshold = 0.5
+#         n_predicted = np.sum(pred_array > threshold)
+        
+#         metrics_text.append(f"\nEvent Logits Summary:")
+#         metrics_text.append(f"  Total Steps: {len(pred_array)}  |  Predicted Events: {n_predicted}  |  Mean: {np.mean(pred_array):.3f}  |  Std: {np.std(pred_array):.3f}")
+    
+#     if metrics_text:
+#         textstr = '\n'.join(metrics_text)
+#         props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
+#         ax_metrics.text(0.5, 0.5, textstr, transform=ax_metrics.transAxes, 
+#                       fontsize=9, verticalalignment='center', 
+#                       horizontalalignment='center', bbox=props, family='monospace')
+    
+#     plt.tight_layout()
+#     return fig
+
+def plot_spectrogram_with_metrics(
+    audio_array, sampling_rate,
+    split_name=None, example_idx=None, 
+    gt_polyphony=None, pred_polyphony=None,
+    gt_event_logits=None, pred_event_logits=None,
+    events=None, filename=None
+):
+    """
+    Plot spectrogram with bounding boxes and metrics for a single example.
+    
+    Args:
+        audio_array: Audio array for spectrogram
+        sampling_rate: Sampling rate of audio
+        split_name: Name of the dataset split
+        example_idx: Index of the example
+        gt_polyphony: Ground truth polyphony degree
+        pred_polyphony: Predicted polyphony degree
+        gt_event_logits: Ground truth event logits (array)
+        pred_event_logits: Predicted event logits (array)
+        events: Event bounding boxes [(start_time, end_time, freq_low, freq_high), ...]
+        filename: Optional filename to display in title
+    """
+    # Enforce mono audio
+    if audio_array.ndim != 1:
+        audio_array = np.mean(audio_array, axis=0)
+    
+    # Compute Mel spectrogram
+    mel_spec = librosa.feature.melspectrogram(y=audio_array, sr=sampling_rate, fmax=8000)
+    S_dB = librosa.power_to_db(mel_spec, ref=np.max)
+    
+    # --- Create figure with GridSpec ---
+    fig = plt.figure(figsize=(14, 9))
+    gs = gridspec.GridSpec(4, 2, width_ratios=[20, 1], height_ratios=[1, 0.8, 3, 1.2], 
+                          figure=fig, hspace=0.15, wspace=0.1)
+    
+    # --- Spectrogram components ---
+    ax_wave = fig.add_subplot(gs[0, 0])  # waveform
+    ax_logits = fig.add_subplot(gs[1, 0], sharex=ax_wave)  # event logits bar
+    ax_spec = fig.add_subplot(gs[2, 0], sharex=ax_wave)  # spectrogram
+    cax_spec = fig.add_subplot(gs[2, 1])  # colorbar for spectrogram
+    
+    # --- Plot waveform ---
+    times = np.arange(audio_array.size) / sampling_rate
+    ax_wave.plot(times, audio_array, color="gray")
+    ax_wave.set_ylabel("Amplitude", fontsize=9)
+    
+    # Build title
+    title = ""
+    if split_name is not None and example_idx is not None:
+        title += f"{split_name}[{example_idx}]"
+    if filename:
+        title += f" - {filename}"
+    ax_wave.set_title(title, fontsize=12, fontweight='bold')
+    ax_wave.grid(True, linestyle="--", alpha=0.3)
+    plt.setp(ax_wave.get_xticklabels(), visible=False)
+    
+    # --- Plot predicted event logits as bars ---
+    if pred_event_logits is not None:
+        pred_array = np.array(pred_event_logits).flatten()
+        duration = len(audio_array) / sampling_rate
+        n_steps = len(pred_array)
+        
+        # Create time bins for each logit step
+        time_step = duration / n_steps
+        time_bins = np.linspace(0, duration, n_steps + 1)
+        time_centers = (time_bins[:-1] + time_bins[1:]) / 2
+        
+        # Determine which logits represent predicted events (e.g., > 0.5 threshold)
+        threshold = 0.5
+        predicted_events = pred_array > threshold
+        
+        # Prepare ground truth for comparison if available
+        if gt_event_logits is not None:
+            gt_array = np.array(gt_event_logits).flatten()
+            # Ensure gt_array matches pred_array length
+            if len(gt_array) != len(pred_array):
+                # Interpolate or truncate to match
+                if len(gt_array) < len(pred_array):
+                    gt_array = np.interp(
+                        np.linspace(0, len(gt_array)-1, len(pred_array)),
+                        np.arange(len(gt_array)),
+                        gt_array
+                    )
+                else:
+                    gt_array = gt_array[:len(pred_array)]
+            
+            gt_events = gt_array > threshold
+            
+            # Create color map based on TP, TN, FP, FN
+            colors = []
+            for pred, gt in zip(predicted_events, gt_events):
+                if pred and gt:
+                    colors.append('#2ecc71')  # True Positive - green
+                elif not pred and not gt:
+                    colors.append('#3498db')  # True Negative - blue
+                elif pred and not gt:
+                    colors.append('#e74c3c')  # False Positive - red
+                else:  # not pred and gt
+                    colors.append('#f39c12')  # False Negative - orange
+        else:
+            # No ground truth available, use simple coloring
+            colors = ['#ff6b6b' if pred else '#4ecdc4' for pred in predicted_events]
+        
+        # Plot bars
+        ax_logits.bar(time_centers, pred_array, width=time_step * 0.95, 
+                     color=colors, edgecolor='black', linewidth=0.5, alpha=0.8)
+        
+        # Add threshold line
+        ax_logits.axhline(y=threshold, color='red', linestyle='--', 
+                         linewidth=1.5, alpha=0.7, label=f'Threshold ({threshold})')
+        
+        # Add zero line for reference
+        ax_logits.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
+        
+        ax_logits.set_ylabel("Event Logits", fontsize=9)
+        
+        # Set y-axis limits to include negative values
+        y_min = min(0, np.min(pred_array)) * 1.1
+        y_max = max(1.0, np.max(pred_array)) * 1.1
+        ax_logits.set_ylim([y_min, y_max])
+        
+        ax_logits.grid(True, linestyle="--", alpha=0.3, axis='y')
+        plt.setp(ax_logits.get_xticklabels(), visible=False)
+        
+        # Add legend for colors
+        from matplotlib.patches import Patch
+        if gt_event_logits is not None:
+            legend_elements = [
+                Patch(facecolor='#2ecc71', edgecolor='black', label='True Positive'),
+                Patch(facecolor='#3498db', edgecolor='black', label='True Negative'),
+                Patch(facecolor='#e74c3c', edgecolor='black', label='False Positive'),
+                Patch(facecolor='#f39c12', edgecolor='black', label='False Negative')
+            ]
+        else:
+            legend_elements = [
+                Patch(facecolor='#ff6b6b', edgecolor='black', label='Predicted Event'),
+                Patch(facecolor='#4ecdc4', edgecolor='black', label='No Event')
+            ]
+        ax_logits.legend(handles=legend_elements, loc='upper left', fontsize=8, ncol=2)
+    else:
+        ax_logits.axis('off')
+    
+    # --- Plot spectrogram ---
+    img = librosa.display.specshow(
+        S_dB,
+        x_axis="time",
+        y_axis="mel",
+        sr=sampling_rate,
+        fmax=8000,
+        ax=ax_spec,
+    )
+    
+    # Plot event bounding boxes if provided
+    if events is not None:
+        plot_event_bounding_boxes(
+            ax=ax_spec,
+            events=events,
+            edgecolor="cyan",
+            linewidth=2,
+        )
+    
+    fig.colorbar(img, cax=cax_spec, format="%+2.0f dB", label="dB")
+    ax_spec.set_xlabel("Time [s]")
+    ax_spec.set_ylabel("Mel frequency [Hz]")
+    
+    # --- Add metrics display ---
+    ax_metrics = fig.add_subplot(gs[3, :])
+    ax_metrics.axis('off')
+    
+    metrics_text = []
+    
+    # Display polyphony degree with larger font
+    if gt_polyphony is not None and pred_polyphony is not None:
+        metrics_text.append(f"Polyphony Degree - GT: {gt_polyphony:.3f}  |  Pred: {pred_polyphony:.3f}")
+    
+    if metrics_text:
+        textstr = '\n'.join(metrics_text)
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.7)
+        ax_metrics.text(0.5, 0.5, textstr, transform=ax_metrics.transAxes, 
+                      fontsize=14, verticalalignment='center', 
+                      horizontalalignment='center', bbox=props, 
+                      family='monospace', fontweight='bold')
+    
+    plt.tight_layout()
+    return fig
 
 from matplotlib.patches import Rectangle
 
