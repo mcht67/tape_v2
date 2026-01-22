@@ -1,35 +1,12 @@
 schema: '2.0'
 stages:
-  embed_with_perch:
-    cmd: envs/perch-venv/bin/python source/embed_audio.py
-    deps:
-    - path: source/embed_audio.py
-      hash: md5
-      md5: 5990ef229d1d10b069e5f66e295e6f76
-      size: 12473
-    - path: stage_results/dataset_metadata.json
-      hash: md5
-      md5: 41c4ef8bed7811016a108cb28b486cfd
-      size: 144
-    params:
-      params.yaml:
-        embeddings:
-          input_feature: audio
-          model: perch_v2_cpu
-          name: perch_v2_cpu_audio
-    outs:
-    - path: dataset
-      hash: md5
-      md5: 3368a81bd3a985d109d7c8698cf6dd60.dir
-      size: 38779318
-      nfiles: 10
   load_dataset:
     cmd: envs/base-venv/bin/python source/load_dataset.py
     deps:
     - path: source/load_dataset.py
       hash: md5
-      md5: 999c5ae1b54868326167897e0d98b580
-      size: 999
+      md5: 7d5e86cee2731f52e453105ba368be9d
+      size: 1171
     params:
       params.yaml:
         dataset.huggingface_path: mcht67/PolyphonicBirdSet
@@ -38,5 +15,100 @@ stages:
     outs:
     - path: stage_results/dataset_metadata.json
       hash: md5
-      md5: 41c4ef8bed7811016a108cb28b486cfd
+      md5: bd9ef5eed5715849952f0581da846f60
       size: 144
+  embed_with_perch:
+    cmd: envs/perch-venv/bin/python source/embed_audio.py
+    deps:
+    - path: source/embed_audio.py
+      hash: md5
+      md5: 18d3cda54636ce2df859aee9945d20c2
+      size: 13082
+    - path: stage_results/dataset_metadata.json
+      hash: md5
+      md5: bd9ef5eed5715849952f0581da846f60
+      size: 144
+    params:
+      params.yaml:
+        embeddings:
+          input_feature: audio
+          model: perch_v2_cpu
+          name: perch_v2_cpu_audio
+    outs:
+    - path: stage_results/embeddings_metadata.json
+      hash: md5
+      md5: fbae42081a30ed689f429c95f04dda69
+      size: 122
+  add_labels:
+    cmd: envs/base-venv/bin/python source/add_labels.py
+    deps:
+    - path: source/add_labels.py
+      hash: md5
+      md5: ea72037e1ba9782cf379403c04ed0a59
+      size: 6254
+    - path: stage_results/dataset_metadata.json
+      hash: md5
+      md5: bd9ef5eed5715849952f0581da846f60
+      size: 144
+    - path: stage_results/embeddings_metadata.json
+      hash: md5
+      md5: fbae42081a30ed689f429c95f04dda69
+      size: 122
+    params:
+      params.yaml:
+        path.dataset: dataset
+        train.event_logits_name: perch2_event_logits
+        train.framewise_polyphony_name: framewise_polyphony
+        train.num_event_logits: 16
+        train.num_frames: 16
+        train.use_event_logits: true
+        train.use_framewise_polyphony: true
+    outs:
+    - path: dataset
+      hash: md5
+      md5: 0c40d1d354635b1da080a8d67b575695.dir
+      size: 165333508
+      nfiles: 10
+    - path: stage_results/added_labels_metadata.json
+      hash: md5
+      md5: cc9d3524d1fc9c898a9c5968140fc203
+      size: 153
+  train:
+    cmd: envs/train-venv/bin/python source/train.py
+    deps:
+    - path: dataset
+      hash: md5
+      md5: 0c40d1d354635b1da080a8d67b575695.dir
+      size: 165333508
+      nfiles: 10
+    - path: source/train.py
+      hash: md5
+      md5: 2adb3313dbd1d29dd34a611b6a588743
+      size: 12439
+    params:
+      params.yaml:
+        general.random_seed: 42
+        model:
+          _target_: model.TemporalCNNMultiTask_v2
+        train:
+          input_feature_name: perch_v2_cpu_audio_spatial_embeddings
+          labels:
+          - polyphony_degree
+          - framewise_polyphony
+          - perch2_event_logits
+          batch_size: 128
+          learning_rate: 0.01
+          epochs: 10
+          tensorboard_path: debug_tensorboard
+          use_event_logits: true
+          num_event_logits: 16
+          event_logits_name: perch2_event_logits
+          use_framewise_polyphony: true
+          num_frames: 16
+          framewise_polyphony_name: framewise_polyphony
+    outs:
+    - path: logs
+      hash: md5
+      md5: b019ed1a83392ad566a62d2cbf697ee3.dir
+      size: 2127833
+      nfiles: 6
