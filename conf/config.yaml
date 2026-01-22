@@ -3,6 +3,8 @@
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json
+  embeddings_metadata: stage_results/embeddings_metadata.json
+  added_labels_metadata: stage_results/added_labels_metadata.json
 # ==============================================
 
 hydra:

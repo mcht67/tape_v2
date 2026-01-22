@@ -17,6 +17,10 @@ dataset_metadata_path = cfg.path.dataset_metadata
 # Load dataset
 dataset = load_dataset(huggingface_path, dataset_subset)
 
+dataset['train'] = dataset['train'].select(range(200))
+dataset['test'] = dataset['test'].select(range(30))
+dataset['validation'] = dataset['validation'].select(range(30))
+
 # Store dataset
 os.makedirs(dataset_path, exist_ok=True)
 overwrite_dataset(dataset, dataset_path, store_backup=False)

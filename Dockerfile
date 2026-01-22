@@ -57,7 +57,7 @@ WORKDIR /home/app
 RUN python3.12 -m venv /envs/base-venv
 ENV PATH="/envs/base-venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir dvc dvc-gdrive omegaconf
+    && pip install --no-cache-dir dvc dvc-gdrive omegaconf datasets==3.6.0
 
 # Perch venv for embeddings
 RUN python3.12 -m venv /envs/perch-venv \

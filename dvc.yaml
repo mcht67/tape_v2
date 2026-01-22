@@ -14,45 +14,44 @@ stages:
       - ${path.dataset_metadata}
 
   embed_with_perch:
-    cmd: envs/perch-venv/bin/python source/embed_audio.py # --version perch_v1 #--model_keys ${train.embeddings}  ${embeddings.perch_v1_models} --compute_embeddings ${embeddings.compute_embeddings}
-    params:
-      - embeddings
+    cmd: envs/perch-venv/bin/python source/embed_audio.py
     deps:
       - source/embed_audio.py
       - ${path.dataset_metadata}
+    params:
+      - embeddings
     outs:
-      - ${path.dataset}:
+      - ${path.embeddings_metadata}
+
+  add_labels:
+    cmd: envs/base-venv/bin/python source/add_labels.py
+    deps:
+      - source/add_labels.py
+      - ${path.dataset_metadata}
+      - ${path.embeddings_metadata}
+    params:
+      - path.dataset
+      - train.use_event_logits
+      - train.num_event_logits
+      - train.event_logits_name
+      - train.use_framewise_polyphony
+      - train.num_frames
+      - train.framewise_polyphony_name
+    outs:
+      - ${path.added_labels_metadata}
+      - ${path.dataset}: 
           persist: true
 
   train:
     cmd: envs/train-venv/bin/python source/train.py
     deps:
       - source/train.py
-      - ${path.dataset_metadata}
+      - ${path.dataset}
     params:
       - general.random_seed
       - train
       - model
-
-  # embed_with_perch2:
-  #   cmd: envs/perch-venv/bin/python source/embed_audio.py  --version perch_v2 #--model_keys ${train.embeddings}  ${embeddings.perch_v2_models} --compute_embeddings ${embeddings.compute_embeddings}
-  #   params:
-  #     - embeddings
-  #   deps:
-  #     - source/embed_audio.py
-  #     - ${path.dataset_metadata}
-
-  # embed_with_birdset:
-  #   cmd: python source/embed_audio.py #--version birdset #${embeddings.birdset_models} --compute_embeddings ${embeddings.compute_embeddings}
-  #   params:
-  #     - embeddings
-  #   deps:
-  #     - source/embed_audio.py
-  #     - ${path.dataset_metadata}
-
-  # add_labels:
-  #   cmd: python source/add_labels.py
-  #   deps:
-  #     - source/add_labels.py
+    outs:
+      - logs
       
 
