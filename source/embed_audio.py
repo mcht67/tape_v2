@@ -13,7 +13,8 @@ from tensorflow import squeeze
 from tensorflow.math import reduce_mean
 from datasets import concatenate_datasets
 import tempfile
-import argparse
+from datetime import datetime
+import json
 
 from utils.general import overwrite_dataset
 
@@ -131,13 +132,13 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
         modified = True
     return dataset, modified
 
-def add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset, cache_dir, batch_size=100):
+def add_embeddings_batchwise(embedding_type, model_keys, dataset_split, input_feature, dataset, cache_dir, batch_size=100):
     for model_key in model_keys:
         embedding_key = model_key + "_" + input_feature + "_embeddings"
 
         if embedding_key in dataset.features:
              print("Embedding with model", model_key, "for", input_feature, "has already been calculated, skipping.")
-             break
+             continue
         
         print(f"Processing {embedding_key} in batches of {batch_size}...")
 
@@ -171,7 +172,7 @@ def add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset,
             batch_dataset = dataset.select(range(i, end_idx))
             
             # Process batch
-            cache_file = os.path.join(cache_dir, f"{model_key}_batch_{i}_{end_idx}_cache.arrow")
+            cache_file = os.path.join(cache_dir, f"{model_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
             batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
             
             processed_datasets.append(batch_processed)
@@ -241,7 +242,9 @@ def main():
         input_feature = cfg.embeddings.input_feature
         embedding_model = cfg.embeddings.model
         dataset_path = cfg.path.dataset
-        metadata_path = cfg.path.dataset_metadata
+        dataset_metadata_path = cfg.path.dataset_metadata
+        embeddings_metadata_path = cfg.path.embeddings_metadata
+        
         embedding_name = cfg.embeddings.name
 
         # perch v1 available models
@@ -304,13 +307,26 @@ def main():
         print("Start embedding...")
         # Compute embeddings
         for split in dataset.keys():
-            dataset[split] = add_embeddings_batchwise(embedding_type, model_keys, input_feature, dataset[split], temp_cache_dir)
+            dataset[split] = add_embeddings_batchwise(embedding_type, model_keys, split, input_feature, dataset[split], temp_cache_dir)
         print("Embedding completed.")
 
         # ===================
         # Save dataset
         # ===================
-        overwrite_dataset(dataset, dataset_path, metadata_path=metadata_path, store_backup=False)
+        overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
+
+        # Store metadata
+        metadata = {
+                "datetime": datetime.now().isoformat(),
+                "dataset_path": dataset_path,
+                "embedding added": model_keys
+            }
+
+        metadata_dir = os.path.dirname(embeddings_metadata_path)
+        if metadata_dir:
+            os.makedirs(metadata_dir, exist_ok=True)
+        with open(embeddings_metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
 if __name__ == "__main__":
     main()
