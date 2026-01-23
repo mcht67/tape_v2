@@ -53,5 +53,6 @@ stages:
       - model
     outs:
       - logs
+      - checkpoints
       
 

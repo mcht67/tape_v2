@@ -558,7 +558,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.writer.close()
 
 
-def return_tensorboard_path(subfolder=None, suffix='') -> PosixPath:
+def return_tensorboard_dir(subfolder=None, suffix='') -> PosixPath:
     """
     Returns the path to the TensorBoard logs directory for the current experiment.
     The path is constructed using the default directory, current datetime, and DVC experiment name.
@@ -582,6 +582,29 @@ def return_tensorboard_path(subfolder=None, suffix='') -> PosixPath:
     tensorboard_path.mkdir(parents=True, exist_ok=True)
 
     return tensorboard_path
+
+def return_checkpoint_path(subfolder=None, suffix='') -> PosixPath:
+    """
+    Returns the path to the checkpoint directory for the current experiment.
+    The path is constructed using the default directory, current datetime, and DVC experiment name.
+
+    Returns:
+        PosixPath: The path to the TensorBoard logs directory.
+    """
+    default_dir = config.get_env_variable("DEFAULT_DIR")
+    dvc_exp_name = config.get_env_variable("DVC_EXP_NAME")
+    current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    
+    if subfolder:
+        checkpoint_path = Path(
+            f"{default_dir}/checkpoints/{subfolder}/{current_datetime}_{dvc_exp_name}{suffix}.weights.h5"
+        )
+    else:
+        checkpoint_path = Path(
+            f"{default_dir}/checkpoints/{current_datetime}_{dvc_exp_name}{suffix}.weights.h5"
+        )
+
+    return checkpoint_path
 
 
 def copy_tensorboard_logs() -> str:

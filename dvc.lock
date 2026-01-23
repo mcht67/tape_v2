@@ -83,8 +83,8 @@ stages:
       nfiles: 10
     - path: source/train.py
       hash: md5
-      md5: 2adb3313dbd1d29dd34a611b6a588743
-      size: 12439
+      md5: 6c5d82209389773550534924c60aa5e0
+      size: 14061
     params:
       params.yaml:
         general.random_seed: 42
@@ -97,7 +97,7 @@ stages:
           - framewise_polyphony
           - perch2_event_logits
           batch_size: 128
-          learning_rate: 0.01
+          learning_rate: 0.0001
           epochs: 10
           tensorboard_path: debug_tensorboard
           use_event_logits: true
@@ -107,8 +107,13 @@ stages:
           num_frames: 16
           framewise_polyphony_name: framewise_polyphony
     outs:
+    - path: checkpoints
+      hash: md5
+      md5: 18762ac97363557794d9435ab3154c3f.dir
+      size: 33529240
+      nfiles: 1
     - path: logs
       hash: md5
-      md5: b019ed1a83392ad566a62d2cbf697ee3.dir
-      size: 2127833
+      md5: babacd2ab5c61a47efc3619ca0c0657e.dir
+      size: 2143807
       nfiles: 6

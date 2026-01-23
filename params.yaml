@@ -1,5 +1,5 @@
 general:
-  random_seed: 52
+  random_seed: 42
 dataset:
   huggingface_path: mcht67/PolyphonicBirdSet
   subset: HSN
@@ -17,8 +17,8 @@ train:
   - framewise_polyphony
   - perch2_event_logits
   batch_size: 128
-  learning_rate: 0.01
-  epochs: 5
+  learning_rate: 0.0001
+  epochs: 10
   tensorboard_path: debug_tensorboard
   use_event_logits: true
   num_event_logits: 16
@@ -26,6 +26,12 @@ train:
   use_framewise_polyphony: true
   num_frames: 16
   framewise_polyphony_name: framewise_polyphony
+log:
+  experiment_name: test-experiment
+  tensorboard_subfolder: TestExperiment
+  tensorboard_suffix: ''
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json
+  embeddings_metadata: stage_results/embeddings_metadata.json
+  added_labels_metadata: stage_results/added_labels_metadata.json

@@ -5,7 +5,7 @@ labels:
   - framewise_polyphony
   - perch2_event_logits
 batch_size: 128
-learning_rate: 0.01
+learning_rate: 0.0001
 epochs: 10
 tensorboard_path: debug_tensorboard
 

@@ -6,17 +6,16 @@ from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
 import numpy as np
 from datasets import load_from_disk, concatenate_datasets
 from omegaconf import OmegaConf
-from utils.general import reshape_tensor_data
-from utils.logs import return_tensorboard_path, CustomSummaryWriter, CustomSummaryWriterCallback
 import os
-from utils.config import set_random_seeds, Params
 import datetime
 from pathlib import Path
 import model
 from hydra.utils import instantiate
-from functools import partial
+import math
 
-from utils.logs import plot_spectrogram_with_metrics
+from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback
+from utils.general import reshape_tensor_data
+from utils.config import set_random_seeds, Params
 
 def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
     X = np.stack(hf_dataset[features]).astype(np.float32)
@@ -107,13 +106,11 @@ def get_tensorboard_path(cfg):
 
         tensorboard_path = Path(
             f"{default_dir}/{cfg.train.tensorboard_path}/{tensorboard_subfolder}/{tensorboard_path_suffix}{current_datetime}"
-        )
-        
+        )     
     else:
-        tensorboard_path = return_tensorboard_path()
         tensorboard_subfolder = f'{cfg.dataset.subset}'
         tensorboard_path_suffix = f'_{features}'
-        tensorboard_path = return_tensorboard_path(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
+        tensorboard_path = return_tensorboard_dir(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
     os.makedirs(tensorboard_path, exist_ok=True)
     return tensorboard_path
 
@@ -158,12 +155,13 @@ random_seed = cfg.general.random_seed
 set_random_seeds(random_seed)
 
 epochs = cfg.train.epochs
+learning_rate = cfg.train.learning_rate
 
 features = cfg.train.input_feature_name
 labels = cfg.train.labels
 
 batch_size = cfg.train.batch_size
-
+experiment_name = cfg.log.experiment_name
 dataset_path =  cfg.path.dataset
 
 for run in ["run"]:
@@ -174,7 +172,7 @@ for run in ["run"]:
     os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
     tensorboard_subfolder = cfg.log.tensorboard_subfolder
     tensorboard_suffix = cfg.log.tensorboard_suffix
-    tensorboard_path = return_tensorboard_path(subfolder=tensorboard_subfolder, suffix=tensorboard_suffix ) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
+    tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
     os.makedirs(tensorboard_path, exist_ok=True)
 
     # Load dataset
@@ -227,14 +225,27 @@ for run in ["run"]:
             {"name": "polyphony_degree", "type": "regression_round", "threshold": 0.5}, 
             {"name": "perch2_event_logits", "type": "binary", "threshold": 0.5,},
         ]
+    
+    checkpoint_path = return_checkpoint_path(subfolder=experiment_name)
+    checkpoint_dir = os.path.dirname(checkpoint_path)
+
+    num_batches = len(train_dataset) / batch_size
+    num_batches = math.ceil(num_batches)
 
     writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
                  log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim)
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                    save_weights_only=True,
+                                                    verbose=1,
+                                                    save_freq=5*num_batches,
+                                                    )
+    loss_weight_callback = LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40],
+                                               event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1],
+                                               frame_loss_weights=[5.0, 10.0, 5.0, 1.0, 0.5],
+                                               count_loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0])
 
     # Train model
-    #model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-    learning_rate = 0.0001
     model.compile(
         optimizer=Adam(learning_rate),
         loss={
@@ -244,29 +255,20 @@ for run in ["run"]:
         },
     )
     model.summary()
-    print(len(train_dataset))
-    history = model.fit(train_dataset, validation_data=val_dataset, epochs=epochs, callbacks=[LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40], event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1], frame_loss_weights=[5.0, 10.0, 5.0, 1.0, 0.5], count_loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0]),tensorboard_callback]) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
     
-    # TODO: Save usable version
-    model.save('my_model.keras')
+    history = model.fit(train_dataset, 
+                        validation_data=val_dataset, 
+                        epochs=epochs, 
+                        callbacks=[loss_weight_callback,
+                        tensorboard_callback, 
+                        checkpoint_callback]) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+    
+    # TODO: needs register_keras_serializable() for losses
+    # model.save('my_model.keras')
 
     # TODO: Store config in file/logs
     print(OmegaConf.to_yaml(cfg))
     OmegaConf.save(cfg, os.path.join(tensorboard_path, "params.yaml"))
-
-    # for example in [dataset['train'][220], dataset['train'][20], dataset['validation'][110], dataset['test'][110]]:
-    #     embedding = example['perch_v2_cpu_spatial_embeddings_audio']
-    #     # Extract the features and add batch dimension
-    #     single_input = np.expand_dims(embedding, axis=0)  # Add batch dim
-    #     single_input = tf.constant(single_input, dtype=tf.float32)
-
-    #     # Squeeze if needed (depends on your data)
-    #     #single_input = tf.squeeze(single_input, axis=1)  # If there's an extra dimension
-    #     predictions = model.predict(single_input)
-    #     print(predictions)
-    #     print(example['polyphony_degree'])
-    #     print(example['perch2_event_logits'])
-    #     print(example['framewise_polyphony'])
 
     # Add some examples to tensorboard
     import matplotlib.pyplot as plt
@@ -302,7 +304,6 @@ for run in ["run"]:
         all_events = []
         for events in example['raw_files_time_freq_bounds']:
             for event in events:
-                print(event)
                 all_events.append(event)
         
         # Create combined figure
@@ -324,6 +325,45 @@ for run in ["run"]:
 
     # Flush to ensure all figures are written
     writer.flush()
+
+    # Create new model
+    # Define model
+    new_model = instantiate(cfg.model)
+    new_model.build(input_dim)
+    # new_model.compile(
+    #     optimizer=Adam(learning_rate),
+    #     loss={
+    #         "perch2_event_logits": weighted_event_loss,
+    #         "framewise_polyphony": weighted_frame_loss,
+    #         "polyphony_degree": weighted_count_loss, 
+    #     },
+    # )
+    new_model.summary()
+
+    # Test model without weights
+    example = dataset['train'][example_idx]
+    embedding = example[features]
+    
+    # Make prediction
+    print("Untrained Model:")
+    single_input = np.expand_dims(embedding, axis=0)
+    single_input = tf.constant(single_input, dtype=tf.float32)
+    predictions = new_model.predict(single_input)
+    print(predictions['polyphony_degree'][0][0])
+    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+
+    # Load weights and test model again
+    print("Trained Model:")
+    new_model.load_weights(checkpoint_path)
+    predictions = new_model.predict(single_input)
+    print(predictions['polyphony_degree'][0][0])
+    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+
+    # TODO: needs register_keras_serializable() for losses
+    # full_model = tf.keras.models.load_model('my_model.keras')
+    # predictions = full_model.predict(single_input)
+    # print(predictions['polyphony_degree'][0][0])
+    # print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 
 dataset.cleanup_cache_files()
 
