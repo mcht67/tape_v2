@@ -252,6 +252,34 @@ class CustomSummaryWriter(SummaryWriter):
             if v is not None:
                 self.add_scalar(k, v)
 
+# def get_confusion_matrix_specs(cfg):
+#     """Get confusion matrix specs from config."""
+#     if hasattr(cfg.metrics, 'confusion_matrix_specs'):
+#         return cfg.metrics.confusion_matrix_specs
+#     return []
+
+def build_confusion_matrix_specs(objectives):
+    """
+    Build confusion matrix specs from objectives config.
+    
+    Args:
+        objectives: OmegaConf dict of objectives
+        
+    Returns:
+        List of confusion matrix spec dicts
+    """
+    specs = []
+    
+    for obj_name, obj_config in objectives.items():
+        if "confusion_matrix" in obj_config:
+            spec = {
+                "name": obj_name,
+                **obj_config["confusion_matrix"]
+            }
+            specs.append(spec)
+    
+    return specs
+
 class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     """
     Custom callback that integrates with your CustomSummaryWriter

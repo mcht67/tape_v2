@@ -1,0 +1,30 @@
+polyphony_degree:
+  loss:
+    _target_: tensorflow.keras.losses.Huber
+    delta: 1.5
+  confusion_matrix:
+    type: regression_round
+    threshold: 0.5
+
+event_logits:
+  loss:
+    _target_: tensorflow.keras.losses.BinaryCrossentropy
+    from_logits: false
+    label_smoothing: 0.1
+  scheduler:
+    switch_epochs: [0, 10, 20, 30, 40]
+    weights: [10.0, 5.0, 1.0, 0.5, 0.1]
+  confusion_matrix:
+    type: binary
+
+framewise_polyphony:
+  loss:
+    _target_: tensorflow.keras.losses.MeanSquaredError
+  weight: 1.0
+  scheduler:
+    switch_epochs: [0, 10, 20, 30, 40]
+    weights: [5.0, 10.0, 5.0, 1.0, 0.5]
+  confusion_matrix:
+    type: regression_round
+    threshold: 0.5
+
