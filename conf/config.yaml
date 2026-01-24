@@ -24,9 +24,9 @@ defaults:
   - dataset: default
   - embeddings: default
   #- preprocess: default
-  - model: 'TemporalCNN'
-  - train: 'default'
+  - model: 'default'
   - objectives: 'default'
+  - train: 'default'
   - log: 'default'
   - _self_
 

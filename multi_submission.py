@@ -28,8 +28,10 @@ def submit_batch_job(arguments, exp_params):
 
         # Run DVC experiment directly
         cmd = 'dvc exp run $EXP_PARAMS'
-        print(cmd)
+        print("Run experiment", cmd)
         subprocess.run(cmd, shell=True, env=env)
+        # print("Push to remote...")
+        # subprocess.run("dvc exp push origin", shell=True)
         return
     
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found)
@@ -46,21 +48,27 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define all lists of parameters or config files
-    general_configs = ['default', 'v2']
-    train_epochs = ['5', '10']
+    objectives_configs = ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
+    train_sizes_batches = [1, 10, 100]
+    # input_feature = ['audio', 'audio_no_noise']
+    # train.learning_rate = [0.001, 0.0001]
+    # train.batch_size = [32, 128, 256]
 
     # Iterate over all combinations of parameters
-    for general_config, train_epoch in itertools.product(general_configs, train_epochs):
+    for objectives_config, train_size_batches in itertools.product(objectives_configs, train_sizes_batches):
         # Define Experiment
         config_dict = {
-            # Define which config files are used
-            "general": general_config,
-            # "dataset": 'default',
-            # "embeddings": 'default',
-            # "train": 'default',
+                # Define which config files are used
+                #"general": general_config,
+                # "dataset": 'default',
+                # "embeddings": 'default',
+                "model": 'TemporalCNN',
+                "objectives": objectives_config,
+                "train": 'perch2_spatial_embeddings',
 
-            # Define specific parameters
-            "train.epochs": train_epoch
+                # Define specific parameters
+                "log.experiment_name": 'MultiTask-Perch2-Spatial-Embeddings',
+                "train.train_size": train_size_batches
             }
 
         exp_params = create_exp_params_str(config_dict)

@@ -49,10 +49,16 @@ stages:
       - ${path.dataset}
     params:
       - general.random_seed
-      - train
       - model
+      - objectives
+      - train
+      - log
     outs:
-      - logs
-      - checkpoints
+    - logs:
+        cache: false # TODO: remove cache: false and persist: true once logs are pushed to and synced with remote
+        persist: true
+    - checkpoints:
+        cache: false
+        persist: true
       
 
