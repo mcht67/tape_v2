@@ -155,18 +155,18 @@ params = Params()
 random_seed = cfg.general.random_seed
 set_random_seeds(random_seed)
 
-epochs = cfg.train.epochs
-learning_rate = cfg.train.learning_rate
-
-input_feature_name = cfg.train.input_feature_name
-# labels = cfg.train.labels
-
-batch_size = cfg.train.batch_size
-experiment_name = cfg.log.experiment_name
 dataset_path =  cfg.path.dataset
 
-tensorboard_subfolder = cfg.log.tensorboard_subfolder
-tensorboard_suffix = cfg.log.tensorboard_suffix
+experiment_name = cfg.log.experiment_name
+
+input_feature_name = cfg.train.input_feature_name
+epochs = cfg.train.epochs
+learning_rate = cfg.train.learning_rate
+batch_size = cfg.train.batch_size
+if 'train_size_batches' in cfg.train: 
+    train_size_batches = cfg.train.train_size_batches
+else:
+    train_size_batches = None
 
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
@@ -175,7 +175,8 @@ objectives_list = list(objectives_cfg.keys())
 # Add objectives to the config
 model_cfg.objectives = objectives_list
 
-# for run in ["run"]:
+tensorboard_subfolder = cfg.log.tensorboard_subfolder
+tensorboard_suffix = cfg.log.tensorboard_suffix
 
 # Get tensorboard path based on path, dataset subset, features and datetime
 # Set DEFAULT_DIR if not set (usually when running without dvc)
@@ -193,9 +194,8 @@ embeddings = dataset['train'][0][input_feature_name]
 input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 
 # Get tensorflow datasets
-labels = list(cfg.objectives.keys())
-train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
-#train_dataset = train_dataset.take(100) # take fewer batches to reduce train dataset size
+train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, objectives_list, batch_size)
+if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 
 # Create a SummaryWriter object to write the tensorboard logs
 metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO: Investigate: What is this doing with the variable losses?
