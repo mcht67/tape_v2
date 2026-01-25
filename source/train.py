@@ -203,6 +203,7 @@ metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO:
 params['dataset']['train_size'] = str(len(dataset['train']))
 params['dataset']['val_size'] = str(len(dataset['validation']))
 params['dataset']['test_size'] = str(len(dataset['test']))
+params['train']['objectives'] = list(cfg.objectives.keys())
 print(params)
 
 # # Define loss weights as variables

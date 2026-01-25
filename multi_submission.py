@@ -53,7 +53,7 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define Experiment Name
-    experiment_name = 'MultiTask-Perch2-Spatial-Embeddings'
+    experiment_name = 'Multi-Task_Perch2_Spatial-Embeddings'
 
     # Define Base Config
     base_config = {
@@ -71,8 +71,8 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    hyperparams = {'objectives': ['only_polyphony_degree'],#, 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
-                    'train.train_size_batches': [10, 30, 76]
+    hyperparams = {'objectives': ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony'],
+                    #'train.train_size_batches': [10, 30, 76]
                     # input_feature = ['audio', 'audio_no_noise']
                     # train.learning_rate = [0.001, 0.0001]
                     # train.batch_size = [32, 128, 256]

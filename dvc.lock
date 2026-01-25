@@ -86,8 +86,8 @@ stages:
       nfiles: 40
     - path: source/train.py
       hash: md5
-      md5: ef37d491659089e36cb5bd52477cbb51
-      size: 15141
+      md5: ca4f4caff33d6d562dc5b3b921530d59
+      size: 15149
     params:
       params.yaml:
         general.random_seed: 42
@@ -95,6 +95,9 @@ stages:
           experiment_name: MultiTask-Perch2-Spatial-Embeddings
           tensorboard_subfolder: MultiTask-Perch2-Spatial-Embeddings
           tensorboard_suffix: ''
+          hyperparameters:
+          - objectives
+          - train.train_size_batches
         model:
           _target_: model.TemporalCNNMultiTask_v2
         objectives:
@@ -109,7 +112,7 @@ stages:
           input_feature_name: perch_v2_cpu_audio_spatial_embeddings
           batch_size: 128
           learning_rate: 0.0001
-          epochs: 50
+          epochs: 20
           train_size_batches: 76
           use_event_logits: true
           num_event_logits: 16
@@ -120,11 +123,11 @@ stages:
     outs:
     - path: checkpoints
       hash: md5
-      md5: ab5939adea6af7d67e8a4ec1a012a1aa.dir
-      size: 636637608
-      nfiles: 19
+      md5: 7890feffe17e09539a5508c154adb9cf.dir
+      size: 737149872
+      nfiles: 22
     - path: logs
       hash: md5
-      md5: c88291e045d1ce8605599d33f7118e16.dir
-      size: 14756194
-      nfiles: 41
+      md5: abea1ddbc5e6a59daa106250adb0556d.dir
+      size: 16078021
+      nfiles: 40
