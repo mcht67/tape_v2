@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
                 # Define specific parameters
                 "log.experiment_name": 'MultiTask-Perch2-Spatial-Embeddings',
-                "train.train_size": train_size_batches
+                "train.train_size_batches": train_size_batches
             }
 
         exp_params = create_exp_params_str(config_dict)
