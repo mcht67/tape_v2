@@ -30,6 +30,11 @@ def submit_batch_job(arguments, exp_params):
         cmd = 'dvc exp run $EXP_PARAMS'
         print("Run experiment", cmd)
         subprocess.run(cmd, shell=True, env=env)
+
+        # Copy logs dir to local_logs
+        # shutil.copytree('logs', 'local_logs', dirs_exist_ok=True)
+
+        # TODO: setup remote
         # print("Push to remote...")
         # subprocess.run("dvc exp push origin", shell=True)
         return
@@ -47,30 +52,64 @@ if __name__ == "__main__":
 
     arguments = sys.argv[1:]
 
-    # Define all lists of parameters or config files
-    objectives_configs = ['only_polyphony_degree']#, 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
-    train_sizes_batches = [10, 30, 76]
-    # input_feature = ['audio', 'audio_no_noise']
-    # train.learning_rate = [0.001, 0.0001]
-    # train.batch_size = [32, 128, 256]
+    # Define Experiment Name
+    experiment_name = 'MultiTask-Perch2-Spatial-Embeddings'
+
+    # Define Base Config
+    base_config = {
+        # Define which config files are used
+        #"general": general_config,
+        # "dataset": 'default',
+        "embeddings": 'all_embeddings',
+        "model": 'TemporalCNN',
+        #"objectives": objectives_config,
+        "train": 'perch2_spatial_embeddings',
+
+        # Define specific parameters
+        "log.experiment_name": experiment_name,
+        #"train.train_size_batches": train_size_batches
+    }
+
+    # Define all lists of parameters or config files [Hyperparameters]
+    hyperparams = {'objectives': ['only_polyphony_degree'],#, 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
+                    'train.train_size_batches': [10, 30, 76]
+                    # input_feature = ['audio', 'audio_no_noise']
+                    # train.learning_rate = [0.001, 0.0001]
+                    # train.batch_size = [32, 128, 256]
+                }
 
     # Iterate over all combinations of parameters
-    for objectives_config, train_size_batches in itertools.product(objectives_configs, train_sizes_batches):
-        # Define Experiment
-        config_dict = {
-                # Define which config files are used
-                #"general": general_config,
-                # "dataset": 'default',
-                "embeddings": 'all_embeddings',
-                "model": 'TemporalCNN',
-                "objectives": objectives_config,
-                "train": 'perch2_spatial_embeddings',
+    # for params in (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values())):
+    # #for objectives_config, train_size_batches in itertools.product(hyperparams['objectives_configs'], hyperparams['train_sizes_batches']):
+    #     # Define Experiment
+    #     # base_config = {
+    #     #         # Define which config files are used
+    #     #         #"general": general_config,
+    #     #         # "dataset": 'default',
+    #     #         "embeddings": 'all_embeddings',
+    #     #         "model": 'TemporalCNN',
+    #     #         #"objectives": objectives_config,
+    #     #         "train": 'perch2_spatial_embeddings',
 
-                # Define specific parameters
-                "log.experiment_name": 'MultiTask-Perch2-Spatial-Embeddings',
-                "train.train_size_batches": train_size_batches
-            }
+    #     #         # Define specific parameters
+    #     #         "log.experiment_name": 'MultiTask-Perch2-Spatial-Embeddings',
+    #     #         #"train.train_size_batches": train_size_batches
+    #     #     }
+        
+    #     # Add hyperparameters
+    #     config_dict.update(params)
 
+    # Add hyperparameters
+    all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
+    for hyperparams_config in all_hyper_parameter_combinations:
+
+        # Get hyperparams keys for logging purposes
+        hyperparams_keys_str = ",".join(hyperparams_config.keys())
+        hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
+
+        # Create config
+        config_dict = base_config | hyperparams_config | hyperparams_keys
+        
+        # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_dict)
-
         submit_batch_job(arguments, exp_params)

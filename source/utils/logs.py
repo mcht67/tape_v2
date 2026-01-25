@@ -7,11 +7,11 @@
 This module handles the logging and summary writing for the project.
 """
 
-import datetime
 import os
-import shutil
 from pathlib import Path, PosixPath
 from typing import Any, Dict, Optional, Union
+from omegaconf import DictConfig
+import datetime
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
@@ -286,7 +286,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None):
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
@@ -295,6 +295,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.confusion_matrix_specs = confusion_matrix_specs or []
         self.metrics = {}
         self.input_shape = input_shape
+        self.cfg = cfg
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -417,45 +418,244 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         # Step the writer (handles syncing)
         self.writer.step()
 
+    # def _log_confusion_matrix(self, epoch, spec):
+    #     try:
+    #         target = spec["name"]
+    #         cm_type = spec["type"]
+    #         threshold = spec.get("threshold", 0.5)
+
+    #         y_pred, y_true = self._get_predictions_and_true_labels(
+    #             self.val_dataset, target
+    #         )
+
+    #         if cm_type == "regression_round":
+    #             yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
+    #             labels = np.unique(yt)
+    #             title = "Polyphony Degree"
+
+    #         elif cm_type == "binary":
+    #             yt, yp = prepare_event_logits_for_cm(
+    #                 y_true, y_pred, threshold=threshold
+    #             )
+    #             labels = [0, 1]
+    #             title = "Event Detection"
+
+    #         else:
+    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
+
+    #         fig = plot_confusion_matrix_sklearn(
+    #             yt, yp, labels=labels, title=title
+    #         )
+
+    #         self.writer.add_figure(
+    #             f"Confusion_Matrix/{target}",
+    #             fig,
+    #             epoch,
+    #         )
+
+    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
+
+    #     except Exception as e:
+    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
+
     def _log_confusion_matrix(self, epoch, spec):
         try:
+            import matplotlib.pyplot as plt
+            from matplotlib.gridspec import GridSpec
+            import io
+            from PIL import Image
+            
             target = spec["name"]
             cm_type = spec["type"]
             threshold = spec.get("threshold", 0.5)
-
             y_pred, y_true = self._get_predictions_and_true_labels(
                 self.val_dataset, target
             )
-
             if cm_type == "regression_round":
                 yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
                 labels = np.unique(yt)
                 title = "Polyphony Degree"
-
             elif cm_type == "binary":
                 yt, yp = prepare_event_logits_for_cm(
                     y_true, y_pred, threshold=threshold
                 )
                 labels = [0, 1]
                 title = "Event Detection"
-
             else:
                 raise ValueError(f"Unknown confusion matrix type: {cm_type}")
-
-            fig = plot_confusion_matrix_sklearn(
+            
+            # Create the confusion matrix figure (original)
+            cm_fig = plot_confusion_matrix_sklearn(
                 yt, yp, labels=labels, title=title
             )
-
+            
+            # Convert confusion matrix to image
+            buf = io.BytesIO()
+            cm_fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+            buf.seek(0)
+            cm_image = Image.open(buf)
+            plt.close(cm_fig)
+            
+            # Add metadata
+            metadata_lines = [
+                f"Model: {self.cfg.model._target_ if hasattr(self.cfg.model, '_target_') else self.cfg.model.get('name', 'N/A')}",
+                f"Dataset: {self.cfg.dataset.name if hasattr(self.cfg.dataset, 'name') else 'N/A'}",
+                f"Input Feature: {self.cfg.train.get('input_feature_name', 'N/A')}",
+                f"Epoch: {epoch + 1}",
+            ]
+            
+            # Add hyperparameters if they exist
+            if hasattr(self.cfg.log, 'hyperparameters') and self.cfg.log.hyperparameters:
+                metadata_lines.append("\nHyperparameters:")
+                for hp_key in self.cfg.log.hyperparameters:
+                    # Navigate nested config keys (e.g., 'train.learning_rate')
+                    value = self.cfg
+                    for key_part in hp_key.split('.'):
+                        value = getattr(value, key_part, 'N/A')
+                    
+                    # Check if value is a dict or DictConfig - if so, extract keys only
+                    from omegaconf import DictConfig
+                    if isinstance(value, (dict, DictConfig)):
+                        dict_keys = ", ".join(value.keys())
+                        metadata_lines.append(f"  {hp_key}: {dict_keys}")
+                    else:
+                        metadata_lines.append(f"  {hp_key}: {value}")
+            
+            metadata_text = "\n".join(metadata_lines)
+            
+            # Calculate metadata height needed
+            num_lines = len(metadata_lines)
+            metadata_height_ratio = max(0.15, num_lines * 0.02)
+            
+            # Create a new combined figure
+            cm_width = cm_image.width / 100  # Convert pixels to inches (100 dpi)
+            cm_height = cm_image.height / 100
+            metadata_height = cm_height * metadata_height_ratio
+            
+            combined_fig = plt.figure(figsize=(cm_width, cm_height + metadata_height))
+            
+            # Create grid: confusion matrix on top, metadata below
+            gs = GridSpec(2, 1, figure=combined_fig, 
+                        height_ratios=[cm_height, metadata_height],
+                        hspace=0.15)
+            
+            # Display confusion matrix image in top subplot
+            ax_cm = combined_fig.add_subplot(gs[0])
+            ax_cm.imshow(cm_image)
+            ax_cm.axis('off')
+            
+            # Create metadata subplot below
+            ax_meta = combined_fig.add_subplot(gs[1])
+            ax_meta.axis('off')
+            ax_meta.text(
+                0.5, 0.5,
+                metadata_text,
+                fontsize=8,
+                verticalalignment='center',
+                horizontalalignment='center',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+                transform=ax_meta.transAxes,
+                family='monospace'
+            )
+            
+            buf.close()
+            
             self.writer.add_figure(
                 f"Confusion_Matrix/{target}",
-                fig,
+                combined_fig,
                 epoch,
             )
-
             print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
-
         except Exception as e:
             print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
+
+    # def _log_confusion_matrix(self, epoch, spec):
+    #     try:
+    #         target = spec["name"]
+    #         cm_type = spec["type"]
+    #         threshold = spec.get("threshold", 0.5)
+    #         y_pred, y_true = self._get_predictions_and_true_labels(
+    #             self.val_dataset, target
+    #         )
+    #         if cm_type == "regression_round":
+    #             yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
+    #             labels = np.unique(yt)
+    #             title = "Polyphony Degree"
+    #         elif cm_type == "binary":
+    #             yt, yp = prepare_event_logits_for_cm(
+    #                 y_true, y_pred, threshold=threshold
+    #             )
+    #             labels = [0, 1]
+    #             title = "Event Detection"
+    #         else:
+    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
+            
+    #         fig = plot_confusion_matrix_sklearn(
+    #             yt, yp, labels=labels, title=title
+    #         )
+            
+    #         # Add metadata to the figure
+    #         metadata_lines = [
+    #             f"Model: {self.cfg.model._target_ if hasattr(self.cfg.model, '_target_') else self.cfg.model.get('name', 'N/A')}",
+    #             f"Dataset: {self.cfg.dataset.subset if hasattr(self.cfg.dataset, 'subset') else 'N/A'}",
+    #             f"Input Feature: {self.cfg.train.get('input_feature_name', 'N/A')}",
+    #             f"Epoch: {epoch + 1}",
+    #         ]
+            
+    #         # Add hyperparameters if they exist
+    #         if hasattr(self.cfg.log, 'hyperparameters') and self.cfg.log.hyperparameters:
+    #             metadata_lines.append("\nHyperparameters:")
+    #             for hp_key in self.cfg.log.hyperparameters:
+    #                 # Navigate nested config keys (e.g., 'train.learning_rate')
+    #                 value = self.cfg
+    #                 for key_part in hp_key.split('.'):
+    #                     value = getattr(value, key_part, 'N/A')
+                    
+    #                 # Check if value is a dict - if so, extract keys only
+    #                 if isinstance(value, (dict, DictConfig)):
+    #                     dict_keys = ", ".join(value.keys())
+    #                     metadata_lines.append(f"  {hp_key}: {dict_keys}")
+    #                 else:
+    #                     metadata_lines.append(f"  {hp_key}: {value}")
+
+    #         metadata_text = "\n".join(metadata_lines)
+            
+    #         # Count the number of lines to estimate required space
+    #         num_lines = len(metadata_lines)
+    #         # Estimate height needed: increase multiplier for more space
+    #         text_height = max(0.2, num_lines * 0.02)  # Increased from 0.015 to 0.02
+            
+    #         # Get current figure size and ONLY expand vertically (preserve width)
+    #         current_size = fig.get_size_inches()
+    #         original_width = current_size[0]
+    #         new_height = current_size[1] + text_height * current_size[1] * 2.5
+    #         fig.set_size_inches(original_width, new_height)
+
+    #         # Adjust layout to make room at the bottom (proportion based on new height)
+    #         bottom_margin = (text_height * 1.3) / (text_height * 1.3 + 1)
+    #         # Use subplots_adjust instead of tight_layout to preserve original sizing
+    #         fig.subplots_adjust(bottom=bottom_margin)
+
+    #         # Add text below the confusion matrix
+    #         fig.text(
+    #             0.5, bottom_margin * 0.45,
+    #             metadata_text,
+    #             fontsize=8,
+    #             verticalalignment='center',
+    #             horizontalalignment='center',
+    #             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+    #             transform=fig.transFigure,
+    #             family='monospace'
+    #         )
+            
+    #         self.writer.add_figure(
+    #             f"Confusion_Matrix/{target}",
+    #             fig,
+    #             epoch,
+    #         )
+    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
+    #     except Exception as e:
+    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
     # def _log_confusion_matrix(self, epoch, spec):
     #     try:

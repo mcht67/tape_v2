@@ -28,7 +28,6 @@ def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
     ds = ds.batch(batch_size)
     return ds
 
-
 def get_tf_datasets(dataset, features, labels, batch_size):
     train_dataset = dataset['train'].to_tf_dataset(
         columns=features,
@@ -253,7 +252,7 @@ num_batches = len(train_dataset)
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
-            log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim)
+            log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,

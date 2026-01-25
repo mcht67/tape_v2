@@ -1,3 +1,6 @@
 experiment_name: 'test-experiment'
 tensorboard_subfolder: ${log.experiment_name}
 tensorboard_suffix: ''
+hyperparameters:
+  - hyperparameter_1
+  - hyperparameter_2

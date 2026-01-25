@@ -25,7 +25,7 @@ train:
   input_feature_name: perch_v2_cpu_audio_spatial_embeddings
   batch_size: 128
   learning_rate: 0.0001
-  epochs: 50
+  epochs: 20
   train_size_batches: 10
   use_event_logits: true
   num_event_logits: 16
@@ -37,6 +37,9 @@ log:
   experiment_name: MultiTask-Perch2-Spatial-Embeddings
   tensorboard_subfolder: MultiTask-Perch2-Spatial-Embeddings
   tensorboard_suffix: ''
+  hyperparameters:
+  - objectives
+  - train.train_size_batches
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json

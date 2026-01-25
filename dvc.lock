@@ -86,8 +86,8 @@ stages:
       nfiles: 40
     - path: source/train.py
       hash: md5
-      md5: c20f080abe6b4496f1e09bde26c929e6
-      size: 15192
+      md5: ef37d491659089e36cb5bd52477cbb51
+      size: 15141
     params:
       params.yaml:
         general.random_seed: 42
@@ -109,8 +109,8 @@ stages:
           input_feature_name: perch_v2_cpu_audio_spatial_embeddings
           batch_size: 128
           learning_rate: 0.0001
-          epochs: 10
-          train_size: 100
+          epochs: 50
+          train_size_batches: 76
           use_event_logits: true
           num_event_logits: 16
           event_logits_name: event_logits
@@ -120,11 +120,11 @@ stages:
     outs:
     - path: checkpoints
       hash: md5
-      md5: dc07d1591535a5d19f2310bb2bbc6ad5.dir
-      size: 301596728
-      nfiles: 9
+      md5: ab5939adea6af7d67e8a4ec1a012a1aa.dir
+      size: 636637608
+      nfiles: 19
     - path: logs
       hash: md5
-      md5: 36fe06aab2cb665962c855e6bc73c409.dir
-      size: 16721510
-      nfiles: 55
+      md5: c88291e045d1ce8605599d33f7118e16.dir
+      size: 14756194
+      nfiles: 41
