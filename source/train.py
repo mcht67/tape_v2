@@ -251,6 +251,7 @@ checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset) / batch_size
 num_batches = math.ceil(num_batches)
+print("Num batches:", num_batches)
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
@@ -258,6 +259,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,
+                                                save_freq=5*num_batches
                                                 )
 callbacks = [tensorboard_callback, checkpoint_callback]
 
