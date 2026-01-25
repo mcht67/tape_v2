@@ -48,7 +48,7 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define all lists of parameters or config files
-    objectives_configs = ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
+    objectives_configs = ['only_polyphony_degree']#, 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
     train_sizes_batches = [1, 10, 100]
     # input_feature = ['audio', 'audio_no_noise']
     # train.learning_rate = [0.001, 0.0001]
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                 # Define which config files are used
                 #"general": general_config,
                 # "dataset": 'default',
-                # "embeddings": 'default',
+                "embeddings": 'all_embeddings',
                 "model": 'TemporalCNN',
                 "objectives": objectives_config,
                 "train": 'perch2_spatial_embeddings',

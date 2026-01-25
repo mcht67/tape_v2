@@ -132,55 +132,61 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
         modified = True
     return dataset, modified
 
-def add_embeddings_batchwise(embedding_type, model_keys, dataset_split, input_feature, dataset, cache_dir, batch_size=100):
+def add_embeddings_batchwise(model_keys, dataset_split, input_features, dataset, cache_dir, batch_size=100):
     for model_key in model_keys:
-        embedding_key = model_key + "_" + input_feature + "_embeddings"
+        for input_feature in input_features:
+            embedding_key = model_key + "_" + input_feature + "_embeddings"
 
-        if embedding_key in dataset.features:
-             print("Embedding with model", model_key, "for", input_feature, "has already been calculated, skipping.")
-             continue
-        
-        print(f"Processing {embedding_key} in batches of {batch_size}...")
+            if embedding_key in dataset.features:
+                print("Embedding with model", model_key, "for", input_feature, "has already been calculated, skipping.")
+                continue
+            
+            # If embedding key is not in dataset compute
+            print(f"Processing {embedding_key} in batches of {batch_size}...")
 
-        if embedding_type == 'perch_v1':
-            model, sampling_rate = load_perch1_model(model_key)
-        elif embedding_type == 'perch_v2':
-            model, sampling_rate = load_perch2_model(model_key)
-        elif embedding_type == 'birdset':
-            load_birdset_model = load_birdset_model(model_key)
-        else:
-             raise Exception("Model family unknown. Can not load model.")
-        
-        embedding_fn = partial(
-            embed_example,
-            model=model,
-            model_key=model_key,
-            embedding_type=embedding_type,
-            input_feature=input_feature,
-            sampling_rate=sampling_rate,
-        )
-        
-        # Process in batches
-        processed_datasets = []
-        total_samples = len(dataset)
-        
-        for i in range(0, total_samples, batch_size):
-            end_idx = min(i + batch_size, total_samples)
-            print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+            dataset = dataset.cast_column(input_feature, Audio())
+            embedding_type = get_embedding_type(model_key)
+
+            if embedding_type == 'perch_v1':
+                model, sampling_rate = load_perch1_model(model_key)
+            elif embedding_type == 'perch_v2':
+                model, sampling_rate = load_perch2_model(model_key)
+            elif embedding_type == 'birdset':
+                load_birdset_model = load_birdset_model(model_key)
+            else:
+                print("Model family unknown. Can not load model.")
+                continue
             
-            # Select batch
-            batch_dataset = dataset.select(range(i, end_idx))
+            embedding_fn = partial(
+                embed_example,
+                model=model,
+                model_key=model_key,
+                embedding_type=embedding_type,
+                input_feature=input_feature,
+                sampling_rate=sampling_rate,
+            )
             
-            # Process batch
-            cache_file = os.path.join(cache_dir, f"{model_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
-            batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+            # Process in batches
+            processed_datasets = []
+            total_samples = len(dataset)
             
-            processed_datasets.append(batch_processed)
+            for i in range(0, total_samples, batch_size):
+                end_idx = min(i + batch_size, total_samples)
+                print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+                
+                # Select batch
+                batch_dataset = dataset.select(range(i, end_idx))
+                
+                # Process batch
+                cache_file = os.path.join(cache_dir, f"{embedding_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
+                batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+                
+                processed_datasets.append(batch_processed)
+            
+            # Concatenate all processed batches
+            print(f"Concatenating {len(processed_datasets)} batches...")
+            dataset = concatenate_datasets(processed_datasets)
         
-        # Concatenate all processed batches
-        print(f"Concatenating {len(processed_datasets)} batches...")
-        dataset = concatenate_datasets(processed_datasets)
-    
     return dataset
 
 # def add_embeddings_batchwise(model_keys, feature_key, dataset, cache_dir, batch_size=100):
@@ -222,6 +228,26 @@ def add_embeddings_batchwise(embedding_type, model_keys, dataset_split, input_fe
     
 #     return dataset
 
+def get_embedding_type(model_key):
+            # Define availabel models
+            perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+            perch_v2_models = ['perch_v2', 'perch_v2_cpu']
+            birdset_models = []
+
+            # Get embedding type [perch_v1, perch_v2, birdset]
+            if model_key in perch_v1_models:
+                embedding_type = 'perch_v1'
+            elif model_key in perch_v2_models:
+                embedding_type = 'perch_v2'
+            elif model_key in birdset_models:
+                embedding_type = 'birdset'
+            else:
+                print("Embedding model is not supported, skipping!")
+                return None
+            
+            print(model_key, "is a ", embedding_type, "model.")
+            return embedding_type
+
 def main():
     with tempfile.TemporaryDirectory() as temp_cache_dir:
 
@@ -239,13 +265,13 @@ def main():
         # print(args)
 
         cfg = OmegaConf.load("params.yaml")
-        input_feature = cfg.embeddings.input_feature
-        embedding_model = cfg.embeddings.model
+        # input_feature = cfg.embeddings.input_feature
+        # embedding_model = cfg.embeddings.model
+        input_features = cfg.embeddings.input_features
+        embedding_models = cfg.embeddings.models
         dataset_path = cfg.path.dataset
         dataset_metadata_path = cfg.path.dataset_metadata
         embeddings_metadata_path = cfg.path.embeddings_metadata
-        
-        embedding_name = cfg.embeddings.name
 
         # perch v1 available models
         # BIRDNET_V2_1 = 'birdnet_V2.1'
@@ -276,29 +302,10 @@ def main():
         #             print("Requested embedding is no birdset model, exiting.")
         #             exit(0)
 
-        # Define availabel models
-        perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
-        perch_v2_models = ['perch_v2', 'perch_v2_cpu']
-        birdset_models = []
-
-        # Get embedding type [perch_v1, perch_v2, birdset]
-        if embedding_model in perch_v1_models:
-            embedding_type = 'perch_v1'
-        elif embedding_model in perch_v2_models:
-            embedding_type = 'perch_v2'
-        elif embedding_model in birdset_models:
-            embedding_type = 'birdset'
-        else:
-            print("Embedding model is not supported, skipping!")
-            return 0
-        
-        print(embedding_model, "is a ", embedding_type, "model.")
-
-        model_keys = [embedding_model]
+        # model_keys = [embedding_model]
 
         # Load Dataset 
         dataset = load_from_disk(dataset_path)
-        dataset = dataset.cast_column(input_feature, Audio())
 
         # ===================
         # Embeddings
@@ -307,7 +314,7 @@ def main():
         print("Start embedding...")
         # Compute embeddings
         for split in dataset.keys():
-            dataset[split] = add_embeddings_batchwise(embedding_type, model_keys, split, input_feature, dataset[split], temp_cache_dir)
+            dataset[split] = add_embeddings_batchwise(embedding_models, split, input_features, dataset[split], temp_cache_dir)
         print("Embedding completed.")
 
         # ===================
@@ -319,7 +326,7 @@ def main():
         metadata = {
                 "datetime": datetime.now().isoformat(),
                 "dataset_path": dataset_path,
-                "embedding added": model_keys
+                "embedding added": list(embedding_models)
             }
 
         metadata_dir = os.path.dirname(embeddings_metadata_path)
