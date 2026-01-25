@@ -26,7 +26,7 @@ train:
   batch_size: 128
   learning_rate: 0.0001
   epochs: 10
-  train_size: 10
+  train_size_batches: 10
   use_event_logits: true
   num_event_logits: 16
   event_logits_name: event_logits
