@@ -53,7 +53,7 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define Experiment Name
-    experiment_name = 'Multi-Task_Perch2_Spatial-Embeddings'
+    experiment_name = 'MultiTask_SpatialEmbeddings'
 
     # Define Base Config
     base_config = {
@@ -101,6 +101,7 @@ if __name__ == "__main__":
 
     # Add hyperparameters
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
+    print(all_hyper_parameter_combinations)
     for hyperparams_config in all_hyper_parameter_combinations:
 
         # Get hyperparams keys for logging purposes

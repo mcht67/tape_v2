@@ -86,18 +86,17 @@ stages:
       nfiles: 40
     - path: source/train.py
       hash: md5
-      md5: ca4f4caff33d6d562dc5b3b921530d59
-      size: 15149
+      md5: 96cb25cf3b380e72505a8477ae6413de
+      size: 15209
     params:
       params.yaml:
         general.random_seed: 42
         log:
-          experiment_name: MultiTask-Perch2-Spatial-Embeddings
-          tensorboard_subfolder: MultiTask-Perch2-Spatial-Embeddings
+          experiment_name: Multi-Task_Perch2_Spatial-Embeddings
+          tensorboard_subfolder: Multi-Task_Perch2_Spatial-Embeddings
           tensorboard_suffix: ''
           hyperparameters:
           - objectives
-          - train.train_size_batches
         model:
           _target_: model.TemporalCNNMultiTask_v2
         objectives:
@@ -108,11 +107,50 @@ stages:
             confusion_matrix:
               type: regression_round
               threshold: 0.5
+          event_logits:
+            loss:
+              _target_: tensorflow.keras.losses.BinaryCrossentropy
+              from_logits: false
+              label_smoothing: 0.1
+            scheduler:
+              switch_epochs:
+              - 0
+              - 10
+              - 20
+              - 30
+              - 40
+              weights:
+              - 10.0
+              - 5.0
+              - 1.0
+              - 0.5
+              - 0.1
+            confusion_matrix:
+              type: binary
+          framewise_polyphony:
+            loss:
+              _target_: tensorflow.keras.losses.MeanSquaredError
+            scheduler:
+              switch_epochs:
+              - 0
+              - 10
+              - 20
+              - 30
+              - 40
+              weights:
+              - 5.0
+              - 10.0
+              - 5.0
+              - 1.0
+              - 0.5
+            confusion_matrix:
+              type: regression_round
+              threshold: 0.5
         train:
           input_feature_name: perch_v2_cpu_audio_spatial_embeddings
           batch_size: 128
           learning_rate: 0.0001
-          epochs: 20
+          epochs: 50
           train_size_batches: 76
           use_event_logits: true
           num_event_logits: 16
@@ -123,11 +161,11 @@ stages:
     outs:
     - path: checkpoints
       hash: md5
-      md5: 7890feffe17e09539a5508c154adb9cf.dir
-      size: 737149872
-      nfiles: 22
+      md5: 3f4752f2ba9cd1d52c9c597af7bdde44.dir
+      size: 837692104
+      nfiles: 25
     - path: logs
       hash: md5
-      md5: abea1ddbc5e6a59daa106250adb0556d.dir
-      size: 16078021
-      nfiles: 40
+      md5: f8e8134129e1f15f7550e6ce06c0cad2.dir
+      size: 21998934
+      nfiles: 63

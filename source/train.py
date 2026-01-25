@@ -197,9 +197,14 @@ train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_featur
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 
 # Create a SummaryWriter object to write the tensorboard logs
-metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO: Investigate: What is this doing with the variable losses?
+#metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO: Investigate: What is this doing with the variable losses?
+metrics = {}
+for key in objectives_cfg.keys():
+    metrics[f"{key}_loss"] = None
+    metrics[f"val_{key}_loss"] = None
 
-# Add hParams
+print("Metrics:", metrics)
+
 params['dataset']['train_size'] = str(len(dataset['train']))
 params['dataset']['val_size'] = str(len(dataset['validation']))
 params['dataset']['test_size'] = str(len(dataset['test']))
