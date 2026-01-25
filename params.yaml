@@ -5,30 +5,37 @@ dataset:
   subset: HSN
   split: train
 embeddings:
-  input_feature: audio
-  model: perch_v2_cpu
-  name: perch_v2_cpu_audio
+  input_features:
+  - audio
+  - no_noise_audio
+  models:
+  - perch_v2_cpu
+  - birdnet_V2.3
 model:
   _target_: model.TemporalCNNMultiTask_v2
+objectives:
+  polyphony_degree:
+    loss:
+      _target_: tensorflow.keras.losses.MeanSquaredError
+    weight: 1.0
+    confusion_matrix:
+      type: regression_round
+      threshold: 0.5
 train:
   input_feature_name: perch_v2_cpu_audio_spatial_embeddings
-  labels:
-  - polyphony_degree
-  - framewise_polyphony
-  - perch2_event_logits
   batch_size: 128
   learning_rate: 0.0001
   epochs: 10
-  tensorboard_path: debug_tensorboard
+  train_size: 1
   use_event_logits: true
   num_event_logits: 16
-  event_logits_name: perch2_event_logits
+  event_logits_name: event_logits
   use_framewise_polyphony: true
   num_frames: 16
   framewise_polyphony_name: framewise_polyphony
 log:
-  experiment_name: test-experiment
-  tensorboard_subfolder: TestExperiment
+  experiment_name: MultiTask-Perch2-Spatial-Embeddings
+  tensorboard_subfolder: MultiTask-Perch2-Spatial-Embeddings
   tensorboard_suffix: ''
 path:
   dataset: dataset

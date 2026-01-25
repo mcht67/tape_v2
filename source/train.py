@@ -258,7 +258,6 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,
-                                                save_freq=5*num_batches,
                                                 )
 callbacks = [tensorboard_callback, checkpoint_callback]
 
