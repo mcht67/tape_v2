@@ -249,9 +249,7 @@ confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 checkpoint_path = return_checkpoint_path(subfolder=experiment_name)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
-num_batches = len(train_dataset) / batch_size
-num_batches = math.ceil(num_batches)
-print("Num batches:", num_batches)
+num_batches = len(train_dataset)
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
