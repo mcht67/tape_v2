@@ -256,19 +256,20 @@ checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset)
 
+losses = create_losses_from_objectives(objectives_cfg)  
+
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
-tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
-            log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg)
+tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset, 
+            log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,
                                                 save_freq=5*num_batches
                                                 )
 callbacks = [tensorboard_callback, checkpoint_callback]
-
-losses = create_losses_from_objectives(objectives_cfg)  
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
+
 
 # loss_weight_callback = LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40],
 #                                        event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1],
