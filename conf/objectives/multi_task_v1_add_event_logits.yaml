@@ -1,7 +1,7 @@
 polyphony_degree:
   loss:
     _target_: tensorflow.keras.losses.MeanSquaredError
-    weight: 1.0
+  weight: 1.0
   confusion_matrix:
     type: regression_round
     threshold: 0.5

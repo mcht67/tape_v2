@@ -53,7 +53,7 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define Experiment Name
-    experiment_name = 'MultiTask_SpatialEmbeddings'
+    experiment_name = 'MultiTask-SpatialEmbeddings'
 
     # Define Base Config
     base_config = {
