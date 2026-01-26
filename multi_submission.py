@@ -71,7 +71,7 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    hyperparams = {'objectives': ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony'],
+    hyperparams = {'objectives': ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
                     #'train.train_size_batches': [10, 30, 76]
                     # input_feature = ['audio', 'audio_no_noise']
                     # train.learning_rate = [0.001, 0.0001]

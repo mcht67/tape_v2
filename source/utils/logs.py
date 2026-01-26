@@ -286,7 +286,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None):
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None, loss_objects=None):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
@@ -296,6 +296,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.metrics = {}
         self.input_shape = input_shape
         self.cfg = cfg
+        self.loss_objects = loss_objects
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -310,6 +311,14 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 profile_batch=0,  # Disable profiling by default
                 embeddings_freq=0
             )
+
+        # Create separate file writers for train and validation
+        self.train_writer = tf.summary.create_file_writer(
+            str(Path(writer.log_dir) / 'train')
+        )
+        self.val_writer = tf.summary.create_file_writer(
+            str(Path(writer.log_dir) / 'validation')
+        )
 
     def set_model(self, model):
         """Called when the callback is attached to a model"""
@@ -385,27 +394,54 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             self.standard_tb_callback.on_epoch_begin(epoch, logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        # """Log epoch-level metrics and confusion matrix"""
-        # train_loss = logs.get('loss', 0)
-        # val_loss = logs.get('val_loss', 0)
+        """Log base losses and weights following TensorBoard conventions."""
+        if logs is None:
+            return
         
-        # print(f"Train loss: {train_loss:>8f}")
-        # if val_loss > 0:
-        #     print(f"Val Error: \n Avg loss: {val_loss:>8f} \n")
+        # Debug: Print available log keys on first epoch
+        if epoch == 0:
+            print(f"Available log keys: {list(logs.keys())}")
+            
+        # Handle single vs multi-objective scenarios
+        num_objectives = len(self.loss_objects)
         
-        # # Log basic epoch metrics to your CustomSummaryWriter
-        # self.writer.add_scalar("Epoch_Loss/train", train_loss, epoch)
-        # if val_loss > 0:
-        #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
-        
-        # Log confusion matrix every N epochs
-        if (
-            self.val_dataset is not None
-            and self.confusion_matrix_specs
-            and (epoch + 1) % self.confusion_matrix_frequency == 0
-        ):
-            for spec in self.confusion_matrix_specs:
-                self._log_confusion_matrix(epoch, spec)
+        for obj_name, loss_obj in self.loss_objects.items():
+            # Get current weight
+            current_weight = float(loss_obj.weight.numpy())
+            
+            # Log weights to main directory (using main writer)
+            self.writer.add_scalar(
+                f'loss_weights/{obj_name}',
+                current_weight,
+                epoch
+            )
+            
+            # Process train losses
+            weighted_loss = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
+            if weighted_loss is not None:
+                base_loss = self._calculate_base_loss(weighted_loss, current_weight)
+                
+                # Log to train directory
+                with self.train_writer.as_default():
+                    tf.summary.scalar(f'{obj_name}_loss', base_loss, step=epoch)
+            
+            # Process validation losses
+            val_weighted_loss = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
+            if val_weighted_loss is not None:
+                val_base_loss = self._calculate_base_loss(val_weighted_loss, current_weight)
+                
+                # Log to validation directory
+                with self.val_writer.as_default():
+                    tf.summary.scalar(f'{obj_name}_loss', val_base_loss, step=epoch)
+
+            # Log confusion matrix every N epochs
+            if (
+                self.val_dataset is not None
+                and self.confusion_matrix_specs
+                and (epoch + 1) % self.confusion_matrix_frequency == 0
+            ):
+                for spec in self.confusion_matrix_specs:
+                    self._log_confusion_matrix(epoch, spec)
 
         # if (self.log_confusion_matrix and self.val_dataset is not None 
         #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
@@ -414,9 +450,139 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         # Call standard TensorBoard callback
         if self.standard_tb_callback:
             self.standard_tb_callback.on_epoch_end(epoch, logs)
-        
+
         # Step the writer (handles syncing)
         self.writer.step()
+        
+        # Flush all writers
+        self.train_writer.flush()
+        self.val_writer.flush()
+    
+    def _get_loss_from_logs(self, logs, obj_name, prefix, num_objectives):
+        """Extract loss value from logs."""
+        if num_objectives == 1:
+            # Single objective: loss is logged as 'loss' or 'val_loss'
+            key = f'{prefix}loss'
+            return logs.get(key)
+        else:
+            # Multi-objective: loss is logged with output name
+            possible_keys = [
+                f'{prefix}{obj_name}',
+                f'{prefix}{obj_name}_loss',
+            ]
+            for key in possible_keys:
+                if key in logs:
+                    return logs[key]
+        return None
+    
+    def _calculate_base_loss(self, weighted_loss, weight):
+        """Calculate base loss (as if weight=1.0)."""
+        if weight > 1e-8:
+            return weighted_loss / weight
+        else:
+            return weighted_loss
+    
+    # def on_train_end(self, logs=None):
+    #     """Close file writers when training ends."""
+    #     self.train_writer.close()
+    #     self.val_writer.close()
+
+    # def on_epoch_end(self, epoch, logs=None):
+    #     # """Log epoch-level metrics and confusion matrix"""
+    #     """Log base losses (weight=1.0), weighted losses, and weights for train and val."""
+    #     if logs is None:
+    #         return
+        
+    #     # Handle single vs multi-objective scenarios
+    #     num_objectives = len(self.loss_objects)
+            
+    #     for obj_name, loss_obj in self.loss_objects.items():
+    #         # Get current weight
+    #         current_weight = float(loss_obj.weight.numpy())
+            
+    #         # Log the weight itself
+    #         self.writer.add_scalar(
+    #             f'loss_weights/{obj_name}',
+    #             current_weight,
+    #             epoch
+    #         )
+            
+    #         # Process both train and validation losses
+    #         for prefix in ['', 'val_']:
+
+    #             if num_objectives == 1:
+    #                 # Single objective: loss is logged as 'loss' or 'val_loss'
+    #                 possible_keys = [
+    #                     f'{prefix}loss',
+    #                 ]
+    #             else:
+    #                 # Multi-objective: loss is logged with output name
+    #                 possible_keys = [
+    #                     f'{prefix}{obj_name}',
+    #                     f'{prefix}{obj_name}_loss',
+    #                 ]
+                
+    #             for key in possible_keys:
+    #                 if key in logs:
+    #                     weighted_loss = logs[key]
+    #                     break
+                
+    #             if weighted_loss is not None:
+    #                 tb_prefix = 'val_' if prefix else 'train_'
+                    
+    #                 # Log the weighted loss (what actually affects training)
+    #                 self.writer.add_scalar(
+    #                     f'{tb_prefix}losses_weighted/{obj_name}',
+    #                     weighted_loss,
+    #                     epoch
+    #                 )
+                    
+    #                 # Calculate base loss (as if weight=1.0)
+    #                 # base_loss = weighted_loss / weight
+    #                 if current_weight > 1e-8:
+    #                     base_loss = weighted_loss / current_weight
+    #                 else:
+    #                     # If weight is 0, we can't recover the base loss
+    #                     # Log weighted loss (which is also ~0)
+    #                     base_loss = weighted_loss
+                    
+    #                 # Log base loss (unweighted, i.e., weight=1.0)
+    #                 self.writer.add_scalar(
+    #                     f'{tb_prefix}losses_base/{obj_name}',
+    #                     base_loss,
+    #                     epoch
+    #                 )
+    #     # train_loss = logs.get('loss', 0)
+    #     # val_loss = logs.get('val_loss', 0)
+        
+    #     # print(f"Train loss: {train_loss:>8f}")
+    #     # if val_loss > 0:
+    #     #     print(f"Val Error: \n Avg loss: {val_loss:>8f} \n")
+        
+    #     # # Log basic epoch metrics to your CustomSummaryWriter
+    #     # self.writer.add_scalar("Epoch_Loss/train", train_loss, epoch)
+    #     # if val_loss > 0:
+    #     #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
+        
+    #     # Log confusion matrix every N epochs
+    #     if (
+    #         self.val_dataset is not None
+    #         and self.confusion_matrix_specs
+    #         and (epoch + 1) % self.confusion_matrix_frequency == 0
+    #     ):
+    #         for spec in self.confusion_matrix_specs:
+    #             self._log_confusion_matrix(epoch, spec)
+
+    #     # if (self.log_confusion_matrix and self.val_dataset is not None 
+    #     #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
+    #     #     self._log_confusion_matrix(epoch)
+
+    #     # Call standard TensorBoard callback
+    #     if self.standard_tb_callback:
+    #         self.standard_tb_callback.on_epoch_end(epoch, logs)
+        
+    #     # Step the writer (handles syncing)
+    #     self.writer.step()
 
     # def _log_confusion_matrix(self, epoch, spec):
     #     try:
@@ -771,12 +937,37 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
         logs = logs or {}
         print(logs)
-        # Update latest_metrics with latest logs keys you want
-        for key in self.writer.metrics.keys():
-            print(key)
-            if key in logs:
-                print(key)
-                self.metrics[key] = logs[key]
+
+        print(f"Final logs keys: {list(logs.keys())}")
+    
+        num_objectives = len(self.loss_objects)
+        
+        # Extract final metrics from logs
+        for obj_name, loss_obj in self.loss_objects.items():
+            current_weight = float(loss_obj.weight.numpy())
+            
+            # Get train loss
+            train_weighted = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
+            if train_weighted is not None:
+                train_base = self._calculate_base_loss(train_weighted, current_weight)
+                self.metrics[f"{obj_name}_loss"] = float(train_base)
+                print(f"Added {obj_name}_loss = {train_base}")
+            
+            # Get validation loss
+            val_weighted = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
+            if val_weighted is not None:
+                val_base = self._calculate_base_loss(val_weighted, current_weight)
+                self.metrics[f"val_{obj_name}_loss"] = float(val_base)
+                print(f"Added val_{obj_name}_loss = {val_base}")
+        
+        print(f"Final metrics for hParams: {self.metrics}")
+
+        # # Update latest_metrics with latest logs keys you want
+        # for key in self.writer.metrics.keys():
+        #     print(key)
+        #     if key in logs:
+        #         print(key)
+        #         self.metrics[key] = logs[key]
         
         # Log hyperparameters + final metrics
         self.writer._log_hyperparameters(self.writer.params, self.metrics, log_dir=self.writer.log_dir)
