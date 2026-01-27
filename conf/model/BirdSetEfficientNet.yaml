@@ -1,0 +1,2 @@
+_target_: models_torch.PretrainedBirdSetEfficientNet
+pretrained_model_name: DBD-research-group/EfficientNet-B1-BirdSet-XCL
