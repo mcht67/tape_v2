@@ -128,7 +128,8 @@ def main():
     print(model_cfg)
     model = instantiate(model_cfg)  # instantiate model from config 
                                     # -> handle preprocessing etc. in own wrapper for every birdset models
-    config = model.get_config()
+    config = model.config
+    print(config)
 
    # model = PretrainedBirdSetEfficientNet("DBD-research-group/EfficientNet-B1-BirdSet-XCL")
     from models_torch import SimpleRegressionHead
@@ -145,9 +146,16 @@ def main():
     import torchaudio
     import io
 
-    url = "https://xeno-canto.org/704485/download"
-    response = requests.get(url)
-    audio, sample_rate = torchaudio.load(io.BytesIO(response.content))
+    # url = "https://xeno-canto.org/704485/download"
+    # response = requests.get(url)
+
+    import librosa
+    # Load an example audio file
+    audio_path = librosa.ex('robin')
+
+    # The model is trained on audio sampled at 32,000 Hz
+    audio, sample_rate = torchaudio.load(audio_path)
+    # audio, sample_rate = torchaudio.load(io.BytesIO(response.content), format="mp3")
     print("Original shape and sample rate: ", audio.shape, sample_rate)
     # crop to 5 seconds
     audio = audio[:, : 5 * sample_rate]
@@ -156,9 +164,9 @@ def main():
     audio = resample(audio)
     print("Resampled shape and sample rate: ", audio.shape, 32000)
 
-    logits = model(audio).logits
-    print("Logits shape: ", logits.shape)
-    print("Logits:", logits)
+    # logits = model(audio).logits
+    # print("Logits shape: ", logits.shape)
+    # print("Logits:", logits)
 
     ###################################################
     # Prepare Dataset
@@ -166,7 +174,7 @@ def main():
 
     # Load dataset
     dataset = load_from_disk(dataset_path)
-    sampling_rate = model.get_sampling_rate()
+    sampling_rate = model.sampling_rate
     for split in dataset:
         dataset[split] = dataset[split].take(50)
         dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))

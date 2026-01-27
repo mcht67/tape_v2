@@ -1,4 +1,9 @@
-from transformers import EfficientNetForImageClassification
+from dataclasses import dataclass
+from typing import Optional, Dict, Tuple, List
+from transformers import EfficientNetForImageClassification, AutoFeatureExtractor, AutoModel 
+from transformers.modeling_outputs import ModelOutput
+
+import librosa
 import torch
 import torch.nn as nn
 import torchaudio
@@ -6,65 +11,78 @@ from torchvision import transforms
 
 from birdset.datamodule.components.augmentations import PowerToDB
 
-# class PowerToDB(torch.nn.Module):
-#     """
-#     A power spectrogram to decibel conversion layer. See birdset.datamodule.components.augmentations
-#     """
+##################################
+# Model heads
+##################################
+class SimpleRegressionHead(torch.nn.Module):
+    def __init__(self, input_size: int, dropout: float = 0.2):
+        super().__init__()
+        self.regression_head = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(input_size, 1),
+            nn.ReLU()
+        )
 
-#     def __init__(self, ref=1.0, amin=1e-10, top_db=80.0):
-#         super(PowerToDB, self).__init__()
-#         # Initialize parameters
-#         self.ref = ref
-#         self.amin = amin
-#         self.top_db = top_db
+    def forward(self, x):
+        return self.regression_head(x)
 
-#     def forward(self, S):
-#         # Convert S to a PyTorch tensor if it is not already
-#         S = torch.as_tensor(S, dtype=torch.float32)
+##################################
+# Output classes
+################################## 
 
-#         if self.amin <= 0:
-#             raise ValueError("amin must be strictly positive")
+@dataclass
+class EmbeddingModelOutput(ModelOutput):
+    """Custom output for embedding models"""
+    pooled_embeddings: Optional[torch.Tensor] = None
+    spatial_embeddings: Optional[torch.Tensor] = None
+    logits: Optional[torch.Tensor] = None 
 
-#         if torch.is_complex(S):
-#             magnitude = S.abs()
-#         else:
-#             magnitude = S
+@dataclass
+class MultiTaskOutput(ModelOutput):
+    """Custom output for multi-task learning"""
+    loss: Optional[torch.Tensor] = None
+    
+    # Task-specific outputs
+    classification_logits: Optional[torch.Tensor] = None
+    regression_logits: Optional[torch.Tensor] = None
+    detection_logits: Optional[torch.Tensor] = None
+    
+    # Task-specific losses (optional)
+    classification_loss: Optional[torch.Tensor] = None
+    regression_loss: Optional[torch.Tensor] = None
+    detection_loss: Optional[torch.Tensor] = None
+    
+    # Shared representations
+    hidden_states: Optional[Tuple[torch.Tensor]] = None
+    attentions: Optional[Tuple[torch.Tensor]] = None
+    pooled_output: Optional[torch.Tensor] = None
 
-#         # Check if ref is a callable function or a scalar
-#         if callable(self.ref):
-#             ref_value = self.ref(magnitude)
-#         else:
-#             ref_value = torch.abs(torch.tensor(self.ref, dtype=S.dtype))
+@dataclass
+class MultiTaskModelOutput(ModelOutput):
+    """Output for multi-task models"""
+    loss: Optional[torch.Tensor] = None
+    losses: Optional[Dict[str, torch.Tensor]] = None
+    logits: Optional[Dict[str, torch.Tensor]] = None
+    hidden_states: Optional[Tuple[torch.Tensor]] = None
+    attentions: Optional[Tuple[torch.Tensor]] = None
 
-#         # Compute the log spectrogram
-#         log_spec = 10.0 * torch.log10(
-#             torch.maximum(magnitude, torch.tensor(self.amin, device=magnitude.device))
-#         )
-#         log_spec -= 10.0 * torch.log10(
-#             torch.maximum(ref_value, torch.tensor(self.amin, device=magnitude.device))
-#         )
-
-#         # Apply top_db threshold if necessary
-#         if self.top_db is not None:
-#             if self.top_db < 0:
-#                 raise ValueError("top_db must be non-negative")
-#             log_spec = torch.maximum(log_spec, log_spec.max() - self.top_db)
-
-#         return log_spec
+##################################
+# Models
+##################################
 
 # Wrapper for pretrained model https://huggingface.co/DBD-research-group/EfficientNet-B1-BirdSet-XCL
 # added automatic preprocessing, freeze_encoder(), replace_head(), get_head_input_size()
 class PretrainedBirdSetEfficientNet(torch.nn.Module):
     """
-    EfficientNet Model with an image classification head on top (a linear layer on top of the pooled features), e.g.
-    for ImageNet.
+    Wrapper for pretrained EfficientNet Model with an image classification head on top (a linear layer on top of the pooled features), e.g.
+    for ImageNet. Original model: https://huggingface.co/DBD-research-group/EfficientNet-B1-BirdSet-XCL
     """
-    def __init__(self, pretrained_model_name=None):
+    def __init__(self, pretrained_model_path="DBD-research-group/EfficientNet-B1-BirdSet-XCM"):
         super().__init__()
         
         # Load pretrained model
         self.model = EfficientNetForImageClassification.from_pretrained(
-            pretrained_model_name,
+            pretrained_model_path,
             num_channels=1,
             ignore_mismatched_sizes=True,
         )
@@ -90,33 +108,32 @@ class PretrainedBirdSetEfficientNet(torch.nn.Module):
         - Normalize the melscale spectrogram with mean: -4.268, std: 4.569 (from AudioSet)
 
         """
-        print(f"Input audio shape: {audio.shape}")
-    
         spectrogram = self.spectrogram_converter(audio)
-        print(f"After spectrogram: {spectrogram.shape}")
-        
         spectrogram = spectrogram.to(torch.float32)
         melspec = self.mel_converter(spectrogram)
-        print(f"After mel_converter: {melspec.shape}")
-        
         dbscale = self.power_to_db(melspec)
-        print(f"After power_to_db: {dbscale.shape}")
-        
         normalized_dbscale = transforms.Normalize((-4.268,), (4.569,))(dbscale)
-        print(f"After normalize: {normalized_dbscale.shape}")
         
         if normalized_dbscale.dim() == 2:
             normalized_dbscale = normalized_dbscale.unsqueeze(0).unsqueeze(0)
         elif normalized_dbscale.dim() == 3:
             normalized_dbscale = normalized_dbscale.unsqueeze(1)
-        
-        print(f"Final output shape: {normalized_dbscale.shape}")
         return normalized_dbscale
     
     def forward(self, audio): 
         """Forward pass with automatic preprocessing"""
-        pixel_values = self.preprocess(audio)
-        return self.model(pixel_values)
+        spectrogram = self.preprocess(audio)
+
+        encoder_outputs = self.model.efficientnet(spectrogram)
+        last_hidden_states = encoder_outputs.last_hidden_state
+        pooled_features = encoder_outputs.pooler_output
+        logits = self.model.classifier(pooled_features)
+
+        return EmbeddingModelOutput(
+            pooled_embeddings=pooled_features,
+            spatial_embeddings=last_hidden_states,
+            logits=logits
+        )
     
     def freeze_encoder(self):
         for param in self.model.efficientnet.parameters():
@@ -127,25 +144,66 @@ class PretrainedBirdSetEfficientNet(torch.nn.Module):
 
     def get_head_input_size(self):
         return self.model.classifier.in_features
-    
-    def get_config(self):
-        return self.model.config
-    
-    def get_sampling_rate(self):
-        return self.sampling_rate
-    
-class SimpleRegressionHead(nn.Module):
-    def __init__(self, input_size: int, dropout: float = 0.2):
+       
+class PretrainedBirdMAE(torch.nn.Module):
+    """
+    Wrapper for pretrained Bird-MAE Model. Original model: https://huggingface.co/DBD-research-group/Bird-MAE-Base
+    """
+    def __init__(self, pretrained_model_path="DBD-research-group/Bird-MAE-Base"):
         super().__init__()
-        self.regression_head = nn.Sequential(
-            nn.Dropout(p=dropout),
-            nn.Linear(input_size, 1),
-            nn.ReLU()
-        )
+        
+        # Load pretrained model and feature extractor
+        self.model = AutoModel.from_pretrained(pretrained_model_path,trust_remote_code=True)
+        self.feature_extractor = AutoFeatureExtractor.from_pretrained(pretrained_model_path, trust_remote_code=True)
+        self.output_head = None
 
-    def forward(self, x):
-        return self.regression_head(x)
+        # Init config
+        self.config = self.model.config
+        self.sampling_rate = 32000
 
+    def preprocess(self, audio):
+        mel_spectrogram = self.feature_extractor(audio)
+        return mel_spectrogram
+    
+    def forward(self, audio): 
+        """Forward pass with automatic preprocessing and optional pooling and output head"""
+        logits = None
+
+        mel_spectrogram = self.preprocess(audio)
+        outputs = self.model(mel_spectrogram)
+        last_hidden_state = outputs.last_hidden_state
+        x = last_hidden_state
+    
+        if self.output_head:
+            logits = self.output_head(x)
+
+        return EmbeddingModelOutput(
+        pooled_embeddings=last_hidden_state,
+        spatial_embeddings=None,
+        logits=logits
+    )
+    
+    def freeze_encoder(self):
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+    def replace_head(self, new_head: torch.nn.Module):
+        self.output_head = new_head
+
+    def get_head_input_size(self):
+        return self.config.embed_dim
+
+
+# TODO: If pooling use this:
+#
+# if not self.pooling:
+#     pass
+# elif self.pooling=='mean':
+#     shape = x.shape
+#     pooled_output = x.mean(dim=0)
+#     shape_2 = pooled_output.shape
+# else:
+#     raise ValueError(f"Pooling option {self.pooling} not supported")
         
 
 
