@@ -10,6 +10,8 @@ from utils.config import set_random_seeds, Params
 
 from torch.utils.data import DataLoader, Dataset
 
+from models_torch import SimpleRegressionHead
+
 class HFDatasetWrapper(Dataset):
     def __init__(self, hf_dataset, features, labels):
         self.dataset = hf_dataset
@@ -128,15 +130,25 @@ def main():
     print(model_cfg)
     model = instantiate(model_cfg)  # instantiate model from config 
                                     # -> handle preprocessing etc. in own wrapper for every birdset models
+    
     config = model.config
     print(config)
 
-   # model = PretrainedBirdSetEfficientNet("DBD-research-group/EfficientNet-B1-BirdSet-XCL")
-    from models_torch import SimpleRegressionHead
+    default_sampling_rate = 32000
+    
+    # Set sampling rate from model
+    # if not set in model fall back to default and set it in model
+    if not (sampling_rate := model.sampling_rate):
+        sampling_rate = default_sampling_rate
+        model.set_sampling_rate(sampling_rate)
+    
     input_size = model.get_head_input_size()
     model.replace_head(SimpleRegressionHead(input_size))
     model.freeze_encoder()
 
+    ###################################################
+    # Check model
+    ###################################################
     # Check trainable parameters
     print(f"Amount of trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
     print(f"Amount of freezed parameters: {sum(p.numel() for p in model.parameters() if not p.requires_grad):,}")
@@ -164,9 +176,20 @@ def main():
     audio = resample(audio)
     print("Resampled shape and sample rate: ", audio.shape, 32000)
 
-    # logits = model(audio).logits
-    # print("Logits shape: ", logits.shape)
-    # print("Logits:", logits)
+    outputs = model(audio)
+
+    logits = outputs.logits
+    print("Logits shape:", logits.shape)
+    print("Logits:", logits)
+
+    embeddings = outputs.pooled_embeddings
+    print("Embeddings shape:", embeddings.shape)
+    print("Embeddings:", embeddings)
+
+    spatial_embeddings = outputs.spatial_embeddings
+    print("Embeddings shape:", spatial_embeddings.shape)
+    print("Embeddings:", spatial_embeddings)
+
 
     ###################################################
     # Prepare Dataset
@@ -174,7 +197,7 @@ def main():
 
     # Load dataset
     dataset = load_from_disk(dataset_path)
-    sampling_rate = model.sampling_rate
+
     for split in dataset:
         dataset[split] = dataset[split].take(50)
         dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
