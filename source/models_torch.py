@@ -237,6 +237,7 @@ class PretrainedAudioProtoPNet(torch.nn.Module):
     def forward(self, audio): 
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
+        pooled_output = None
 
         mel_spectrogram = self.preprocess(audio)
         outputs = self.model(mel_spectrogram)
@@ -318,37 +319,9 @@ class PretrainedAudioProtoPNet(torch.nn.Module):
 class PretrainedBirdSetAST(torch.nn.Module):
     """
     Wrapper for pretrained BirdSet AST Model. Original model: https://huggingface.co/DBD-research-group/AST-BirdSet-XCM
-    Warning: 
 
     Paper: Gong et al. (2021): AST: Audio Spectrogram Transformer [https://arxiv.org/abs/2104.01778]
-
-    Config:
-        "_name_or_path": "DBD-research-group/AST-BirdSet-XCL",
-        "architectures": [
-            "ASTForAudioClassification"
-        ],
-        "attention_probs_dropout_prob": 0.0,
-        "frequency_stride": 10,
-        "hidden_act": "gelu",
-        "hidden_dropout_prob": 0.0,
-        "hidden_size": 768,
-        "id2label": {
-            "0": "ostric2",
-            "1": "grerhe1",
-            "10": "norcas1",
-            ...
-            }
-        "layer_norm_eps": 1e-12,
-        "max_length": 1024,
-        "model_type": "audio-spectrogram-transformer",
-        "num_attention_heads": 12,
-        "num_hidden_layers": 12,
-        "num_mel_bins": 128,
-        "patch_size": 16,
-        "qkv_bias": true,
-        "time_stride": 10,
-        "torch_dtype": "float32",
-        "transformers_version": "4.38.0"
+    Original AST:https://huggingface.co/docs/transformers/model_doc/audio-spectrogram-transformer
     """
     def __init__(self, pretrained_model_path="DBD-research-group/AST-Birdset-XCM", pooling=True):
         super().__init__()
@@ -422,7 +395,6 @@ class PretrainedBirdSetAST(torch.nn.Module):
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
 
-
         log_mel_spectrogram = self.preprocess(audio)
         print(log_mel_spectrogram.shape)
 
@@ -468,8 +440,71 @@ class PretrainedBirdSetAST(torch.nn.Module):
     
     def set_sampling_rate(self, new_sampling_rate):
         self.sampling_rate = new_sampling_rate
-        
 
-# TODO: Use original AST?
-# https://huggingface.co/docs/transformers/model_doc/audio-spectrogram-transformer
+class PretrainedBirdSetWav2Vec2(torch.nn.Module):
+    """
+    Wrapper for pretrained wav2vec2 Model. Original model: https://huggingface.co/DBD-research-group/Wav2Vec2-Base-BirdSet-XCM
+
+    Original: https://huggingface.co/docs/transformers/en/model_doc/wav2vec2
+    
+    wav2vec2 has to options of spatial embeddings:
+    - last_hidden_state: [None, 269, 768] (framewise embeddings)
+    - xvector: [None, 269, 512] (framewise speech/species? representations)
+    """
+    def __init__(self, pretrained_model_path="DBD-research-group/Wav2Vec2-Base-BirdSet-XCM", pooling=None, spatial_embeddings='last_hidden_state'):
+        super().__init__()
+        
+        # Load pretrained model and feature extractor
+        self.model = AutoModel.from_pretrained(pretrained_model_path,trust_remote_code=True)
+        self.output_head = None
+
+        # Init config
+        self.config = self.model.config
+        self.sampling_rate = 32000
+        self.pooling = pooling
+        self.spatial_embeddings = spatial_embeddings
+
+    def preprocess(self, audio):
+        return self.model(audio)
+    
+    def forward(self, audio): 
+        """Forward pass with automatic preprocessing and optional pooling and output head"""
+        logits = None
+        pooled_output = None
+
+        #mel_spectrogram = self.preprocess(audio)
+        outputs = self.model(audio)
+        if self.spatial_embeddings=="last_hidden_state":
+            spatial_embeddings = outputs.last_hidden_state
+        elif self.spatial_embeddings=="xvector":
+            spatial_embeddings = outputs.extract_features
+        else:
+            ValueError(f"Spatial embeddings key is not valid. Use 'last_hidden_state' or 'xvector'")
+    
+        if not self.pooling:
+            x = spatial_embeddings
+        elif self.pooling=='mean':
+            pooled_output = spatial_embeddings.mean(dim=1)
+            x = pooled_output
+        else:
+            raise ValueError(f"Pooling option {self.pooling} not supported")
+        
+        if self.output_head:
+            logits = self.output_head(x)
+
+        return EmbeddingModelOutput(
+        pooled_embeddings=pooled_output,
+        spatial_embeddings=spatial_embeddings,
+        logits=logits
+    )
+    
+    def freeze_encoder(self):
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+    def replace_head(self, new_head: torch.nn.Module):
+        self.output_head = new_head
+
+    def get_head_input_size(self):
+        return self.config.output_hidden_size
 
