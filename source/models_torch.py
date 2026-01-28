@@ -318,6 +318,7 @@ class PretrainedAudioProtoPNet(torch.nn.Module):
 class PretrainedBirdSetAST(torch.nn.Module):
     """
     Wrapper for pretrained BirdSet AST Model. Original model: https://huggingface.co/DBD-research-group/AST-BirdSet-XCM
+    Warning: 
 
     Paper: Gong et al. (2021): AST: Audio Spectrogram Transformer [https://arxiv.org/abs/2104.01778]
 
@@ -349,7 +350,7 @@ class PretrainedBirdSetAST(torch.nn.Module):
         "torch_dtype": "float32",
         "transformers_version": "4.38.0"
     """
-    def __init__(self, pretrained_model_path="DBD-research-group/AST-Birdset-XCM"):
+    def __init__(self, pretrained_model_path="DBD-research-group/AST-Birdset-XCM", pooling=True):
         super().__init__()
         
         # Load pretrained model and feature extractor
@@ -359,10 +360,11 @@ class PretrainedBirdSetAST(torch.nn.Module):
 
         # Init
         self.config = self.model.config
-        self.sampling_rate = None
+        self.sampling_rate = 16000
         self.spectrogram_converter = None
         self.mel_converter = None
         self.amplitude_to_db = None
+        self.pooling = pooling
 
     def preprocess(self, audio):
         """
@@ -372,6 +374,9 @@ class PretrainedBirdSetAST(torch.nn.Module):
         "First, the input audio waveform of t seconds is converted into a sequence of 128-dimensional log Mel filterbank (fbank) 
         features computed with a 25ms Hamming window every 10ms. 
         This results in a 128 × 100t spectrogram as input to the AST"(Gong et al. 2021, p. 572)
+        
+        - Pads audio to 10s
+        - Pads spectrogram to 1024 bins to match config
         """
         if not self.sampling_rate:
             raise ValueError(f"Sampling rate is not set and is needed for preprocessing.")
@@ -397,10 +402,19 @@ class PretrainedBirdSetAST(torch.nn.Module):
 
             self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(stype='power', top_db=80)
 
-        spectrogram = self.spectrogram_converter(audio)
+        # pad audio to 10s
+        target_samples = 10 * self.sampling_rate  # 160,000 samples = 10s
+        current_samples = audio.shape[-1]
+        if current_samples >= target_samples:
+            audio = audio[..., :target_samples]
+        pad_right = target_samples - current_samples
+        padded_audio = nn.functional.pad(audio, (0, pad_right), mode='constant', value=0.0)
+
+        spectrogram = self.spectrogram_converter(padded_audio)
         spectrogram = spectrogram.to(torch.float32)
         mel_spectrogram = self.mel_converter(spectrogram)
         log_mel_spectrogram = self.amplitude_to_db(mel_spectrogram)
+        print(log_mel_spectrogram.shape)
 
         return log_mel_spectrogram
     
@@ -408,20 +422,37 @@ class PretrainedBirdSetAST(torch.nn.Module):
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
 
+
         log_mel_spectrogram = self.preprocess(audio)
-        spec_shape = log_mel_spectrogram.shape
-        print(spec_shape)
+        print(log_mel_spectrogram.shape)
+
+        # Hack to match expected input size: pad spectrogram
+        target_frames = 1024  # Standard HF AST config
+        current_frames = log_mel_spectrogram.shape[-1]  # Your 1001
+
+        if current_frames < target_frames:
+            pad_frames = target_frames - current_frames  # 1024 - 1001 = 23
+            log_mel_spectrogram = torch.nn.functional.pad(
+                log_mel_spectrogram, (0, pad_frames), mode='constant', value=0.0
+            )
+        print(log_mel_spectrogram.shape)
+
         outputs = self.model(log_mel_spectrogram)
         print(outputs)
         last_hidden_state = outputs.last_hidden_state
-        x = last_hidden_state
+        pooler_output = outputs.pooler_output
+
+        if self.pooling:
+            x = pooler_output
+        else:
+            x = last_hidden_state
     
         if self.output_head:
             logits = self.output_head(x)
 
         return EmbeddingModelOutput(
-        pooled_embeddings=last_hidden_state,
-        spatial_embeddings=None,
+        pooled_embeddings=pooler_output,
+        spatial_embeddings=last_hidden_state,
         logits=logits
     )
     
@@ -439,6 +470,6 @@ class PretrainedBirdSetAST(torch.nn.Module):
         self.sampling_rate = new_sampling_rate
         
 
-
-
+# TODO: Use original AST?
+# https://huggingface.co/docs/transformers/model_doc/audio-spectrogram-transformer
 

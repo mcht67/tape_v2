@@ -167,10 +167,14 @@ def main():
 
     # The model is trained on audio sampled at 32,000 Hz
     audio, sample_rate = torchaudio.load(audio_path)
+    duration = librosa.get_duration(y=audio, sr=sample_rate)
+    print(duration)
     # audio, sample_rate = torchaudio.load(io.BytesIO(response.content), format="mp3")
     print("Original shape and sample rate: ", audio.shape, sample_rate)
     # crop to 5 seconds
-    audio = audio[:, : 5 * sample_rate]
+    audio = audio[:, : 10 * sample_rate]
+    duration = librosa.get_duration(y=audio, sr=sample_rate)
+    print(duration)
     # resample to 32kHz
     resample = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=32000)
     audio = resample(audio)
@@ -187,8 +191,8 @@ def main():
     print("Embeddings:", embeddings)
 
     spatial_embeddings = outputs.spatial_embeddings
-    print("Embeddings shape:", spatial_embeddings.shape)
-    print("Embeddings:", spatial_embeddings)
+    print("Spatial mbeddings shape:", spatial_embeddings.shape)
+    print("Spatial embeddings:", spatial_embeddings)
 
 
     ###################################################
