@@ -1,6 +1,31 @@
-input_features: 
-  - audio
-  - no_noise_audio
-models: 
-  - perch_v2_cpu
-  - birdnet_V2.3
+input_features:
+- audio
+- no_noise_audio
+models:
+- perch_v2_cpu
+- birdnet_V2.3
+- vggish
+- perch_8
+- yamnet
+- beans_baseline
+birdset_models:
+    birdset_efficient_net:
+      _target_: torch_models.BirdSetEfficientNet
+      pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
+    birdset_bird_mae:
+      _target_: torch_models.BirdSetBirdMAE
+      pretrained_model_path: DBD-research-group/Bird-MAE-Huge
+    birdset_convnext:
+      _target_: torch_models.BirdSetAudioProtoPNet
+      pretrained_model_path: DBD-research-group/AudioProtoPNet-20-BirdSet-XCL
+      pooling: mean
+    birdset_ast:
+      _target_: torch_models.BirdSetAST
+      pretrained_model_path: DBD-research-group/AST-Birdset-XCL
+    birdset_wav2vec2:
+      _target_: torch_models.BirdSetWav2Vec2
+      pooling: mean
+      pretrained_model_path: DBD-research-group/Wav2Vec2-Base-BirdSet-XCL
+
+# TODO: Add different sizes for BirdSet Model or just use biggest size?
+# TODO: Add Birdnet_V2.4, BirdNet_V3.0?
