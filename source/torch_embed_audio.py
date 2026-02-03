@@ -12,7 +12,7 @@ import torch
 import torchaudio
 from hydra.utils import instantiate
 
-from utils.general import overwrite_dataset
+from utils.general import store_embeddings
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -39,7 +39,7 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
 
         # any(example in split_key if example.get(key) is not None)
 
-        if any(key in dataset.features for key in embeddings_keys) and not force_recompute: # TODO: skips even if spatial embeddings has been added later
+        if all(key in dataset.features for key in embeddings_keys) and not force_recompute:
             print("Embedding with model", model_name, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
             return dataset, None
 
@@ -83,9 +83,25 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
         print(f"Concatenating {len(processed_datasets)} batches...")
         dataset = concatenate_datasets(processed_datasets)
 
-        embeddings_name = model_name + input_feature
+        embeddings_name = model_name + "_" + input_feature
 
-        
+        pooled_embeddings_key, spatial_embeddings_key = get_embedding_keys(model_name, input_feature).values()
+
+        print("Pooled embeddings key:", pooled_embeddings_key)
+        print("Spatial embeddingskey:", spatial_embeddings_key)
+        # DEBUG: print embeddings dimension
+        example = dataset.take(1)
+        example_embeddings = example[pooled_embeddings_key]
+        embeddings_dim = np.shape(example_embeddings)
+        print("Pooled embeddings dim: ", embeddings_dim)
+
+        try:
+            example_spatial_embeddings = example[spatial_embeddings_key]
+            spatial_embeddings_dim = np.shape(example_spatial_embeddings)
+            print("Spatial embeddings dim: ", spatial_embeddings_dim)
+        except:
+            pass
+    
     return dataset, embeddings_name
 
 # def add_embeddings_batchwise(input_features, models_config, dataset, split_key, cache_dir=None, batch_size=100, dataset_path=None, dataset_metadata_path=None):
@@ -288,28 +304,28 @@ def embed_example(example, model, model_name, input_feature):
 
     return example
 
-def store_embeddings(dataset, dataset_path, dataset_metadata_path, embeddings_names):
-    # print("######################################################################")
-    print("Store emmbeddings", embeddings_names[-1])
-    # print("######################################################################") 
+# def store_embeddings(dataset, dataset_path, dataset_metadata_path, embeddings_names):
+#     # print("######################################################################")
+#     print("Store emmbeddings", embeddings_names[-1])
+#     # print("######################################################################") 
 
-    # Store changes
-    if dataset_path:
-        overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
+#     # Store changes
+#     if dataset_path:
+#         overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
 
-    # Store metadata
-    metadata = {
-            "datetime": datetime.now().isoformat(),
-            "dataset_path": dataset_path,
-            "embeddings_added": embeddings_names
-        }
+#     # Store metadata
+#     metadata = {
+#             "datetime": datetime.now().isoformat(),
+#             "dataset_path": dataset_path,
+#             "embeddings_added": embeddings_names
+#         }
 
-    if dataset_metadata_path:
-        metadata_dir = os.path.dirname(dataset_metadata_path)
-        if metadata_dir:
-            os.makedirs(metadata_dir, exist_ok=True)
-        with open(dataset_metadata_path, "w") as f:
-                    json.dump(metadata, f, indent=2)
+#     if dataset_metadata_path:
+#         metadata_dir = os.path.dirname(dataset_metadata_path)
+#         if metadata_dir:
+#             os.makedirs(metadata_dir, exist_ok=True)
+#         with open(dataset_metadata_path, "w") as f:
+#                     json.dump(metadata, f, indent=2)
 
 def main():
     # with tempfile.TemporaryDirectory() as temp_cache_dir:
@@ -329,7 +345,7 @@ def main():
     input_features = cfg.embeddings.input_features
     model_configs = cfg.embeddings.birdset_models
     force_recompute = cfg.embeddings.force_recompute
-    embeddings_metadata_path = cfg.path.embeddings_metadata
+    embeddings_metadata_path = cfg.path.birdset_embeddings_metadata
 
     # ===================
     # Embed
@@ -356,7 +372,7 @@ def main():
                 dataset[split], embeddings_name = add_embeddings_batchwise(input_feature, model_key, model_configs, dataset[split], split, force_recompute=force_recompute, dataset_path=dataset_path, dataset_metadata_path=dataset_metadata_path)
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
-                    store_embeddings(dataset, dataset_path, dataset_metadata_path, embeddings_names)
+                    store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names)
 
             # print("######################################################################")
             # print("Store emmbeddings", embeddings_name)

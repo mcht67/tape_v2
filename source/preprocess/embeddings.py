@@ -7,6 +7,7 @@ from utils.dsp import resample_audio
 import os
 from tensorflow import squeeze
 from tensorflow.math import reduce_mean
+import tensorflow_hub as hub
 from datasets import concatenate_datasets
 
 # Available models
@@ -48,9 +49,10 @@ def initialize_model(model):
 def load_model_by_key(model_key):
     model_config_name = model_configs.ModelConfigName(model_key)
     preset_info = model_configs.get_preset_model_config(model_config_name)
+    
     model = preset_info.load_model()
     sampling_rate = preset_info.model_config["sample_rate"]
-
+       
     # model = initialize_model(model)
 
     # # Ensure TFLite model is properly initialized

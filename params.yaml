@@ -9,9 +9,13 @@ embeddings:
     - audio
     - no_noise_audio
   force_recompute: True
-  models:
+  perch_models:
   - perch_v2_cpu
   - birdnet_V2.3
+  - vggish
+  - perch_8
+  - yamnet
+  - beans_baseline
   birdset_models:
     birdset_efficient_net:
       _target_: torch_models.BirdSetEfficientNet
@@ -31,9 +35,10 @@ embeddings:
       pooling: mean
       pretrained_model_path: DBD-research-group/Wav2Vec2-Base-BirdSet-XCL
 model:
-  _target_: torch_models.PretrainedBirdSetWav2Vec2 #models_torch.PretrainedAudioProtoPNet #models_torch.PretrainedBirdSetEfficientNet  # models_torch.PretrainedBirdMAE 
-  pooling: 'mean'
-  pretrained_model_path: DBD-research-group/Wav2Vec2-Base-BirdSet-XCL
+  _target_: model.SimpleMLP # defines the model to be instantiated
+  hidden_units: [512, 256]
+  dropout_rate: 0.3
+
 objectives:
   polyphony_degree:
     loss:
@@ -42,8 +47,9 @@ objectives:
     confusion_matrix:
       type: regression_round
       threshold: 0.5
+
 train:
-  input_feature_name: perch_v2_cpu_audio_spatial_embeddings
+  input_feature_name: EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings #perch_v2_cpu_audio_spatial_embeddings
   batch_size: 128
   learning_rate: 0.0001
   epochs: 50
@@ -63,5 +69,6 @@ log:
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json
-  embeddings_metadata: stage_results/embeddings_metadata.json
+  perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
+  birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json
   added_labels_metadata: stage_results/added_labels_metadata.json

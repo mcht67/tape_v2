@@ -403,5 +403,28 @@ def build_framewise_polyphony(
 
     return frame_polyphony
 
+def store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names):
+    # print("######################################################################")
+    print("Store emmbeddings", embeddings_names[-1])
+    # print("######################################################################") 
+
+    # Store changes
+    if dataset_path:
+        overwrite_dataset(dataset, dataset_path, metadata_path=embeddings_metadata_path, store_backup=False)
+
+    # Store metadata
+    metadata = {
+            "datetime": datetime.now().isoformat(),
+            "dataset_path": dataset_path,
+            "embeddings_added": embeddings_names
+        }
+
+    if embeddings_metadata_path:
+        metadata_dir = os.path.dirname(embeddings_metadata_path)
+        if metadata_dir:
+            os.makedirs(metadata_dir, exist_ok=True)
+        with open(embeddings_metadata_path, "w") as f:
+                    json.dump(metadata, f, indent=2)
+
 
 

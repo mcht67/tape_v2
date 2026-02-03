@@ -2,7 +2,7 @@ input_features:
 - audio
 - no_noise_audio
 force_recompute: True
-models:
+perch_models:
 - perch_v2_cpu
 - birdnet_V2.3
 - vggish
