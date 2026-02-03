@@ -20,101 +20,169 @@ def get_embedding_keys(model_name, input_feature):
     "spatial_embeddings": model_name + "_" + input_feature + "_spatial_embeddings"
     }
 
-def add_embeddings_batchwise(input_features, models_config, dataset, split_key, cache_dir=None, batch_size=100, dataset_path=None, dataset_metadata_path=None):
+def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, cache_dir=None, batch_size=100, dataset_path=None, dataset_metadata_path=None):
     
-    embeddings_names = []
+    # Instantiate model
+    model_cfg = model_configs[model_key]
+    model = instantiate(model_cfg)
 
-    for model_key in models_config:
+    # Get model name
+    model_path = model_cfg.pretrained_model_path
+    model_name = model_path.replace("DBD-research-group/", "")
 
-        # Instantiate model
-        model_cfg = models_config[model_key]
-        model = instantiate(model_cfg)
+    with tempfile.TemporaryDirectory() as temp_cache_dir:
 
-        # Get model name
-        model_path = model_cfg.pretrained_model_path
-        model_name = model_path.replace("DBD-research-group/", "")
+        # Set HuggingFace cache to this temporary directory
+        datasets.config.HF_DATASETS_CACHE = temp_cache_dir
+        
+        embeddings_keys = get_embedding_keys(model_name, input_feature).values()
 
-        for input_feature in input_features:
+        # any(example in split_key if example.get(key) is not None)
 
-            with tempfile.TemporaryDirectory() as temp_cache_dir:
+        if any(key in dataset.features for key in embeddings_keys) and not force_recompute: # TODO: skips even if spatial embeddings has been added later
+            print("Embedding with model", model_name, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
+            return dataset, None
 
-                # Set HuggingFace cache to this temporary directory
-                datasets.config.HF_DATASETS_CACHE = temp_cache_dir
-                
-                embeddings_keys = get_embedding_keys(model_name, input_feature).values()
-
-                # any(example in split_key if example.get(key) is not None)
-
-                if any(key in dataset.features for key in embeddings_keys): # TODO: skips even if spatial embeddings has been added later
-                    print("Embedding with model", model_name, "for", input_feature, "has already been calculated, skipping.")
-                    continue      
-
-                print("######################################################################")
-                print("Embed", input_feature, "with:", model_name)
-                print("######################################################################")    
-                    
-                embedding_fn = partial(
-                        embed_example_batched,
-                        model=model,
-                        model_name=model_name,
-                        input_feature=input_feature
-                    )
-                
-                # Process in batches
-                processed_datasets = []
-                total_samples = len(dataset)
-                
-                for i in range(0, total_samples, batch_size):
-                    end_idx = min(i + batch_size, total_samples)
-                    print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
-                    
-                    # Select batch
-                    batch_dataset = dataset.select(range(i, end_idx))
-                    
-                    # Process batch
-                    cache_file = os.path.join(temp_cache_dir, f"{model_name}_{input_feature}_{split_key}_batch_{i}_{end_idx}_cache.arrow")
-
-                    #batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
-                    # Enable batched processing
-                    batch_processed = batch_dataset.map(
-                        embedding_fn, 
-                        batched=True,
-                        batch_size=50,
-                        cache_file_name=cache_file
-                    )
-                    
-                    processed_datasets.append(batch_processed)
-                
-                # Concatenate all processed batches
-                print(f"Concatenating {len(processed_datasets)} batches...")
-                dataset = concatenate_datasets(processed_datasets)
-
-                print("######################################################################")
-                print("Store emmbeddings", model_name, "for", input_feature)
-                print("######################################################################") 
-
-                # Store changes
-                if dataset_path:
-                    overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
-
-                # Store metadata
-                embeddings_name = model_name + input_feature
-                embeddings_names.append(embeddings_name)
-                print(embeddings_names)
-                metadata = {
-                        "datetime": datetime.now().isoformat(),
-                        "dataset_path": dataset_path,
-                        "embeddings_added": embeddings_names
-                    }
-
-                if dataset_metadata_path:
-                    metadata_dir = os.path.dirname(dataset_metadata_path)
-                    if metadata_dir:
-                        os.makedirs(metadata_dir, exist_ok=True)
-                    with open(dataset_metadata_path, "w") as f:
-                                json.dump(metadata, f, indent=2)
+        # print("######################################################################")
+        print("Embed", input_feature, "with:", model_name)
+        # print("######################################################################")    
             
-    return dataset
+        embedding_fn = partial(
+                embed_example_batched,
+                model=model,
+                model_name=model_name,
+                input_feature=input_feature
+            )
+        
+        # Process in batches
+        processed_datasets = []
+        total_samples = len(dataset)
+        
+        for i in range(0, total_samples, batch_size):
+            end_idx = min(i + batch_size, total_samples)
+            print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+            
+            # Select batch
+            batch_dataset = dataset.select(range(i, end_idx))
+            
+            # Process batch
+            cache_file = os.path.join(temp_cache_dir, f"{model_name}_{input_feature}_{split_key}_batch_{i}_{end_idx}_cache.arrow")
+
+            #batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+            # Enable batched processing
+            batch_processed = batch_dataset.map(
+                embedding_fn, 
+                batched=True,
+                batch_size=50,
+                cache_file_name=cache_file
+            )
+            
+            processed_datasets.append(batch_processed)
+        
+        # Concatenate all processed batches
+        print(f"Concatenating {len(processed_datasets)} batches...")
+        dataset = concatenate_datasets(processed_datasets)
+
+        embeddings_name = model_name + input_feature
+
+        
+    return dataset, embeddings_name
+
+# def add_embeddings_batchwise(input_features, models_config, dataset, split_key, cache_dir=None, batch_size=100, dataset_path=None, dataset_metadata_path=None):
+    
+#     embeddings_names = []
+
+#     for model_key in models_config:
+
+#         # Instantiate model
+#         model_cfg = models_config[model_key]
+#         model = instantiate(model_cfg)
+
+#         # Get model name
+#         model_path = model_cfg.pretrained_model_path
+#         model_name = model_path.replace("DBD-research-group/", "")
+
+#         for input_feature in input_features:
+
+#             with tempfile.TemporaryDirectory() as temp_cache_dir:
+
+#                 # Set HuggingFace cache to this temporary directory
+#                 datasets.config.HF_DATASETS_CACHE = temp_cache_dir
+                
+#                 embeddings_keys = get_embedding_keys(model_name, input_feature).values()
+
+#                 # any(example in split_key if example.get(key) is not None)
+
+#                 if any(key in dataset.features for key in embeddings_keys): # TODO: skips even if spatial embeddings has been added later
+#                     print("Embedding with model", model_name, "for", input_feature, "has already been calculated, skipping.")
+#                     continue      
+
+#                 print("######################################################################")
+#                 print("Embed", input_feature, "with:", model_name)
+#                 print("######################################################################")    
+                    
+#                 embedding_fn = partial(
+#                         embed_example_batched,
+#                         model=model,
+#                         model_name=model_name,
+#                         input_feature=input_feature
+#                     )
+                
+#                 # Process in batches
+#                 processed_datasets = []
+#                 total_samples = len(dataset)
+                
+#                 for i in range(0, total_samples, batch_size):
+#                     end_idx = min(i + batch_size, total_samples)
+#                     print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+                    
+#                     # Select batch
+#                     batch_dataset = dataset.select(range(i, end_idx))
+                    
+#                     # Process batch
+#                     cache_file = os.path.join(temp_cache_dir, f"{model_name}_{input_feature}_{split_key}_batch_{i}_{end_idx}_cache.arrow")
+
+#                     #batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+#                     # Enable batched processing
+#                     batch_processed = batch_dataset.map(
+#                         embedding_fn, 
+#                         batched=True,
+#                         batch_size=50,
+#                         cache_file_name=cache_file
+#                     )
+                    
+#                     processed_datasets.append(batch_processed)
+                
+#                 # Concatenate all processed batches
+#                 print(f"Concatenating {len(processed_datasets)} batches...")
+#                 dataset = concatenate_datasets(processed_datasets)
+
+#                 print("######################################################################")
+#                 print("Store emmbeddings", model_name, "for", input_feature)
+#                 print("######################################################################") 
+
+#                 # Store changes
+#                 if dataset_path:
+#                     overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
+
+#                 # Store metadata
+#                 embeddings_name = model_name + input_feature
+#                 embeddings_names.append(embeddings_name)
+#                 print(embeddings_names)
+#                 metadata = {
+#                         "datetime": datetime.now().isoformat(),
+#                         "dataset_path": dataset_path,
+#                         "embeddings_added": embeddings_names
+#                     }
+
+#                 if dataset_metadata_path:
+#                     metadata_dir = os.path.dirname(dataset_metadata_path)
+#                     if metadata_dir:
+#                         os.makedirs(metadata_dir, exist_ok=True)
+#                     with open(dataset_metadata_path, "w") as f:
+#                                 json.dump(metadata, f, indent=2)
+            
+#     return dataset
 
 def embed_example_batched(examples, model, model_name, input_feature):
     """Process a batch of examples at once"""
@@ -220,6 +288,29 @@ def embed_example(example, model, model_name, input_feature):
 
     return example
 
+def store_embeddings(dataset, dataset_path, dataset_metadata_path, embeddings_names):
+    # print("######################################################################")
+    print("Store emmbeddings", embeddings_names[-1])
+    # print("######################################################################") 
+
+    # Store changes
+    if dataset_path:
+        overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
+
+    # Store metadata
+    metadata = {
+            "datetime": datetime.now().isoformat(),
+            "dataset_path": dataset_path,
+            "embeddings_added": embeddings_names
+        }
+
+    if dataset_metadata_path:
+        metadata_dir = os.path.dirname(dataset_metadata_path)
+        if metadata_dir:
+            os.makedirs(metadata_dir, exist_ok=True)
+        with open(dataset_metadata_path, "w") as f:
+                    json.dump(metadata, f, indent=2)
+
 def main():
     # with tempfile.TemporaryDirectory() as temp_cache_dir:
 
@@ -236,7 +327,8 @@ def main():
     dataset_metadata_path = cfg.path.dataset_metadata
 
     input_features = cfg.embeddings.input_features
-    embedding_models = cfg.embeddings.birdset_models
+    model_configs = cfg.embeddings.birdset_models
+    force_recompute = cfg.embeddings.force_recompute
     embeddings_metadata_path = cfg.path.embeddings_metadata
 
     # ===================
@@ -248,12 +340,47 @@ def main():
 
     print("Start embedding...")
     # Compute embeddings
-    for split in dataset.keys():
-        for input_feature in input_features:
-            dataset[split] = dataset[split]
+    for input_feature in input_features:
+        for split in dataset.keys():     
+            dataset[split] = dataset[split].select(range(10)) # TODO: remove
             dataset[split] = dataset[split].cast_column(input_feature, Audio())
-    for split in dataset.keys():
-        dataset[split] = add_embeddings_batchwise(input_features, embedding_models, dataset[split], split, dataset_path=dataset_path, dataset_metadata_path=dataset_metadata_path)
+
+    if force_recompute:
+        print("force_recompute is set to True. Recompute all embeddings!")
+
+    # TODO: switch input features and split loop to enable overwriting dataset/intermediate saving for every input feature and model combination
+    embeddings_names = []
+    for model_key in model_configs:
+        for input_feature in input_features:
+            for split in dataset.keys():
+                dataset[split], embeddings_name = add_embeddings_batchwise(input_feature, model_key, model_configs, dataset[split], split, force_recompute=force_recompute, dataset_path=dataset_path, dataset_metadata_path=dataset_metadata_path)
+                if embeddings_name:
+                    embeddings_names.append(embeddings_name)
+                    store_embeddings(dataset, dataset_path, dataset_metadata_path, embeddings_names)
+
+            # print("######################################################################")
+            # print("Store emmbeddings", embeddings_name)
+            # print("######################################################################") 
+
+            # # Store changes
+            # if dataset_path:
+            #     overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
+
+            # # Store metadata
+            # embeddings_names.append(embeddings_name)
+            # print(embeddings_names)
+            # metadata = {
+            #         "datetime": datetime.now().isoformat(),
+            #         "dataset_path": dataset_path,
+            #         "embeddings_added": embeddings_names
+            #     }
+
+            # if dataset_metadata_path:
+            #     metadata_dir = os.path.dirname(dataset_metadata_path)
+            #     if metadata_dir:
+            #         os.makedirs(metadata_dir, exist_ok=True)
+            #     with open(dataset_metadata_path, "w") as f:
+            #                 json.dump(metadata, f, indent=2)
     print("Embedding completed.")
 
     # ===================
