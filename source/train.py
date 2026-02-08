@@ -1,17 +1,14 @@
 # import matplotlib
 # matplotlib.use("Agg")
+
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.losses import BinaryCrossentropy, MeanSquaredError
 import numpy as np
 from datasets import load_from_disk, concatenate_datasets
 from omegaconf import OmegaConf
 import os
-import datetime
-from pathlib import Path
 import model
 from hydra.utils import instantiate
-import math
 
 from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs
 from utils.general import reshape_tensor_data
@@ -95,24 +92,24 @@ def get_predictions_and_true_labels(model, dataset):
 # Setup tensorboard
 # If defined in cfg use tensorboard path (define it in params.yaml for debugging purposes)
 # else use return_tensorboard_path (default with dvc run)
-def get_tensorboard_path(cfg):
-    if 'tensorboard_path' in cfg.train.keys():
-        default_dir = os.getcwd()
-        #dvc_exp_name = 'debug'
-        current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-        os.environ['DEFAULT_DIR'] = default_dir
-        tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.input_feature_name}'
-        tensorboard_path_suffix = f'_{input_feature_name}'
+# def get_tensorboard_path(cfg):
+#     if 'tensorboard_path' in cfg.train.keys():
+#         default_dir = os.getcwd()
+#         #dvc_exp_name = 'debug'
+#         current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+#         os.environ['DEFAULT_DIR'] = default_dir
+#         tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.input_feature_name}'
+#         tensorboard_path_suffix = f'_{input_feature_name}'
 
-        tensorboard_path = Path(
-            f"{default_dir}/{cfg.train.tensorboard_path}/{tensorboard_subfolder}/{tensorboard_path_suffix}{current_datetime}"
-        )     
-    else:
-        tensorboard_subfolder = f'{cfg.dataset.subset}'
-        tensorboard_path_suffix = f'_{input_feature_name}'
-        tensorboard_path = return_tensorboard_dir(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
-    os.makedirs(tensorboard_path, exist_ok=True)
-    return tensorboard_path
+#         tensorboard_path = Path(
+#             f"{default_dir}/{cfg.train.tensorboard_path}/{tensorboard_subfolder}/{tensorboard_path_suffix}{current_datetime}"
+#         )     
+#     else:
+#         tensorboard_subfolder = f'{cfg.dataset.subset}'
+#         tensorboard_path_suffix = f'_{input_feature_name}'
+#         tensorboard_path = return_tensorboard_dir(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
+#     os.makedirs(tensorboard_path, exist_ok=True)
+#     return tensorboard_path
 
 # class LossWeightScheduler(tf.keras.callbacks.Callback):
 #     def __init__(
@@ -251,7 +248,7 @@ print(f'Input shape of model: {input_dim}')
 # Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-checkpoint_path = return_checkpoint_path(subfolder=experiment_name)
+checkpoint_path = return_checkpoint_path(subfolder=f'experiment_name_{input_feature_name}')
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset)
@@ -296,7 +293,7 @@ history = model.fit(train_dataset,
                     callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 # TODO: needs register_keras_serializable() for losses
-model.save('my_model.keras')
+model.save(f'models/{input_feature_name}.keras')
 
 # TODO: Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
@@ -361,7 +358,7 @@ for idx, (split_name, example_idx) in enumerate([
         pred_polyphony=pred_polyphony,
         gt_event_logits=gt_event_logits,
         pred_event_logits=pred_event_logits,
-        events=all_events,
+        events=None,#all_events,
         filename=example.get('filename', None)
     )
     

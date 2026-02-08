@@ -3,7 +3,6 @@ from typing import Optional, Dict, Tuple, List, Union
 from transformers import EfficientNetForImageClassification, AutoFeatureExtractor, AutoModel 
 from transformers.modeling_outputs import ModelOutput
 
-import librosa
 import torch
 import torch.nn as nn
 import torchaudio
@@ -321,7 +320,7 @@ class BirdSetAST(torch.nn.Module):
     Wrapper for pretrained BirdSet AST Model. Original model: https://huggingface.co/DBD-research-group/AST-BirdSet-XCM
 
     Paper: Gong et al. (2021): AST: Audio Spectrogram Transformer [https://arxiv.org/abs/2104.01778]
-    Original AST:https://huggingface.co/docs/transformers/model_doc/audio-spectrogram-transformer
+    Original AST: https://huggingface.co/docs/transformers/model_doc/audio-spectrogram-transformer
     """
     def __init__(self, pretrained_model_path="DBD-research-group/AST-Birdset-XCL", pooling=True):
         super().__init__()

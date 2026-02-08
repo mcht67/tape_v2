@@ -5,14 +5,12 @@ from omegaconf import OmegaConf
 from hydra.utils import instantiate
 from datasets import load_from_disk, concatenate_datasets, Audio
 from functools import partial
-from datetime import datetime
-import json
 import tempfile
 import torch
 import torchaudio
 from hydra.utils import instantiate
 
-from utils.general import store_embeddings
+from utils.general import store_embeddings, overwrite_dataset
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -38,8 +36,11 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
         embeddings_keys = get_embedding_keys(model_name, input_feature).values()
 
         # any(example in split_key if example.get(key) is not None)
+        for key in embeddings_keys:
+            features = dataset.features
+            boolean = key in features
 
-        if all(key in dataset.features for key in embeddings_keys) and not force_recompute:
+        if any(key in dataset.features for key in embeddings_keys) and not force_recompute:
             print("Embedding with model", model_name, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
             return dataset, None
 
@@ -263,9 +264,9 @@ def embed_example_batched(examples, model, model_name, input_feature):
         pooled_emb = outputs.pooled_embeddings.cpu().numpy()
         examples[pooled_embeddings_key] = [emb for emb in pooled_emb]
     
-    if outputs.spatial_embeddings is not None:
-        spatial_emb = outputs.spatial_embeddings.cpu().numpy()
-        examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
+    # if outputs.spatial_embeddings is not None:
+    #     spatial_emb = outputs.spatial_embeddings.cpu().numpy()
+    #     examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
     
     return examples
 
@@ -353,26 +354,47 @@ def main():
 
     # Load Dataset 
     dataset = load_from_disk(dataset_path)
-
+    dataset['validation'] = dataset['validation'].remove_columns('AST-Birdset-XCL_audio_spatial_embeddings')
+    
     print("Start embedding...")
     # Compute embeddings
     for input_feature in input_features:
         for split in dataset.keys():     
-            dataset[split] = dataset[split].select(range(10)) # TODO: remove
+            dataset[split] = dataset[split]
             dataset[split] = dataset[split].cast_column(input_feature, Audio())
+            print("Features of split", split)
+            print(dataset[split].features)
 
     if force_recompute:
         print("force_recompute is set to True. Recompute all embeddings!")
 
-    # TODO: switch input features and split loop to enable overwriting dataset/intermediate saving for every input feature and model combination
     embeddings_names = []
     for model_key in model_configs:
         for input_feature in input_features:
+            embeddings_added = False
             for split in dataset.keys():
                 dataset[split], embeddings_name = add_embeddings_batchwise(input_feature, model_key, model_configs, dataset[split], split, force_recompute=force_recompute, dataset_path=dataset_path, dataset_metadata_path=dataset_metadata_path)
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
+                    embeddings_added = True
+            try:
+                if embeddings_added:
                     store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names)
+    
+            except:
+                subset = cfg.dataset.subset
+                huggingface_user = 'mcht67'
+                huggingface_dataset_name = 'polyphonic-bird-set-with-embeddings'
+
+                huggingface_path = huggingface_user + "/" + huggingface_dataset_name
+
+                commit_message_polyphonic = f"updates polyphonic dataset with in {subset}"
+                dataset.push_to_hub(huggingface_path, config_name=subset, private=True, commit_message=commit_message_polyphonic)
+            
+            
+            # if embeddings_added:
+            #      store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names)
+    
 
             # print("######################################################################")
             # print("Store emmbeddings", embeddings_name)
@@ -399,9 +421,9 @@ def main():
             #                 json.dump(metadata, f, indent=2)
     print("Embedding completed.")
 
-    # ===================
-    # Save dataset
-    # ===================
+    # # ===================
+    # # Save dataset
+    # # ===================
     # overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
 
     # model_names = []

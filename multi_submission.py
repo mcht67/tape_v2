@@ -53,29 +53,26 @@ if __name__ == "__main__":
     arguments = sys.argv[1:]
 
     # Define Experiment Name
-    experiment_name = 'MultiTask-SpatialEmbeddings'
+    experiment_name = 'Embeddings-Comparison'
 
     # Define Base Config
     base_config = {
         # Define which config files are used
         #"general": general_config,
         # "dataset": 'default',
-        "embeddings": 'all_embeddings',
-        "model": 'TemporalCNN',
-        #"objectives": objectives_config,
-        "train": 'perch2_spatial_embeddings',
+        "embeddings": 'none',
+        "model": 'SimpleMLP',
+        "objectives": 'only_polyphony_degree',
+        #"train": 'perch2_spatial_embeddings',
 
         # Define specific parameters
         "log.experiment_name": experiment_name,
-        #"train.train_size_batches": train_size_batches
+        "train.epochs": 5
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    hyperparams = {'objectives': ['only_polyphony_degree', 'multi_task_v1_add_event_logits', 'multi_task_v2_add_framewise_polyphony']
-                    #'train.train_size_batches': [10, 30, 76]
-                    # input_feature = ['audio', 'audio_no_noise']
-                    # train.learning_rate = [0.001, 0.0001]
-                    # train.batch_size = [32, 128, 256]
+    hyperparams = {
+                    "train.input_feature_name": ['perch_8_pooled_embeddings']
                 }
 
     # Iterate over all combinations of parameters

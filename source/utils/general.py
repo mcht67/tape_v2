@@ -8,6 +8,8 @@ from datasets import concatenate_datasets
 import shutil
 import json
 from datetime import datetime
+import soundfile as sf
+import io
 
 def with_random_state(func):
     """
@@ -267,11 +269,53 @@ def process_in_batches(dataset, process_fn, cache_dir, prefix="", batch_size=100
 #             shutil.rmtree(temp_path)
 #         raise e
 
+# def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=True):
+    
+#     # Get temp path
+#     temp_path = f"{dataset_path}_temp"
+
+#     # Clean up any leftover temp directory from previous failed runs
+#     if os.path.exists(temp_path):
+#         shutil.rmtree(temp_path)
+
+#     # Save to temporary location
+#     os.makedirs(temp_path, exist_ok=True)
+#     dataset.save_to_disk(temp_path)
+
+#     # Load metadata json
+#     metadata = None
+#     if metadata_path and os.path.exists(metadata_path):
+#         try:
+#             with open(metadata_path, 'r') as f:
+#                 content = f.read()
+#                 if content.strip():  # Check if file has content
+#                     metadata = json.loads(content)
+#                 else:
+#                     print(f"Warning: {metadata_path} is empty, skipping metadata preservation")
+#         except json.JSONDecodeError as e:
+#             print(f"Warning: Could not parse {metadata_path}: {e}")
+#             print("Skipping metadata preservation")
+
+#     # Move old data to backup
+#     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#     backup_path = f'{dataset_path}_backup_{timestamp}'
+#     os.makedirs(backup_path, exist_ok=True)
+#     if os.path.exists(dataset_path):
+#         shutil.move(dataset_path, backup_path)
+
+#     # Move temp data into place
+#     shutil.move(temp_path, dataset_path)
+    
+#     # Dump metadata json
+#     if metadata:
+#         with open(metadata_path, "w") as f:
+#             json.dump(metadata, f, indent=2)
+
+#     # Optionally remove backup
+#     if not store_backup:
+#         shutil.rmtree(backup_path)
+
 def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=True):
-    # Save to temporary location
-    temp_path = f"{dataset_path}_temp"
-    os.makedirs(temp_path, exist_ok=True)
-    dataset.save_to_disk(temp_path)
 
     # Load metadata json
     metadata = None
@@ -287,6 +331,43 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
             print(f"Warning: Could not parse {metadata_path}: {e}")
             print("Skipping metadata preservation")
 
+    # # Move old data to backup
+    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # backup_path = f'{dataset_path}_backup_{timestamp}'
+    # os.makedirs(backup_path, exist_ok=True)
+    # if os.path.exists(dataset_path):
+    #     shutil.move(dataset_path, backup_path)
+
+    # try:
+    
+    # Get temp path
+    temp_path = f"{dataset_path}_temp"
+
+    # Clean up any leftover temp directory from previous failed runs
+    if os.path.exists(temp_path):
+        shutil.rmtree(temp_path)
+
+    # audio = dataset['train'][0]['audio']
+    # column_names = dataset['train'].column_names
+    # print(column_names)
+
+    # dataset = dataset.map(
+    #     encode_example,
+    #     num_proc=1,
+    #     desc="Encoding audio"
+    # )
+
+    # audio = dataset['train'][0]['audio']
+
+    # Save to temporary location
+    os.makedirs(temp_path, exist_ok=True)
+    dataset.save_to_disk(temp_path)
+    
+    # Dump metadata json
+    if metadata:
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+
     # Move old data to backup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = f'{dataset_path}_backup_{timestamp}'
@@ -296,15 +377,104 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
     # Move temp data into place
     shutil.move(temp_path, dataset_path)
-    
-    # Dump metadata json
-    if metadata:
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
 
     # Optionally remove backup
     if not store_backup:
         shutil.rmtree(backup_path)
+
+        # # Optionally remove backup
+        # if not store_backup:
+        #     shutil.rmtree(backup_path)
+
+    # except Exception as e:
+    #     # Restore backup if save fails
+    #     if os.path.exists(backup_path):
+    #         if os.path.exists(dataset_path):
+    #             shutil.rmtree(dataset_path)
+    #         shutil.move(backup_path, dataset_path)
+        # raise e
+
+def encode_audio_dict(audio_dict, format='OGG', quality=4, normalize=False):
+    """
+    Encode an audio dictionary to bytes.
+    
+    Convenience function for working with HuggingFace audio dictionaries.
+    
+    Parameters:
+    -----------
+    audio_dict : dict
+        Dictionary with 'array' and 'sampling_rate' keys
+    format : str, optional
+        Audio format ('OGG', 'WAV', 'FLAC', default='OGG')
+    quality : int, optional
+        Quality level for lossy formats (OGG: 0-10, default=4)
+    normalize : bool, optional
+        Whether to normalize audio to [-1, 1] range (default=True)
+    
+    Returns:
+    --------
+    bytes
+        Encoded audio as bytes
+    
+    Example:
+    --------
+    >>> audio_dict = {'array': [0.1, 0.2, 0.3], 'sampling_rate': 22050}
+    >>> ogg_bytes = encode_audio_dict(audio_dict)
+    """
+    if 'array' not in audio_dict or 'sampling_rate' not in audio_dict:
+        raise ValueError("audio_dict must contain 'array' and 'sampling_rate' keys")
+    
+    audio_array = audio_dict['array']
+    sampling_rate = audio_dict['sampling_rate']
+    
+    # Convert to numpy array if needed
+    audio_array = np.asarray(audio_array, dtype=np.float32)
+    
+    # Normalize if requested
+    if normalize:
+        max_val = max(abs(audio_array.max()), abs(audio_array.min()))
+        if max_val > 1.0:
+            audio_array = audio_array / max_val
+        audio_array = np.clip(audio_array, -1.0, 1.0)
+    
+    # Encode based on format
+    try:
+        buffer = io.BytesIO()
+        
+        if format.upper() == 'OGG':
+            sf.write(buffer, audio_array, sampling_rate, 
+                    format='OGG', subtype='VORBIS')
+        elif format.upper() == 'WAV':
+            sf.write(buffer, audio_array, sampling_rate, 
+                    format='WAV', subtype='PCM_16')
+        elif format.upper() == 'FLAC':
+            sf.write(buffer, audio_array, sampling_rate, 
+                    format='FLAC')
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+        
+        encoded_bytes = buffer.getvalue()
+        buffer.close()
+        
+        return encoded_bytes, sampling_rate
+    
+    except Exception as e:
+        raise RuntimeError(f"Failed to encode audio to {format}: {str(e)}")
+
+
+def encode_example(example):
+    for audio_key in ['audio', 'no_noise_audio']:
+        audio = example[audio_key]
+        audio_bytes, sampling_rate = encode_audio_dict(audio)
+        
+        # Update audio field with encoded bytes
+        example[audio_key] = {
+            "bytes": audio_bytes,
+            "path": None,
+            "sampling_rate": sampling_rate
+        }
+    return example
+
 
 def build_event_logits(
     events,

@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from utils.config import set_random_seeds, Params
 #from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs
 
-from source.torch_models import SimpleRegressionHead
+from torch_models import SimpleRegressionHead
 
 class HFDatasetWrapper(Dataset):
     def __init__(self, hf_dataset, features, labels):
@@ -190,7 +190,7 @@ def main():
     print("Embeddings:", embeddings)
 
     spatial_embeddings = outputs.spatial_embeddings
-    print("Spatial mbeddings shape:", spatial_embeddings.shape)
+    print("Spatial embeddings shape:", spatial_embeddings.shape)
     print("Spatial embeddings:", spatial_embeddings)
 
 
@@ -202,7 +202,7 @@ def main():
     dataset = load_from_disk(dataset_path)
 
     for split in dataset:
-        dataset[split] = dataset[split].take(50)
+        dataset[split] = dataset[split].take(10)
         dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
 
     ###################################################
