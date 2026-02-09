@@ -49,28 +49,28 @@ class Conv1DAutoencoder_test(nn.Module):
         decoded = self.decoder(encoded)
         return decoded
     
-class SimpleMLP(tf.keras.Model):
-    def __init__(self, input_dim, hidden_units=[512, 256], dropout_rate=0.3):
-        super().__init__()
+# class SimpleMLP(tf.keras.Model):
+#     def __init__(self, input_dim, hidden_units=[512, 256], dropout_rate=0.3):
+#         super().__init__()
         
-        # Build the sequential stack inside the model
-        self.net = models.Sequential()
-        self.net.add(layers.Input(shape=input_dim))
+#         # Build the sequential stack inside the model
+#         self.net = models.Sequential()
+#         self.net.add(layers.Input(shape=input_dim))
 
-        # Flatten spatial / multi-dim input -> (batch_size, num_features)
-        self.net.add(layers.Flatten())
+#         # Flatten spatial / multi-dim input -> (batch_size, num_features)
+#         self.net.add(layers.Flatten())
         
-        # Add hidden layers + dropout after first
-        for i, units in enumerate(hidden_units):
-            self.net.add(layers.Dense(units, activation='relu'))
-            if i == 0:
-                self.net.add(layers.Dropout(dropout_rate))
+#         # Add hidden layers + dropout after first
+#         for i, units in enumerate(hidden_units):
+#             self.net.add(layers.Dense(units, activation='relu'))
+#             if i == 0:
+#                 self.net.add(layers.Dropout(dropout_rate))
         
-        # Output layer
-        self.net.add(layers.Dense(1))  # Regression output
+#         # Output layer
+#         self.net.add(layers.Dense(1))  # Regression output
 
-    def call(self, inputs, training=False):
-        return self.net(inputs, training=training)
+#     def call(self, inputs, training=False):
+#         return self.net(inputs, training=training)
     
 class ResidualMLP(tf.keras.Model):
     def __init__(self, input_dim, hidden_units=512, dropout_rate=0.3):
@@ -483,6 +483,86 @@ class TemporalCNNMultiTask_v2(tf.keras.Model):
             "objectives": self.objectives,
         })
         return config
+
+
+@register_keras_serializable(package="model", name="SimpleMLP")
+class SimpleMLP(tf.keras.Model):
+    def __init__(
+        self,
+        input_dim=(None, 4, 1536),
+        hidden_units=[512, 256],
+        dropout_rate=0.3,
+        objectives=None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        # Store config
+        self.input_dim = input_dim
+        self.hidden_units = list(hidden_units)
+        self.dropout_rate = dropout_rate
+        self.objectives = list(objectives) or []
+        
+        # Build encoder (shared feature extraction)
+        self.flatten = layers.Flatten()
+        
+        # Hidden layers
+        self.hidden_layers = []
+        self.dropout_layers = []
+        for i, units in enumerate(hidden_units):
+            self.hidden_layers.append(layers.Dense(units, activation='relu'))
+            if i == 0:
+                self.dropout_layers.append(layers.Dropout(dropout_rate))
+            else:
+                self.dropout_layers.append(None)
+        
+        # Build heads based on objectives
+        if "event_logits" in self.objectives:
+            self.event_head = layers.Dense(1)
+        
+        if "framewise_polyphony" in self.objectives:
+            self.frame_polyphony_head = layers.Dense(1)
+        
+        if "polyphony_degree" in self.objectives:
+            self.segment_dense = layers.Dense(1)
+    
+    def call(self, inputs, training=False):
+        # Shared encoder
+        x = self.flatten(inputs)
+        
+        # Pass through hidden layers
+        for hidden_layer, dropout_layer in zip(self.hidden_layers, self.dropout_layers):
+            x = hidden_layer(x)
+            if dropout_layer is not None:
+                x = dropout_layer(x, training=training)
+        
+        # Store shared features
+        features = x
+        
+        # Multi-task heads
+        outputs = {}
+        
+        if "event_logits" in self.objectives:
+            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
+        
+        if "framewise_polyphony" in self.objectives:
+            outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
+        
+        if "polyphony_degree" in self.objectives:
+            outputs["polyphony_degree"] = self.segment_dense(features, training=training)
+        
+        return outputs
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "input_dim": self.input_dim,
+            "hidden_units": self.hidden_units,
+            "dropout_rate": self.dropout_rate,
+            "objectives": self.objectives,
+        })
+        return config
+
+
 
 
 
