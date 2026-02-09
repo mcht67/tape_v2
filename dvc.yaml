@@ -43,7 +43,7 @@ stages:
   #         persist: true
 
   train:
-    cmd: envs/train-venv/bin/python source/train.py
+    cmd: envs/train2-venv/bin/python source/train.py
     deps:
       - source/train.py
       - ${path.dataset}
