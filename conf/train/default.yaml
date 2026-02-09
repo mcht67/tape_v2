@@ -8,7 +8,8 @@ batch_size: 128
 learning_rate: 0.0001
 epochs: 50
 tensorboard_path: debug_tensorboard
-train_size_batches: 10
+train_size_batches: 30
+val_size_batches: 10
 # use_event_logits: True
 # num_event_logits: 16
 # event_logits_name: event_logits
