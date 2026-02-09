@@ -159,10 +159,16 @@ input_feature_name = cfg.train.input_feature_name
 epochs = cfg.train.epochs
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
+
 if 'train_size_batches' in cfg.train: 
     train_size_batches = cfg.train.train_size_batches
 else:
     train_size_batches = None
+
+if 'val_size_batches' in cfg.train: 
+    val_size_batches = cfg.train.val_size_batches
+else:
+    val_size_batches = None
 
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
@@ -192,6 +198,8 @@ input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 # Get tensorflow datasets
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, objectives_list, batch_size)
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
+if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
+
 
 # Create a SummaryWriter object to write the tensorboard logs
 #metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO: Investigate: What is this doing with the variable losses?
@@ -248,7 +256,8 @@ print(f'Input shape of model: {input_dim}')
 # Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-checkpoint_path = return_checkpoint_path(subfolder=f'experiment_name_{input_feature_name}')
+checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
+print("Checkpoint path:", checkpoint_path)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset)
@@ -256,7 +265,7 @@ num_batches = len(train_dataset)
 losses = create_losses_from_objectives(objectives_cfg)  
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
-tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset, 
+tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
             log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
@@ -293,7 +302,8 @@ history = model.fit(train_dataset,
                     callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 # TODO: needs register_keras_serializable() for losses
-model.save(f'models/{input_feature_name}.keras')
+model_path = f'models/{input_feature_name}.keras'
+model.save(model_path)
 
 # TODO: Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
@@ -372,6 +382,7 @@ writer.flush()
 # Define model
 new_model = instantiate(cfg.model)
 new_model.build(input_dim)
+new_model.compile(optimizer=Adam(learning_rate), loss=losses)
 # new_model.compile(
 #     optimizer=Adam(learning_rate),
 #     loss={
@@ -395,18 +406,24 @@ print(predictions['polyphony_degree'][0][0])
 print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 
 # Load weights and test model again
-print("Trained Model from loaded checkpoints:")
-new_model.load_weights(checkpoint_path)
-predictions = new_model.predict(single_input)
-print(predictions['polyphony_degree'][0][0])
-print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+try:
+    print("Trained Model from loaded checkpoints:")
+    new_model.load_weights(checkpoint_path)
+    predictions = new_model.predict(single_input)
+    print(predictions['polyphony_degree'][0][0])
+    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+except:
+    pass
 
 # TODO: needs register_keras_serializable() for losses
-print("Trained saved full model")
-full_model = tf.keras.models.load_model('my_model.keras')
-predictions = full_model.predict(single_input)
-print(predictions['polyphony_degree'][0][0])
-print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+try:
+    print("Trained saved full model")
+    full_model = tf.keras.models.load_model(model_path)
+    predictions = full_model.predict(single_input)
+    print(predictions['polyphony_degree'][0][0])
+    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+except:
+    pass
 
 dataset.cleanup_cache_files()
 
