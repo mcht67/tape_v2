@@ -524,6 +524,10 @@ class SimpleMLP(tf.keras.Model):
         
         if "polyphony_degree" in self.objectives:
             self.segment_dense = layers.Dense(1)
+
+    def build(self, input_shape):
+        self.input_dim = input_shape
+        super().build(input_shape)
     
     def call(self, inputs, training=False):
         # Shared encoder
