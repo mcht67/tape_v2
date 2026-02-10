@@ -158,14 +158,14 @@ experiment_name = cfg.log.experiment_name
 
 input_feature_name = cfg.train.input_feature_name
 total_epochs = cfg.train.epochs
-initial_epochs = 0
+initial_epoch = 0
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
 train_size_batches = None
 val_size_batches = None
 
-if 'initial_epochs' in cfg.train:
-    initial_epochs = cfg.train.initial_epochs    
+if 'initial_epoch' in cfg.train:
+    initial_epoch = cfg.train.initial_epoch    
 
 if 'train_size_batches' in cfg.train: 
     train_size_batches = cfg.train.train_size_batches 
@@ -279,11 +279,11 @@ if os.path.isfile(model_path):
     if os.path.isfile(history_path):
         with open(history_path, 'rb') as f:
             old_history = pickle.load(f)
-        initial_epochs = len(old_history['loss'])  # Infer epoch from history length!
-        print(f"Resuming from epoch {initial_epochs}")
+        initial_epoch = len(old_history['loss'])  # Infer epoch from history length!
+        print(f"Resuming from epoch {initial_epoch}")
     else:
         old_history = None
-        print(f"Resuming from epoch {initial_epochs}")
+        print(f"Resuming from epoch {initial_epoch}")
         
 else:
     model = instantiate(model_cfg)
@@ -348,7 +348,7 @@ if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
 history = model.fit(train_dataset, 
                     validation_data=val_dataset, 
                     epochs=total_epochs,
-                    initial_epochs=initial_epochs, 
+                    initial_epoch=initial_epoch, 
                     callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 # TODO: needs register_keras_serializable() for losses
