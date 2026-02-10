@@ -16,6 +16,8 @@ from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from losses import create_losses_from_objectives, setup_loss_scheduler
 
+tf.keras.backend.clear_session()
+
 def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
     X = np.stack(hf_dataset[features]).astype(np.float32)
     y = np.array(hf_dataset[labels]).astype(np.float32)
@@ -256,48 +258,96 @@ print(params)
 # Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}')
+dvc_experiment_name = 'test-dvc-experiment'
+
+checkpoint_path = return_checkpoint_path(subfolder=f'{dvc_experiment_name}')
 print("Checkpoint path:", checkpoint_path)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset) 
 
 model_path = f'models/{input_feature_name}.keras'
-history_path = f'models/{experiment_name}_history.pkl'
+new_model_path = f'models/{dvc_experiment_name}.keras'
+history_path = f'models/{dvc_experiment_name}_history.pkl'
 
 ##############
 # Model
 ###############
 
+losses = create_losses_from_objectives(objectives_cfg) 
 
 # Get model and history
 if os.path.isfile(model_path): 
+    print(f"Loading existing model from {model_path}")
     model = tf.keras.models.load_model(model_path)
+
+     # Check layer names immediately after loading
+    print("Layer names after loading:")
+    for layer in model.layers:
+        print(f"  - {layer.name}: {layer.__class__.__name__}")
+
+    print(f"Trainable variables after loading: {len(model.trainable_variables)}")
+    for var in model.trainable_variables:
+        print(f"  - {var.name}")
+    
+    print(f"After loading - trainable variables: {len(model.trainable_variables)}")
+
+    print(f"\nTrainable variables ({len(model.trainable_variables)}):")
+    for var in model.trainable_variables:
+        print(f"  - FULL PATH: {var.path}")  # Use .path instead of .name
+        print(f"    name: {var.name}, shape: {var.shape}")
+    
+    # CRITICAL: Initialize variables with forward pass
+    print("Initializing model variables...")
+    sample_batch = next(iter(train_dataset))
+    _ = model(sample_batch[0], training=False)
+    print(f"After initialization - trainable variables: {len(model.trainable_variables)}")
+
+    # Check again after forward pass
+    print("\nLayer names after forward pass:")
+    for layer in model.layers:
+        print(f"  - {layer.name}: {layer.__class__.__name__}")
+    
+    print(f"Trainable variables after forward pass: {len(model.trainable_variables)}")
+    for var in model.trainable_variables:
+        print(f"  - {var.name}")
+    
+    print(f"\nTrainable variables ({len(model.trainable_variables)}):")
+    for var in model.trainable_variables:
+        print(f"  - FULL PATH: {var.path}")  # Use .path instead of .name
+        print(f"    name: {var.name}, shape: {var.shape}")
+
+    # NOW compile with fresh optimizer (this is key!)
+    model.compile(optimizer=Adam(learning_rate), loss=losses)
+    print("Compiled with fresh optimizer")
+    
     # Load previous history
     if os.path.isfile(history_path):
         with open(history_path, 'rb') as f:
             old_history = pickle.load(f)
-        initial_epoch = len(old_history['loss'])  # Infer epoch from history length!
+        initial_epoch = len(old_history['loss'])
         print(f"Resuming from epoch {initial_epoch}")
     else:
         old_history = None
-        print(f"Resuming from epoch {initial_epoch}")
-        
+        #initial_epoch = 0
+        print(f"No history found, starting from epoch {initial_epoch}")
 else:
+    print("Creating new model")
     model = instantiate(model_cfg)
     model.build(input_dim)
     print(f'Input shape of model: {input_dim}')
-    # losses = create_losses_from_model(model, cfg)
-    losses = create_losses_from_objectives(objectives_cfg) 
-    model.compile(optimizer=Adam(learning_rate), loss=losses) # TODO: use optimizer=instantiate(cfg.train.optimizer/optimizer_cfg)
-    # model.compile(
-    #     optimizer=Adam(learning_rate),
-    #     loss={
-    #         "perch2_event_logits": weighted_event_loss,
-    #         "framewise_polyphony": weighted_frame_loss,
-    #         "polyphony_degree": weighted_count_loss, 
-    #     },
-    # )
+    
+    # Initialize new model with forward pass too
+    print("Initializing new model variables...")
+    sample_batch = next(iter(train_dataset))
+    _ = model(sample_batch[0], training=False)
+    print(f"New model has {len(model.trainable_variables)} trainable variables")
+    
+    # Compile only for NEW models
+    model.compile(optimizer=Adam(learning_rate), loss=losses)
+    
+    old_history = None
+    initial_epoch = 0
 model.summary()
 
 ##############
@@ -320,6 +370,18 @@ model.summary()
 #         # Save after each epoch
 #         with open(self.filepath, 'wb') as f:
 #             pickle.dump(self.combined_history, f)
+
+class DebugCallback(tf.keras.callbacks.Callback):
+    def on_epoch_begin(self, epoch, logs=None):
+        print(f"\n=== EPOCH {epoch} BEGIN ===")
+        print(f"Model compiled: {self.model.compiled}")
+        print(f"Optimizer: {type(self.model.optimizer)}")
+        print(f"Number of variables: {len(self.model.trainable_variables)}")
+        print(f"First variable shape: {self.model.trainable_variables[0].shape}")
+    
+    def on_epoch_end(self, epoch, logs=None):
+        print(f"\n=== EPOCH {epoch} END ===")
+        print(f"Model compiled: {self.model.compiled}")
 
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
     def __init__(self, model_path, history_path, initial_history=None, save_every_n_epochs=1):
@@ -345,9 +407,8 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             self.model.save(self.model_path)
             print(f"✓ Saved model and history at epoch {epoch + 1}")
 
-# Replace your callbacks section with:
 model_and_history_saver = ModelAndHistorySaver(
-    model_path=model_path,
+    model_path=new_model_path,
     history_path=history_path,
     initial_history=old_history,
     save_every_n_epochs=5  # Save every epoch, or change to 5, 10, etc.
@@ -363,7 +424,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 #                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [tensorboard_callback, model_and_history_saver]
+callbacks = [model_and_history_saver] #, tensorboard_callback,  DebugCallback()]
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
@@ -373,7 +434,7 @@ history = model.fit(train_dataset,
                     validation_data=val_dataset, 
                     epochs=total_epochs,
                     initial_epoch=initial_epoch, 
-                    callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+                    callbacks=DebugCallback()) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 # TODO: needs register_keras_serializable() for losses
 model.save(model_path)
