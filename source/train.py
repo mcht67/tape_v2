@@ -250,17 +250,17 @@ model.summary()
 #         with open(self.filepath, 'wb') as f:
 #             pickle.dump(self.combined_history, f)
 
-class DebugCallback(tf.keras.callbacks.Callback):
-    def on_epoch_begin(self, epoch, logs=None):
-        print(f"\n=== EPOCH {epoch} BEGIN ===")
-        print(f"Model compiled: {self.model.compiled}")
-        print(f"Optimizer: {type(self.model.optimizer)}")
-        print(f"Number of variables: {len(self.model.trainable_variables)}")
-        print(f"First variable shape: {self.model.trainable_variables[0].shape}")
+# class DebugCallback(tf.keras.callbacks.Callback):
+#     def on_epoch_begin(self, epoch, logs=None):
+#         print(f"\n=== EPOCH {epoch} BEGIN ===")
+#         print(f"Model compiled: {self.model.compiled}")
+#         print(f"Optimizer: {type(self.model.optimizer)}")
+#         print(f"Number of variables: {len(self.model.trainable_variables)}")
+#         print(f"First variable shape: {self.model.trainable_variables[0].shape}")
     
-    def on_epoch_end(self, epoch, logs=None):
-        print(f"\n=== EPOCH {epoch} END ===")
-        print(f"Model compiled: {self.model.compiled}")
+#     def on_epoch_end(self, epoch, logs=None):
+#         print(f"\n=== EPOCH {epoch} END ===")
+#         print(f"Model compiled: {self.model.compiled}")
 
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
     def __init__(self, model_path, history_path, initial_history=None, save_every_n_epochs=1):
@@ -303,7 +303,7 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_pat
                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [model_and_history_saver, tensorboard_callback,  checkpoint_callback, DebugCallback()] # TODO: test model_and_history_saver and remove 
+callbacks = [model_and_history_saver, tensorboard_callback,  checkpoint_callback] # TODO: test model_and_history_saver and remove 
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
@@ -312,7 +312,7 @@ history = model.fit(train_dataset,
                     validation_data=val_dataset, 
                     epochs=total_epochs,
                     initial_epoch=initial_epoch, 
-                    callbacks=DebugCallback()) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+                    callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 
 # DIAGNOSTIC: Check model state before saving
