@@ -260,9 +260,7 @@ checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}')
 print("Checkpoint path:", checkpoint_path)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
-num_batches = len(train_dataset)
-
-losses = create_losses_from_objectives(objectives_cfg)  
+num_batches = len(train_dataset) 
 
 model_path = f'models/{input_feature_name}.keras'
 history_path = f'models/{experiment_name}_history.pkl'
@@ -290,6 +288,7 @@ else:
     model.build(input_dim)
     print(f'Input shape of model: {input_dim}')
     # losses = create_losses_from_model(model, cfg)
+    losses = create_losses_from_objectives(objectives_cfg) 
     model.compile(optimizer=Adam(learning_rate), loss=losses) # TODO: use optimizer=instantiate(cfg.train.optimizer/optimizer_cfg)
     # model.compile(
     #     optimizer=Adam(learning_rate),
@@ -367,13 +366,6 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 callbacks = [tensorboard_callback, model_and_history_saver]
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
-
-
-# loss_weight_callback = LossWeightScheduler(switch_epochs=[0, 10, 20, 30, 40],
-#                                        event_loss_weights=[10.0, 5.0, 1.0, 0.5, 0.1],
-#                                        frame_loss_weights=[5.0, 10.0, 5.0, 1.0, 0.5],
-#                                        count_loss_weights=[1.0, 1.0, 1.0, 1.0, 1.0])
-# Create losses from objectives
 
 # Train model
 
