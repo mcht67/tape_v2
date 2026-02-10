@@ -256,7 +256,7 @@ print(params)
 # Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
+checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}')
 print("Checkpoint path:", checkpoint_path)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
@@ -265,7 +265,7 @@ num_batches = len(train_dataset)
 losses = create_losses_from_objectives(objectives_cfg)  
 
 model_path = f'models/{input_feature_name}.keras'
-history_path = f'models/{input_feature_name}_history.pkl'
+history_path = f'models/{experiment_name}_history.pkl'
 
 ##############
 # Model
@@ -305,34 +305,66 @@ model.summary()
 # Callbacks
 ###############
 
-class HistorySaver(tf.keras.callbacks.Callback):
-    def __init__(self, filepath, initial_history=None):
+# class HistorySaver(tf.keras.callbacks.Callback):
+#     def __init__(self, filepath, initial_history=None):
+#         super().__init__()
+#         self.filepath = filepath
+#         self.combined_history = initial_history if initial_history else {}
+    
+#     def on_epoch_end(self, epoch, logs=None):
+#         # Append current epoch's metrics
+#         for key, value in logs.items():
+#             if key not in self.combined_history:
+#                 self.combined_history[key] = []
+#             self.combined_history[key].append(float(value))
+        
+#         # Save after each epoch
+#         with open(self.filepath, 'wb') as f:
+#             pickle.dump(self.combined_history, f)
+
+class ModelAndHistorySaver(tf.keras.callbacks.Callback):
+    def __init__(self, model_path, history_path, initial_history=None, save_every_n_epochs=1):
         super().__init__()
-        self.filepath = filepath
+        self.model_path = model_path
+        self.history_path = history_path
         self.combined_history = initial_history if initial_history else {}
+        self.save_every_n_epochs = save_every_n_epochs
     
     def on_epoch_end(self, epoch, logs=None):
-        # Append current epoch's metrics
+        # Append current epoch's metrics to history
         for key, value in logs.items():
             if key not in self.combined_history:
                 self.combined_history[key] = []
             self.combined_history[key].append(float(value))
         
-        # Save after each epoch
-        with open(self.filepath, 'wb') as f:
+        # Save history every epoch
+        with open(self.history_path, 'wb') as f:
             pickle.dump(self.combined_history, f)
+        
+        # Save model at specified intervals
+        if (epoch + 1) % self.save_every_n_epochs == 0:
+            self.model.save(self.model_path)
+            print(f"✓ Saved model and history at epoch {epoch + 1}")
+
+# Replace your callbacks section with:
+model_and_history_saver = ModelAndHistorySaver(
+    model_path=model_path,
+    history_path=history_path,
+    initial_history=old_history,
+    save_every_n_epochs=5  # Save every epoch, or change to 5, 10, etc.
+)
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
             log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
-checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                save_weights_only=True,
-                                                verbose=1,
-                                                save_freq=5*num_batches
-                                                )
-history_saver= HistorySaver(history_path, initial_history=old_history)
+# checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+#                                                 save_weights_only=True,
+#                                                 verbose=1,
+#                                                 save_freq=5*num_batches
+#                                                 )
+#history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [tensorboard_callback, checkpoint_callback, history_saver]
+callbacks = [tensorboard_callback, model_and_history_saver]
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
