@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 import os
 import model
 from hydra.utils import instantiate
+import pickle
 
 from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs
 from utils.general import reshape_tensor_data
@@ -156,19 +157,21 @@ dataset_path =  cfg.path.dataset
 experiment_name = cfg.log.experiment_name
 
 input_feature_name = cfg.train.input_feature_name
-epochs = cfg.train.epochs
+total_epochs = cfg.train.epochs
+initial_epochs = 0
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
+train_size_batches = None
+val_size_batches = None
+
+if 'initial_epochs' in cfg.train:
+    initial_epochs = cfg.train.initial_epochs    
 
 if 'train_size_batches' in cfg.train: 
-    train_size_batches = cfg.train.train_size_batches
-else:
-    train_size_batches = None
+    train_size_batches = cfg.train.train_size_batches 
 
 if 'val_size_batches' in cfg.train: 
     val_size_batches = cfg.train.val_size_batches
-else:
-    val_size_batches = None
 
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
@@ -242,10 +245,7 @@ print(params)
 
 
 
-# Instantiate model with merged config
-model = instantiate(model_cfg)
-model.build(input_dim)
-print(f'Input shape of model: {input_dim}')
+
 
 # Define confusion matrix specs
 # confusion_matrix_specs = [
@@ -264,6 +264,64 @@ num_batches = len(train_dataset)
 
 losses = create_losses_from_objectives(objectives_cfg)  
 
+model_path = f'models/{input_feature_name}.keras'
+history_path = f'models/{input_feature_name}_history.pkl'
+
+##############
+# Model
+###############
+
+
+# Get model and history
+if os.path.isfile(model_path): 
+    model = tf.keras.models.load_model(model_path)
+    # Load previous history
+    if os.path.isfile(history_path):
+        with open(history_path, 'rb') as f:
+            old_history = pickle.load(f)
+        initial_epochs = len(old_history['loss'])  # Infer epoch from history length!
+        print(f"Resuming from epoch {initial_epochs}")
+    else:
+        old_history = None
+        print(f"Resuming from epoch {initial_epochs}")
+        
+else:
+    model = instantiate(model_cfg)
+    model.build(input_dim)
+    print(f'Input shape of model: {input_dim}')
+    # losses = create_losses_from_model(model, cfg)
+    model.compile(optimizer=Adam(learning_rate), loss=losses) # TODO: use optimizer=instantiate(cfg.train.optimizer/optimizer_cfg)
+    # model.compile(
+    #     optimizer=Adam(learning_rate),
+    #     loss={
+    #         "perch2_event_logits": weighted_event_loss,
+    #         "framewise_polyphony": weighted_frame_loss,
+    #         "polyphony_degree": weighted_count_loss, 
+    #     },
+    # )
+model.summary()
+
+##############
+# Callbacks
+###############
+
+class HistorySaver(tf.keras.callbacks.Callback):
+    def __init__(self, filepath, initial_history=None):
+        super().__init__()
+        self.filepath = filepath
+        self.combined_history = initial_history if initial_history else {}
+    
+    def on_epoch_end(self, epoch, logs=None):
+        # Append current epoch's metrics
+        for key, value in logs.items():
+            if key not in self.combined_history:
+                self.combined_history[key] = []
+            self.combined_history[key].append(float(value))
+        
+        # Save after each epoch
+        with open(self.filepath, 'wb') as f:
+            pickle.dump(self.combined_history, f)
+
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
             log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
@@ -272,7 +330,9 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_pat
                                                 verbose=1,
                                                 save_freq=5*num_batches
                                                 )
-callbacks = [tensorboard_callback, checkpoint_callback]
+history_saver= HistorySaver(history_path, initial_history=old_history)
+
+callbacks = [tensorboard_callback, checkpoint_callback, history_saver]
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
@@ -284,25 +344,14 @@ if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
 # Create losses from objectives
 
 # Train model
-# losses = create_losses_from_model(model, cfg)
-model.compile(optimizer=Adam(learning_rate), loss=losses) # TODO: use optimizer=instantiate(cfg.train.optimizer/optimizer_cfg)
-# model.compile(
-#     optimizer=Adam(learning_rate),
-#     loss={
-#         "perch2_event_logits": weighted_event_loss,
-#         "framewise_polyphony": weighted_frame_loss,
-#         "polyphony_degree": weighted_count_loss, 
-#     },
-# )
-model.summary()
 
 history = model.fit(train_dataset, 
                     validation_data=val_dataset, 
-                    epochs=epochs, 
+                    epochs=total_epochs,
+                    initial_epochs=initial_epochs, 
                     callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 # TODO: needs register_keras_serializable() for losses
-model_path = f'models/{input_feature_name}.keras'
 model.save(model_path)
 
 # TODO: Store config in file/logs

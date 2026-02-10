@@ -1,7 +1,7 @@
 input_feature_name: 'feature_name'
 batch_size: 128
 learning_rate: 0.0001
-epochs: 50
+epochs: 20
 initial_epochs:
 train_size_batches: 
 val_size_batches: 
