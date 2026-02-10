@@ -92,59 +92,6 @@ def get_predictions_and_true_labels(model, dataset):
 
     return y_pred, y_true
 
-# Setup tensorboard
-# If defined in cfg use tensorboard path (define it in params.yaml for debugging purposes)
-# else use return_tensorboard_path (default with dvc run)
-# def get_tensorboard_path(cfg):
-#     if 'tensorboard_path' in cfg.train.keys():
-#         default_dir = os.getcwd()
-#         #dvc_exp_name = 'debug'
-#         current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-#         os.environ['DEFAULT_DIR'] = default_dir
-#         tensorboard_subfolder = f'{cfg.dataset.subset}/{cfg.train.input_feature_name}'
-#         tensorboard_path_suffix = f'_{input_feature_name}'
-
-#         tensorboard_path = Path(
-#             f"{default_dir}/{cfg.train.tensorboard_path}/{tensorboard_subfolder}/{tensorboard_path_suffix}{current_datetime}"
-#         )     
-#     else:
-#         tensorboard_subfolder = f'{cfg.dataset.subset}'
-#         tensorboard_path_suffix = f'_{input_feature_name}'
-#         tensorboard_path = return_tensorboard_dir(subfolder=tensorboard_subfolder, suffix=tensorboard_path_suffix) # './logs/' + features + version #return_tensorboard_path()
-#     os.makedirs(tensorboard_path, exist_ok=True)
-#     return tensorboard_path
-
-# class LossWeightScheduler(tf.keras.callbacks.Callback):
-#     def __init__(
-#         self,
-#         switch_epochs,
-#         event_loss_weights,
-#         frame_loss_weights,
-#         count_loss_weights,
-#     ):
-#         super().__init__()
-#         self.switch_epochs = switch_epochs
-#         self.event_loss_weights = event_loss_weights
-#         self.frame_loss_weights = frame_loss_weights
-#         self.count_loss_weights = count_loss_weights
-
-#     def on_epoch_begin(self, epoch, logs=None):
-#         for e, ew, fw, cw in zip(
-#             self.switch_epochs,
-#             self.event_loss_weights,
-#             self.frame_loss_weights,
-#             self.count_loss_weights,
-#         ):
-#             if epoch == e:
-#                 event_loss_weight.assign(ew)
-#                 frame_loss_weight.assign(fw)
-#                 count_loss_weight.assign(cw)
-
-#                 print(
-#                     f"\n[LossWeightScheduler] epoch {epoch} | "
-#                     f"event={ew}, frame={fw}, count={cw}"
-#                 )
-
 # Configuration
 cfg = OmegaConf.load("params.yaml")
 
@@ -205,9 +152,6 @@ train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_featur
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
 
-
-# Create a SummaryWriter object to write the tensorboard logs
-#metrics = {'loss': None, 'val_loss': None, 'mae': None, 'val_mae': None} # TODO: Investigate: What is this doing with the variable losses?
 metrics = {}
 for key in objectives_cfg.keys():
     metrics[f"{key}_loss"] = None
@@ -221,46 +165,15 @@ params['dataset']['test_size'] = str(len(dataset['test']))
 params['train']['objectives'] = list(cfg.objectives.keys())
 print(params)
 
-# # Define loss weights as variables
-# event_loss_weight = tf.Variable(1.0, trainable=False, dtype=tf.float32)
-# count_loss_weight = tf.Variable(0.3, trainable=False, dtype=tf.float32)
-# frame_loss_weight = tf.Variable(1.0, trainable=False, dtype=tf.float32)
-
-# bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-# mse = tf.keras.losses.MeanSquaredError()
-# frame_mse = tf.keras.losses.MeanSquaredError()
-
-# def weighted_event_loss(y_true, y_pred):
-#     return event_loss_weight * bce(y_true, y_pred)
-
-# def weighted_count_loss(y_true, y_pred):
-#     return count_loss_weight * mse(y_true, y_pred) 
-
-# def weighted_frame_loss(y_true, y_pred):
-#     return frame_loss_weight * frame_mse(y_true, y_pred)
-
-# # Merge objectives into model config before instantiation
-# model_cfg = OmegaConf.to_container(cfg.model, resolve=True)
-# model_cfg['objectives'] = list(cfg.objectives.keys())
-# print(model_cfg)
-# print(model_cfg['objectives'])
-
-
-
-
-
-# Define confusion matrix specs
-# confusion_matrix_specs = [
-#         {"name": "polyphony_degree", "type": "regression_round", "threshold": 0.5}, 
-#         {"name": "perch2_event_logits", "type": "binary", "threshold": 0.5,},
-#     ]
-# confusion_matrix_specs = get_confusion_matrix_specs(cfg)
-# Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
 checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
-print("Checkpoint path:", checkpoint_path)
+# TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
 checkpoint_dir = os.path.dirname(checkpoint_path)
+checkpoint_names = os.listdir(checkpoint_dir)
+checkpoint_path = os.path.join(checkpoint_dir, checkpoint_names[0])
+print("Checkpoint path:", checkpoint_path)
+
 
 num_batches = len(train_dataset) 
 
@@ -268,56 +181,28 @@ model_path = f'models/{input_feature_name}.keras'
 new_model_path = f'models/{experiment_name}_{input_feature_name}.keras'
 history_path = f'models/{experiment_name}_{input_feature_name}_history.pkl'
 
+losses = create_losses_from_objectives(objectives_cfg) 
+
 ##############
 # Model
 ###############
-
-losses = create_losses_from_objectives(objectives_cfg) 
+tf.keras.backend.clear_session()
 
 # Get model and history
 if os.path.isfile(model_path): 
-    print(f"Loading existing model from {model_path}")
-    model = tf.keras.models.load_model(model_path)
+    # print("Loading model from", model_path)
+    # model = tf.keras.models.load_model(model_path)
 
-     # Check layer names immediately after loading
-    print("Layer names after loading:")
-    for layer in model.layers:
-        print(f"  - {layer.name}: {layer.__class__.__name__}")
-
-    print(f"Trainable variables after loading: {len(model.trainable_variables)}")
-    for var in model.trainable_variables:
-        print(f"  - {var.name}")
+    print(f"Loading weights from {checkpoint_path}")
+    model = instantiate(cfg.model)
+    #this_model.build(input_dim)
+    model.compile(optimizer=Adam(learning_rate), loss=losses)
     
-    print(f"After loading - trainable variables: {len(model.trainable_variables)}")
-
-    print(f"\nTrainable variables ({len(model.trainable_variables)}):")
-    for var in model.trainable_variables:
-        print(f"  - FULL PATH: {var.path}")  # Use .path instead of .name
-        print(f"    name: {var.name}, shape: {var.shape}")
-    
-    # CRITICAL: Initialize variables with forward pass
-    print("Initializing model variables...")
+    # Initialize variables with forward pass
     sample_batch = next(iter(train_dataset))
     _ = model(sample_batch[0], training=False)
-    print(f"After initialization - trainable variables: {len(model.trainable_variables)}")
 
-    # Check again after forward pass
-    print("\nLayer names after forward pass:")
-    for layer in model.layers:
-        print(f"  - {layer.name}: {layer.__class__.__name__}")
-    
-    print(f"Trainable variables after forward pass: {len(model.trainable_variables)}")
-    for var in model.trainable_variables:
-        print(f"  - {var.name}")
-    
-    print(f"\nTrainable variables ({len(model.trainable_variables)}):")
-    for var in model.trainable_variables:
-        print(f"  - FULL PATH: {var.path}")  # Use .path instead of .name
-        print(f"    name: {var.name}, shape: {var.shape}")
-
-    # NOW compile with fresh optimizer (this is key!)
-    model.compile(optimizer=Adam(learning_rate), loss=losses)
-    print("Compiled with fresh optimizer")
+    model.load_weights(checkpoint_path)
     
     # Load previous history
     if os.path.isfile(history_path):
@@ -327,25 +212,21 @@ if os.path.isfile(model_path):
         print(f"Resuming from epoch {initial_epoch}")
     else:
         old_history = None
-        #initial_epoch = 0
         print(f"No history found, starting from epoch {initial_epoch}")
 else:
     print("Creating new model")
     model = instantiate(model_cfg)
-    model.build(input_dim)
-    print(f'Input shape of model: {input_dim}')
     
-    # Initialize new model with forward pass too
-    print("Initializing new model variables...")
+    # Initialize new model with forward pass
     sample_batch = next(iter(train_dataset))
     _ = model(sample_batch[0], training=False)
     print(f"New model has {len(model.trainable_variables)} trainable variables")
-    
-    # Compile only for NEW models
+
     model.compile(optimizer=Adam(learning_rate), loss=losses)
     
     old_history = None
     initial_epoch = 0
+
 model.summary()
 
 ##############
@@ -409,33 +290,61 @@ model_and_history_saver = ModelAndHistorySaver(
     model_path=new_model_path,
     history_path=history_path,
     initial_history=old_history,
-    save_every_n_epochs=5  # Save every epoch, or change to 5, 10, etc.
+    save_every_n_epochs=5 
 )
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
             log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
-# checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-#                                                 save_weights_only=True,
-#                                                 verbose=1,
-#                                                 save_freq=5*num_batches
-#                                                 )
+checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                save_weights_only=True,
+                                                verbose=1,
+                                                save_freq=5*num_batches
+                                                )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [model_and_history_saver] #, tensorboard_callback,  DebugCallback()]
+callbacks = [model_and_history_saver, tensorboard_callback,  checkpoint_callback, DebugCallback()] # TODO: test model_and_history_saver and remove 
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
 # Train model
-
 history = model.fit(train_dataset, 
                     validation_data=val_dataset, 
                     epochs=total_epochs,
                     initial_epoch=initial_epoch, 
                     callbacks=DebugCallback()) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
-# TODO: needs register_keras_serializable() for losses
+
+# DIAGNOSTIC: Check model state before saving
+print("\n=== BEFORE SAVING ===")
+print(f"Model has {len(model.trainable_variables)} trainable variables")
+print("First few variable values:")
+for i, var in enumerate(model.trainable_variables[:2]):
+    print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
+
+# Save the model
 model.save(model_path)
+print(f"\n✓ Saved model to {model_path}")
+
+# DIAGNOSTIC: Load it back and check
+print("\n=== VERIFYING SAVE ===")
+test_model = tf.keras.models.load_model(model_path, compile=False)
+print(f"Loaded model has {len(test_model.trainable_variables)} trainable variables")
+
+# Initialize the loaded model
+test_sample = next(iter(train_dataset))
+_ = test_model(test_sample[0], training=False)
+print(f"After forward pass: {len(test_model.trainable_variables)} trainable variables")
+
+if len(test_model.trainable_variables) > 0:
+    print("First few variable values after loading:")
+    for i, var in enumerate(test_model.trainable_variables[:2]):
+        print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
+else:
+    print("WARNING: No variables loaded!")
+
+# TODO: needs register_keras_serializable() for losses
+#model.save(model_path)
 
 # TODO: Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
