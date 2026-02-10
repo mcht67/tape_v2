@@ -258,17 +258,15 @@ print(params)
 # Build confusion matrix specs
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-dvc_experiment_name = 'test-dvc-experiment'
-
-checkpoint_path = return_checkpoint_path(subfolder=f'{dvc_experiment_name}')
+checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 print("Checkpoint path:", checkpoint_path)
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
 num_batches = len(train_dataset) 
 
 model_path = f'models/{input_feature_name}.keras'
-new_model_path = f'models/{dvc_experiment_name}.keras'
-history_path = f'models/{dvc_experiment_name}_history.pkl'
+new_model_path = f'models/{experiment_name}_{input_feature_name}.keras'
+history_path = f'models/{experiment_name}_{input_feature_name}_history.pkl'
 
 ##############
 # Model
