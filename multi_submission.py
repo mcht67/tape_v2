@@ -68,9 +68,10 @@ if __name__ == "__main__":
         # Define specific parameters
         "log.experiment_name": experiment_name,
         "train.epochs": 20,
-        "train.initial_epoch": 10,
-        "train.train_size_batches": 20,
-        "train.val_size_batches": 5
+        #"train.initial_epoch": 10,
+        #"train.train_size_batches": 20,
+        #"train.val_size_batches": 5
+        "train.learning_rate": 0.001
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
