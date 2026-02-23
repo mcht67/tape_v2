@@ -1,0 +1,8 @@
+polyphony_degree_class:
+  loss:
+    _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+    from_logits: true
+  weight: 1.0
+  confusion_matrix:
+    type: classification
+  label: polyphony_degree

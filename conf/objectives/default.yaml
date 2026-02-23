@@ -5,6 +5,7 @@ polyphony_degree:
   confusion_matrix:
     type: regression_round
     threshold: 0.5
+  label: polyphony_degree
 
 event_logits:
   loss:
@@ -16,6 +17,7 @@ event_logits:
     weights: [10.0, 5.0, 1.0, 0.5, 0.1]
   confusion_matrix:
     type: binary
+  label: event_logits
 
 framewise_polyphony:
   loss:
@@ -27,4 +29,5 @@ framewise_polyphony:
   confusion_matrix:
     type: regression_round
     threshold: 0.5
+  label: framewise_polyphony
 

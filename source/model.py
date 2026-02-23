@@ -492,7 +492,7 @@ class SimpleMLP(tf.keras.Model):
         input_dim=(None, 4, 1536),
         hidden_units=[512, 256],
         dropout_rate=0.3,
-        objectives=None,
+        objectives_cfg=None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -500,8 +500,8 @@ class SimpleMLP(tf.keras.Model):
         self.input_dim = input_dim
         self.hidden_units = list(hidden_units)
         self.dropout_rate = dropout_rate
-        self.objectives = list(objectives) or []
-        
+        self.objectives = list(objectives_cfg.keys()) if objectives_cfg else []
+
         # Build encoder (shared feature extraction)
         self.flatten = layers.Flatten()
         
@@ -524,6 +524,10 @@ class SimpleMLP(tf.keras.Model):
         
         if "polyphony_degree" in self.objectives:
             self.segment_dense = layers.Dense(1)
+
+        if "polyphony_degree_class" in self.objectives:
+            self.polyphony_num_classes = objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7) 
+            self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
     def build(self, input_shape):
         self.input_dim = input_shape
@@ -553,6 +557,11 @@ class SimpleMLP(tf.keras.Model):
         
         if "polyphony_degree" in self.objectives:
             outputs["polyphony_degree"] = self.segment_dense(features, training=training)
+
+        if "polyphony_degree_class" in self.objectives:
+            outputs["polyphony_degree_class"] = self.polyphony_class_head(
+                features, training=training
+            )
         
         return outputs
     

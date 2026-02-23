@@ -76,6 +76,27 @@ def plot_confusion_matrix(y_pred, y_true):
     plt.tight_layout()
     return figure
 
+def prepare_classification_for_cm(y_true, y_pred):
+    """
+    Prepare multi-class classification logits for confusion matrix.
+    
+    Args:
+        y_true: integer class labels, shape (N,)
+        y_pred: raw logits, shape (N, num_classes)
+    
+    Returns:
+        yt: integer labels as numpy array
+        yp: predicted class indices as numpy array
+    """
+    y_pred = np.array(y_pred)
+    y_true = np.array(y_true)
+    
+    # Convert logits to predicted class index
+    yp = np.argmax(y_pred, axis=-1)
+    yt = y_true.astype(int)
+    
+    return yt, yp
+
 def prepare_polyphony_for_cm(y_true, y_pred):
     """
     y_true: (N,) or (N, 1)
@@ -637,6 +658,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             y_pred, y_true = self._get_predictions_and_true_labels(
                 self.val_dataset, target
             )
+            # TODO: Separate semantic and logical categories ("regression" does not always mean "Polyphony Degree")
             if cm_type == "regression_round":
                 yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
                 labels = np.unique(yt)
@@ -647,6 +669,10 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 )
                 labels = [0, 1]
                 title = "Event Detection"
+            elif cm_type == "classification":
+                yt, yp = prepare_classification_for_cm(y_true, y_pred)
+                labels = list(range(self.polyphony_num_classes))
+                title = "Polyphony Degree Class"
             else:
                 raise ValueError(f"Unknown confusion matrix type: {cm_type}")
             

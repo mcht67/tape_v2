@@ -62,7 +62,7 @@ if __name__ == "__main__":
         # "dataset": 'default',
         "embeddings": 'none',
         "model": 'SimpleMLP',
-        "objectives": 'only_polyphony_degree',
+        "objectives": 'only_polyphony_degree_class',
         #"train": 'perch2_spatial_embeddings',
 
         # Define specific parameters
@@ -79,26 +79,27 @@ if __name__ == "__main__":
                     "train.input_feature_name": [
                                                 "perch_v2_cpu_audio_embeddings",
                                                 #"perch_v2_cpu_no_noise_audio_embeddings",
-                                                "birdnet_V2.3_audio_embeddings",
+                                                #"birdnet_V2.3_audio_embeddings",
                                                 #"birdnet_V2.3_no_noise_audio_embeddings",
-                                                "vggish_audio_embeddings",
+                                                #"vggish_audio_embeddings",
                                                 #"vggish_no_noise_audio_embeddings",
-                                                "perch_8_audio_embeddings",
+                                                #"perch_8_audio_embeddings",
                                                 #"perch_8_no_noise_audio_embeddings",
-                                                "yamnet_audio_embeddings",
+                                                #"yamnet_audio_embeddings",
                                                 #"yamnet_no_noise_audio_embeddings",
-                                                "beans_baseline_audio_embeddings",
+                                                #"beans_baseline_audio_embeddings",
                                                 #"beans_baseline_no_noise_audio_embeddings",
-                                                "EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
+                                                #"EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
                                                 #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
                                                 "Bird-MAE-Huge_audio_pooled_embeddings",
                                                 #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",
-                                                "AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
+                                                #"AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
                                                 #"AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                                                "AST-Birdset-XCL_audio_pooled_embeddings",
+                                               # "AST-Birdset-XCL_audio_pooled_embeddings",
                                                 #"AST-Birdset-XCL_no_noise_audio_pooled_embeddings",
-                                                "Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
-                                                #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"]
+                                                #"Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
+                                                #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"
+                                                ]
                                             
                 }
 

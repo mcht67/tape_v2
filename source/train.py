@@ -104,6 +104,7 @@ set_random_seeds(random_seed)
 dataset_path =  cfg.path.dataset
 
 experiment_name = cfg.log.experiment_name
+load_model_path = None
 
 input_feature_name = cfg.train.input_feature_name
 total_epochs = cfg.train.epochs
@@ -122,12 +123,19 @@ if 'train_size_batches' in cfg.train:
 if 'val_size_batches' in cfg.train: 
     val_size_batches = cfg.train.val_size_batches
 
+if 'load_model_path' in cfg.train:
+    load_model_path = cfg.train.load_model_path
+
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
-objectives_list = list(objectives_cfg.keys()) 
+objectives_dict =  OmegaConf.to_container(objectives_cfg, resolve=True)
+objectives_list = list(objectives_cfg.keys())
+for x in objectives_cfg:
+    print(objectives_cfg[x]['label'])
+labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
 
 # Add objectives to the config
-model_cfg.objectives = objectives_list
+model_cfg.objectives_cfg = objectives_cfg # objectives_dict #objectives_list
 
 tensorboard_subfolder = cfg.log.tensorboard_subfolder
 tensorboard_suffix = cfg.log.tensorboard_suffix
@@ -148,7 +156,7 @@ embeddings = dataset['train'][0][input_feature_name]
 input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 
 # Get tensorflow datasets
-train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, objectives_list, batch_size)
+train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
 
@@ -174,11 +182,10 @@ checkpoint_names = os.listdir(checkpoint_dir)
 checkpoint_path = os.path.join(checkpoint_dir, checkpoint_names[0])
 print("Checkpoint path:", checkpoint_path)
 
-
 num_batches = len(train_dataset) 
 
-model_path = f'models/{input_feature_name}.keras'
-new_model_path = f'models/{experiment_name}_{input_feature_name}.keras'
+# model_path = f'models/{input_feature_name}_large.keras'
+save_model_path = f'models/{experiment_name}_{input_feature_name}_large.keras'
 history_path = f'models/{experiment_name}_{input_feature_name}_history.pkl'
 
 losses = create_losses_from_objectives(objectives_cfg) 
@@ -189,9 +196,9 @@ losses = create_losses_from_objectives(objectives_cfg)
 tf.keras.backend.clear_session()
 
 # Get model and history
-if os.path.isfile(model_path): 
-    # print("Loading model from", model_path)
-    # model = tf.keras.models.load_model(model_path)
+if load_model_path and os.path.isfile(load_model_path): 
+    # print("Loading model from", load_model_path)
+    # model = tf.keras.models.load_model(load_model_path)
 
     print(f"Loading weights from {checkpoint_path}")
     model = instantiate(cfg.model)
@@ -287,7 +294,7 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             print(f"✓ Saved model and history at epoch {epoch + 1}")
 
 model_and_history_saver = ModelAndHistorySaver(
-    model_path=new_model_path,
+    model_path=save_model_path,
     history_path=history_path,
     initial_history=old_history,
     save_every_n_epochs=5 
@@ -323,12 +330,12 @@ for i, var in enumerate(model.trainable_variables[:2]):
     print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
 
 # Save the model
-model.save(model_path)
-print(f"\n✓ Saved model to {model_path}")
+model.save(save_model_path)
+print(f"\n✓ Saved model to {save_model_path}")
 
 # DIAGNOSTIC: Load it back and check
 print("\n=== VERIFYING SAVE ===")
-test_model = tf.keras.models.load_model(model_path, compile=False)
+test_model = tf.keras.models.load_model(save_model_path, compile=False)
 print(f"Loaded model has {len(test_model.trainable_variables)} trainable variables")
 
 # Initialize the loaded model
@@ -344,7 +351,7 @@ else:
     print("WARNING: No variables loaded!")
 
 # TODO: needs register_keras_serializable() for losses
-#model.save(model_path)
+#model.save(save_model_path)
 
 # TODO: Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
@@ -459,7 +466,7 @@ except:
 # TODO: needs register_keras_serializable() for losses
 try:
     print("Trained saved full model")
-    full_model = tf.keras.models.load_model(model_path)
+    full_model = tf.keras.models.load_model(save_model_path)
     predictions = full_model.predict(single_input)
     print(predictions['polyphony_degree'][0][0])
     print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])

@@ -5,3 +5,4 @@ polyphony_degree:
   confusion_matrix:
     type: regression_round
     threshold: 0.5
+  label: polyphony_degree

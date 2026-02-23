@@ -4,68 +4,36 @@ dataset:
   huggingface_path: mcht67/PolyphonicBirdSet
   subset: HSN
   split: train
-embeddings:
-  input_features:
-    - audio
-    - no_noise_audio
-  force_recompute: True
-  perch_models:
-  - perch_v2_cpu
-  - birdnet_V2.3
-  - vggish
-  - perch_8
-  - yamnet
-  - beans_baseline
-  birdset_models:
-    birdset_efficient_net:
-      _target_: torch_models.BirdSetEfficientNet
-      pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
-    birdset_bird_mae:
-      _target_: torch_models.BirdSetBirdMAE
-      pretrained_model_path: DBD-research-group/Bird-MAE-Huge
-    birdset_convnext:
-      _target_: torch_models.BirdSetAudioProtoPNet
-      pretrained_model_path: DBD-research-group/AudioProtoPNet-20-BirdSet-XCL
-      pooling: mean
-    birdset_ast:
-      _target_: torch_models.BirdSetAST
-      pretrained_model_path: DBD-research-group/AST-Birdset-XCL
-    birdset_wav2vec2:
-      _target_: torch_models.BirdSetWav2Vec2
-      pooling: mean
-      pretrained_model_path: DBD-research-group/Wav2Vec2-Base-BirdSet-XCL
+embeddings: {}
 model:
-  _target_: model.SimpleMLP # defines the model to be instantiated
-  hidden_units: [512, 256]
+  _target_: model.SimpleMLP
+  hidden_units:
+  - 512
+  - 256
   dropout_rate: 0.3
-
 objectives:
-  polyphony_degree:
+  polyphony_degree_class:
     loss:
-      _target_: tensorflow.keras.losses.MeanSquaredError
+      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+      from_logits: true
     weight: 1.0
     confusion_matrix:
-      type: regression_round
-      threshold: 0.5
-
+      type: classification
+    label: polyphony_degree
 train:
-  input_feature_name: EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings #perch_v2_cpu_audio_spatial_embeddings
+  input_feature_name: Bird-MAE-Huge_audio_pooled_embeddings
   batch_size: 128
-  learning_rate: 0.0001
-  epochs: 50
-  train_size_batches: 76
-  use_event_logits: true
-  num_event_logits: 16
-  event_logits_name: event_logits
-  use_framewise_polyphony: true
-  num_frames: 16
-  framewise_polyphony_name: framewise_polyphony
+  learning_rate: 0.001
+  epochs: 20
+  initial_epoch: null
+  train_size_batches: null
+  val_size_batches: null
 log:
-  experiment_name: MultiTask-SpatialEmbeddings
-  tensorboard_subfolder: MultiTask-SpatialEmbeddings
+  experiment_name: Embeddings-Comparison
+  tensorboard_subfolder: Embeddings-Comparison
   tensorboard_suffix: ''
   hyperparameters:
-  - objectives
+  - train.input_feature_name
 path:
   dataset: dataset
   dataset_metadata: stage_results/dataset_metadata.json
