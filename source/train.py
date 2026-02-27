@@ -10,8 +10,9 @@ import os
 import model
 from hydra.utils import instantiate
 import pickle
+from datetime import datetime
 
-from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs
+from utils.logs import plot_spectrogram_with_metrics, return_checkpoint_path, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, get_dvc_exp_name
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from losses import create_losses_from_objectives, setup_loss_scheduler
@@ -175,7 +176,10 @@ print(params)
 
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-checkpoint_path = return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
+dvc_exp_name = get_dvc_exp_name()
+current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+
+checkpoint_path = f"models/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
 checkpoint_dir = os.path.dirname(checkpoint_path)
 checkpoint_names = os.listdir(checkpoint_dir)
@@ -185,8 +189,9 @@ print("Checkpoint path:", checkpoint_path)
 num_batches = len(train_dataset) 
 
 # model_path = f'models/{input_feature_name}_large.keras'
-save_model_path = f'models/{experiment_name}_{input_feature_name}_large.keras'
-history_path = f'models/{experiment_name}_{input_feature_name}_history.pkl'
+
+save_model_path = f'models/{dvc_exp_name}_{input_feature_name}_large.keras'
+history_path = f'models/{dvc_exp_name}_{input_feature_name}_history.pkl'
 
 losses = create_losses_from_objectives(objectives_cfg) 
 
@@ -302,7 +307,7 @@ model_and_history_saver = ModelAndHistorySaver(
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=True, val_dataset=val_dataset, 
-            log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
+            log_confusion_matrix=True, confusion_matrix_frequency=1, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,

@@ -500,7 +500,8 @@ class SimpleMLP(tf.keras.Model):
         self.input_dim = input_dim
         self.hidden_units = list(hidden_units)
         self.dropout_rate = dropout_rate
-        self.objectives = list(objectives_cfg.keys()) if objectives_cfg else []
+        self.objectives_cfg = objectives_cfg or {}
+        self.objectives = list(objectives_cfg.keys())
 
         # Build encoder (shared feature extraction)
         self.flatten = layers.Flatten()

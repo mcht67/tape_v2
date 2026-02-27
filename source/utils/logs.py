@@ -1623,6 +1623,8 @@ def plot_event_bounding_boxes(
 
         ax.add_patch(rect)
 
+def get_dvc_exp_name():
+    return config.get_env_variable("DVC_EXP_NAME")
 
 def main():
     """Main function to copy SLURM and TensorBoard logs."""
