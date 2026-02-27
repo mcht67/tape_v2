@@ -294,9 +294,11 @@ def build_confusion_matrix_specs(objectives):
     for obj_name, obj_config in objectives.items():
         if "confusion_matrix" in obj_config:
             spec = {
-                "name": obj_name,
+                "name": obj_name, 
                 **obj_config["confusion_matrix"]
             }
+            if spec['type']=='classification':
+                spec['num_classes'] = obj_config["num_classes"]
             specs.append(spec)
     
     return specs
@@ -671,7 +673,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 title = "Event Detection"
             elif cm_type == "classification":
                 yt, yp = prepare_classification_for_cm(y_true, y_pred)
-                labels = list(range(self.polyphony_num_classes))
+                labels = list(range(spec['num_classes']))
                 title = "Polyphony Degree Class"
             else:
                 raise ValueError(f"Unknown confusion matrix type: {cm_type}")
@@ -691,7 +693,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             # Add metadata
             metadata_lines = [
                 f"Model: {self.cfg.model._target_ if hasattr(self.cfg.model, '_target_') else self.cfg.model.get('name', 'N/A')}",
-                f"Dataset: {self.cfg.dataset.name if hasattr(self.cfg.dataset, 'name') else 'N/A'}",
+                f"Dataset subset: {self.cfg.dataset.subset if hasattr(self.cfg.dataset, 'subset') else 'N/A'}",
                 f"Input Feature: {self.cfg.train.get('input_feature_name', 'N/A')}",
                 f"Epoch: {epoch + 1}",
             ]

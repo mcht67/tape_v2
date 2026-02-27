@@ -182,8 +182,8 @@ current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 checkpoint_path = f"models/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
 checkpoint_dir = os.path.dirname(checkpoint_path)
-checkpoint_names = os.listdir(checkpoint_dir)
-checkpoint_path = os.path.join(checkpoint_dir, checkpoint_names[0])
+# checkpoint_names = os.listdir(checkpoint_dir)
+# checkpoint_path = os.path.join(checkpoint_dir, checkpoint_names[0])
 print("Checkpoint path:", checkpoint_path)
 
 num_batches = len(train_dataset) 
@@ -311,7 +311,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                 save_weights_only=True,
                                                 verbose=1,
-                                                save_freq=5*num_batches
+                                                save_freq=num_batches
                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
