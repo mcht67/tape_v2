@@ -177,7 +177,7 @@ print(params)
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
 dvc_exp_name = get_dvc_exp_name()
-current_datetime = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
 checkpoint_path = f"models/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
