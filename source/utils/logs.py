@@ -23,6 +23,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.patches as patches
 from matplotlib import gridspec
 import librosa
+#import h5py
 
 import tensorflow as tf
 
@@ -308,11 +309,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Custom callback that integrates with your CustomSummaryWriter
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
-    def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None, 
+    def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None,
                  log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None, loss_objects={}):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
+        #self.val_results_save_path = val_results_save_path
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
         self.confusion_matrix_specs = confusion_matrix_specs or []
@@ -417,18 +419,45 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             self.standard_tb_callback.on_epoch_begin(epoch, logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        """Log base losses and weights following TensorBoard conventions."""
         if logs is None:
             return
+
+        # --- Run inference ONCE, cache for all consumers ---
+        val_results = self._run_inference()
+
+        # --- Consumers read from cache ---
+        # 1. Loss logging (already comes from `logs`, no inference needed)
+        self._log_losses(epoch, logs)
+
+        # 2. Confusion matrix
+        if (self.val_dataset is not None
+            and self.confusion_matrix_specs
+            and (epoch + 1) % self.confusion_matrix_frequency == 0
+        ):
+            for spec in self.confusion_matrix_specs:
+                self._log_confusion_matrix(epoch, spec, cache=val_results)
+
+        # # 3. Save raw results
+        # if self.val_dataset is not None:
+        #     for target, (y_pred, y_true) in self._epoch_cache.items():
+        #         self._save_val_results(y_pred, y_true, target, self.val_results_save_path, epoch)
+
+        # Call standard TensorBoard callback
+        if self.standard_tb_callback:
+            self.standard_tb_callback.on_epoch_end(epoch, logs)
+
+        # Step the writer (handles syncing)
+        self.writer.step()
         
-        # Debug: Print available log keys on first epoch
-        if epoch == 0:
-            print(f"Available log keys: {list(logs.keys())}")
-            
-        # Handle single vs multi-objective scenarios
+        # Flush all writers
+        self.train_writer.flush()
+        self.val_writer.flush()
+
+    def _log_losses(self, epoch, logs):
         num_objectives = len(self.loss_objects)
-        
+
         for obj_name, loss_obj in self.loss_objects.items():
+
             # Get current weight
             current_weight = float(loss_obj.weight.numpy())
             
@@ -457,29 +486,80 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 with self.val_writer.as_default():
                     tf.summary.scalar(f'{obj_name}_loss', val_base_loss, step=epoch)
 
-            # Log confusion matrix every N epochs
-            if (
-                self.val_dataset is not None
-                and self.confusion_matrix_specs
-                and (epoch + 1) % self.confusion_matrix_frequency == 0
-            ):
+    def _run_inference(self):
+            self._epoch_cache = {}
+            if self.val_dataset is not None:
                 for spec in self.confusion_matrix_specs:
-                    self._log_confusion_matrix(epoch, spec)
+                    target = spec['target_name']
+                    if target not in self._epoch_cache:
+                        return self._get_predictions_and_true_labels(
+                            self.val_dataset, target
+                        )
 
-        # if (self.log_confusion_matrix and self.val_dataset is not None 
-        #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
-        #     self._log_confusion_matrix(epoch)
-
-        # Call standard TensorBoard callback
-        if self.standard_tb_callback:
-            self.standard_tb_callback.on_epoch_end(epoch, logs)
-
-        # Step the writer (handles syncing)
-        self.writer.step()
+    # def on_epoch_end(self, epoch, logs=None):
+    #     """Log base losses and weights following TensorBoard conventions."""
+    #     if logs is None:
+    #         return
         
-        # Flush all writers
-        self.train_writer.flush()
-        self.val_writer.flush()
+    #     # Debug: Print available log keys on first epoch
+    #     if epoch == 0:
+    #         print(f"Available log keys: {list(logs.keys())}")
+            
+    #     # Handle single vs multi-objective scenarios
+    #     num_objectives = len(self.loss_objects)
+        
+    #     for obj_name, loss_obj in self.loss_objects.items():
+    #         # Get current weight
+    #         current_weight = float(loss_obj.weight.numpy())
+            
+    #         # Log weights to main directory (using main writer)
+    #         self.writer.add_scalar(
+    #             f'loss_weights/{obj_name}',
+    #             current_weight,
+    #             epoch
+    #         )
+            
+    #         # Process train losses
+    #         weighted_loss = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
+    #         if weighted_loss is not None:
+    #             base_loss = self._calculate_base_loss(weighted_loss, current_weight)
+                
+    #             # Log to train directory
+    #             with self.train_writer.as_default():
+    #                 tf.summary.scalar(f'{obj_name}_loss', base_loss, step=epoch)
+            
+    #         # Process validation losses
+    #         val_weighted_loss = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
+    #         if val_weighted_loss is not None:
+    #             val_base_loss = self._calculate_base_loss(val_weighted_loss, current_weight)
+                
+    #             # Log to validation directory
+    #             with self.val_writer.as_default():
+    #                 tf.summary.scalar(f'{obj_name}_loss', val_base_loss, step=epoch)
+
+    #         # Log confusion matrix every N epochs
+    #         if (
+    #             self.val_dataset is not None
+    #             and self.confusion_matrix_specs
+    #             and (epoch + 1) % self.confusion_matrix_frequency == 0
+    #         ):
+    #             for spec in self.confusion_matrix_specs:
+    #                 self._log_confusion_matrix(epoch, spec)
+
+    #     # if (self.log_confusion_matrix and self.val_dataset is not None 
+    #     #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
+    #     #     self._log_confusion_matrix(epoch)
+
+        # # Call standard TensorBoard callback
+        # if self.standard_tb_callback:
+        #     self.standard_tb_callback.on_epoch_end(epoch, logs)
+
+        # # Step the writer (handles syncing)
+        # self.writer.step()
+        
+        # # Flush all writers
+        # self.train_writer.flush()
+        # self.val_writer.flush()
     
     def _get_loss_from_logs(self, logs, obj_name, prefix, num_objectives):
         """Extract loss value from logs."""
@@ -647,7 +727,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     #     except Exception as e:
     #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
-    def _log_confusion_matrix(self, epoch, spec):
+    def _log_confusion_matrix(self, epoch, spec, cache=None):
         try:
             import matplotlib.pyplot as plt
             from matplotlib.gridspec import GridSpec
@@ -655,11 +735,15 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             from PIL import Image
             
             target = spec["name"]
+    
+            if cache and target in cache:
+                y_pred, y_true = cache[target]
+            else:
+                y_pred, y_true = self._get_predictions_and_true_labels(
+                    self.val_dataset, target
+                )
             cm_type = spec["type"]
             threshold = spec.get("threshold", 0.5)
-            y_pred, y_true = self._get_predictions_and_true_labels(
-                self.val_dataset, target
-            )
             # TODO: Separate semantic and logical categories ("regression" does not always mean "Polyphony Degree")
             if cm_type == "regression_round":
                 yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
@@ -921,12 +1005,34 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 batch_true = batch_y[target_name]
             else:
                 batch_true = batch_y
-
             
-            y_pred_all.append(batch_pred.numpy())
-            y_true_all.append(batch_true.numpy())
+            y_pred_all.extend(batch_pred.numpy())
+            y_true_all.extend(batch_true.numpy())
 
-        return np.concatenate(y_pred_all), np.concatenate(y_true_all)
+        return np.array(y_pred_all), np.array(y_true_all)
+    
+    # def _save_val_results(self, y_pred, y_true, target_name, save_path):
+    #     """Save raw validation results to HDF5 for later statistical analysis."""
+    #     timestamp = datetime.now().isoformat()
+    #     epoch = getattr(self, 'current_epoch', 0)  # if you track this on the callback
+
+    #     with h5py.File(save_path, 'a') as f:  # 'a' = append, so epochs accumulate
+    #         group_key = f"epoch_{epoch:04d}/{target_name}"
+    #         grp = f.require_group(group_key)
+
+    #         # Overwrite if re-running same epoch
+    #         for key in ('y_pred', 'y_true'):
+    #             if key in grp:
+    #                 del grp[key]
+
+    #         grp.create_dataset('y_pred', data=y_pred, compression='gzip')
+    #         grp.create_dataset('y_true', data=y_true, compression='gzip')
+
+    #         # Store metadata alongside the arrays
+    #         grp.attrs['timestamp'] = timestamp
+    #         grp.attrs['target_name'] = target_name
+    #         grp.attrs['n_samples'] = len(y_true)
+    #         grp.attrs['model_name'] = self.model.name
 
     # def _get_predictions_and_true_labels(self, dataset):
     #     """Get predictions and true labels from validation dataset"""

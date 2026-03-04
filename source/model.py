@@ -500,8 +500,8 @@ class SimpleMLP(tf.keras.Model):
         self.input_dim = input_dim
         self.hidden_units = list(hidden_units)
         self.dropout_rate = dropout_rate
-        self.objectives_cfg = objectives_cfg or {}
-        self.objectives = list(objectives_cfg.keys())
+        self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+        #self.objectives = list(objectives_cfg.keys())
 
         # Build encoder (shared feature extraction)
         self.flatten = layers.Flatten()
@@ -517,17 +517,17 @@ class SimpleMLP(tf.keras.Model):
                 self.dropout_layers.append(None)
         
         # Build heads based on objectives
-        if "event_logits" in self.objectives:
+        if "event_logits" in self.objectives_cfg:
             self.event_head = layers.Dense(1)
         
-        if "framewise_polyphony" in self.objectives:
+        if "framewise_polyphony" in self.objectives_cfg:
             self.frame_polyphony_head = layers.Dense(1)
         
-        if "polyphony_degree" in self.objectives:
-            self.segment_dense = layers.Dense(1)
+        if "polyphony_degree" in self.objectives_cfg:
+            self.polyphont_reg_head = layers.Dense(1)
 
-        if "polyphony_degree_class" in self.objectives:
-            self.polyphony_num_classes = objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7) 
+        if "polyphony_degree_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
     def build(self, input_shape):
@@ -550,16 +550,16 @@ class SimpleMLP(tf.keras.Model):
         # Multi-task heads
         outputs = {}
         
-        if "event_logits" in self.objectives:
+        if "event_logits" in self.objectives_cfg:
             outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
         
-        if "framewise_polyphony" in self.objectives:
+        if "framewise_polyphony" in self.objectives_cfg:
             outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
         
-        if "polyphony_degree" in self.objectives:
-            outputs["polyphony_degree"] = self.segment_dense(features, training=training)
+        if "polyphony_degree" in self.objectives_cfg:
+            outputs["polyphony_degree"] = self.polyphont_reg_head(features, training=training)
 
-        if "polyphony_degree_class" in self.objectives:
+        if "polyphony_degree_class" in self.objectives_cfg:
             outputs["polyphony_degree_class"] = self.polyphony_class_head(
                 features, training=training
             )
@@ -572,7 +572,7 @@ class SimpleMLP(tf.keras.Model):
             "input_dim": self.input_dim,
             "hidden_units": self.hidden_units,
             "dropout_rate": self.dropout_rate,
-            "objectives": self.objectives,
+            "objectives_cfg": self.objectives_cfg,
         })
         return config
 
