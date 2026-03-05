@@ -524,15 +524,15 @@ class SimpleMLP(tf.keras.Model):
             self.frame_polyphony_head = layers.Dense(1)
         
         if "polyphony_degree" in self.objectives_cfg:
-            self.polyphont_reg_head = layers.Dense(1)
+            self.polyphony_reg_head = layers.Dense(1)
 
         if "polyphony_degree_class" in self.objectives_cfg:
             self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
-    def build(self, input_shape):
-        self.input_dim = input_shape
-        super().build(input_shape)
+    # def build(self, input_shape):
+    #     self.input_dim = input_shape
+    #     super().build(input_shape)
     
     def call(self, inputs, training=False):
         # Shared encoder
@@ -557,7 +557,7 @@ class SimpleMLP(tf.keras.Model):
             outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
         
         if "polyphony_degree" in self.objectives_cfg:
-            outputs["polyphony_degree"] = self.polyphont_reg_head(features, training=training)
+            outputs["polyphony_degree"] = self.polyphony_reg_head(features, training=training)
 
         if "polyphony_degree_class" in self.objectives_cfg:
             outputs["polyphony_degree_class"] = self.polyphony_class_head(

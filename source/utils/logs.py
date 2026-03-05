@@ -422,8 +422,9 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         if logs is None:
             return
 
-        # --- Run inference ONCE, cache for all consumers ---
-        val_results = self._run_inference()
+        # # --- Run inference ONCE, cache for all consumers ---
+        # val_results = self._run_inference()
+        # y_pred, y_true = 
 
         # --- Consumers read from cache ---
         # 1. Loss logging (already comes from `logs`, no inference needed)
@@ -435,7 +436,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             and (epoch + 1) % self.confusion_matrix_frequency == 0
         ):
             for spec in self.confusion_matrix_specs:
-                self._log_confusion_matrix(epoch, spec, cache=val_results)
+                self._log_confusion_matrix(epoch, spec)
 
         # # 3. Save raw results
         # if self.val_dataset is not None:
@@ -490,7 +491,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             self._epoch_cache = {}
             if self.val_dataset is not None:
                 for spec in self.confusion_matrix_specs:
-                    target = spec['target_name']
+                    target = spec['name']
                     if target not in self._epoch_cache:
                         return self._get_predictions_and_true_labels(
                             self.val_dataset, target
@@ -727,7 +728,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     #     except Exception as e:
     #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
-    def _log_confusion_matrix(self, epoch, spec, cache=None):
+    def _log_confusion_matrix(self, epoch, spec):
         try:
             import matplotlib.pyplot as plt
             from matplotlib.gridspec import GridSpec
@@ -736,12 +737,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             
             target = spec["name"]
     
-            if cache and target in cache:
-                y_pred, y_true = cache[target]
-            else:
-                y_pred, y_true = self._get_predictions_and_true_labels(
-                    self.val_dataset, target
-                )
+            # if cache and target in cache:
+            #     y_pred, y_true = cache[target]
+            # else:
+            y_pred, y_true = self._get_predictions_and_true_labels(
+                self.val_dataset, target
+            )
             cm_type = spec["type"]
             threshold = spec.get("threshold", 0.5)
             # TODO: Separate semantic and logical categories ("regression" does not always mean "Polyphony Degree")
@@ -987,12 +988,17 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     #     except Exception as e:
     #         print(f"Failed to log confusion matrix: {e}")
 
+    @tf.function
+    def predict_batch(self, batch_x):
+        return self.model(batch_x, training=False)
+
     def _get_predictions_and_true_labels(self, dataset, target_name):
         y_pred_all = []
         y_true_all = []
 
-        for batch_x, batch_y in dataset:
-            preds = self.model(batch_x, training=False)
+        for batch_x, batch_y in iter(dataset):
+            #preds = self.model(batch_x, training=False)
+            preds = self.predict_batch(batch_x)
 
             # Model outputs
             if isinstance(preds, dict):
@@ -1006,10 +1012,10 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             else:
                 batch_true = batch_y
             
-            y_pred_all.extend(batch_pred.numpy())
-            y_true_all.extend(batch_true.numpy())
+            y_pred_all.append(batch_pred)
+            y_true_all.append(batch_true)
 
-        return np.array(y_pred_all), np.array(y_true_all)
+        return np.concatenate([t.numpy() for t in y_pred_all]), np.concatenate([t.numpy() for t in y_true_all])
     
     # def _save_val_results(self, y_pred, y_true, target_name, save_path):
     #     """Save raw validation results to HDF5 for later statistical analysis."""

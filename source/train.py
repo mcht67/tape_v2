@@ -93,39 +93,39 @@ def get_predictions_and_true_labels(model, dataset):
 
     return y_pred, y_true
 
-def sanitize_objectives_cfg(cfg, keys_to_keep):
-    """Strip non-serializable objects (loss fns, omegaconf) from objectives_cfg."""
-    import omegaconf
+# def sanitize_objectives_cfg(cfg, keys_to_keep):
+#     """Strip non-serializable objects (loss fns, omegaconf) from objectives_cfg."""
+#     import omegaconf
     
-    serializable = {}
-    KEEP_KEYS = keys_to_keep#{"num_classes", "type", "threshold", "label", "weight"}
+#     serializable = {}
+#     KEEP_KEYS = keys_to_keep#{"num_classes", "type", "threshold", "label", "weight"}
     
-    for obj_name, obj_cfg in cfg.items():
-        # Convert omegaconf DictConfig to plain dict
-        if isinstance(obj_cfg, omegaconf.DictConfig):
-            obj_cfg = omegaconf.OmegaConf.to_container(obj_cfg, resolve=True)
+#     for obj_name, obj_cfg in cfg.items():
+#         # Convert omegaconf DictConfig to plain dict
+#         if isinstance(obj_cfg, omegaconf.DictConfig):
+#             obj_cfg = omegaconf.OmegaConf.to_container(obj_cfg, resolve=True)
         
-        # Keep only JSON-serializable metadata, drop loss objects
-        clean = {}
-        # for k, v in obj_cfg.items():
-        #     if k in KEEP_KEYS and isinstance(v, (str, int, float, bool, type(None))):
-        #         clean[k] = v
-        #     elif k == "confusion_matrix" and isinstance(v, dict):
-        #         clean[k] = {ck: cv for ck, cv in v.items() 
-        #                     if isinstance(cv, (str, int, float, bool, type(None)))}
-        for k, v in obj_cfg.items():
-            if isinstance(v, (str, int, float, bool, type(None))):
-                clean[k] = v
-            elif isinstance(v, dict):
-                clean[k] = {ck: cv for ck, cv in v.items() 
-                            if isinstance(cv, (str, int, float, bool, type(None)))}
-            elif isinstance(v, list):
-                clean[k] = [cv for cv in v
-                            if isinstance(cv, (str, int, float, bool, type(None)))]
+#         # Keep only JSON-serializable metadata, drop loss objects
+#         clean = {}
+#         # for k, v in obj_cfg.items():
+#         #     if k in KEEP_KEYS and isinstance(v, (str, int, float, bool, type(None))):
+#         #         clean[k] = v
+#         #     elif k == "confusion_matrix" and isinstance(v, dict):
+#         #         clean[k] = {ck: cv for ck, cv in v.items() 
+#         #                     if isinstance(cv, (str, int, float, bool, type(None)))}
+#         for k, v in obj_cfg.items():
+#             if isinstance(v, (str, int, float, bool, type(None))):
+#                 clean[k] = v
+#             elif isinstance(v, dict):
+#                 clean[k] = {ck: cv for ck, cv in v.items() 
+#                             if isinstance(cv, (str, int, float, bool, type(None)))}
+#             elif isinstance(v, list):
+#                 clean[k] = [cv for cv in v
+#                             if isinstance(cv, (str, int, float, bool, type(None)))]
 
-        serializable[obj_name] = clean
+#         serializable[obj_name] = clean
     
-    return serializable
+#     return serializable
 
 # Configuration
 cfg = OmegaConf.load("params.yaml")
@@ -148,17 +148,17 @@ total_epochs = cfg.train.epochs
 initial_epoch = 0
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
-train_size_batches = 1 #None
-val_size_batches = 1 #None
+train_size_batches = None
+val_size_batches = None
 
 if 'initial_epoch' in cfg.train:
     initial_epoch = cfg.train.initial_epoch    
 
 if 'train_size_batches' in cfg.train: 
-    train_size_batches = 1 #cfg.train.train_size_batches 
+    train_size_batches = cfg.train.train_size_batches 
 
 if 'val_size_batches' in cfg.train: 
-    val_size_batches = 1 #cfg.train.val_size_batches
+    val_size_batches = cfg.train.val_size_batches
 
 if 'load_model_path' in cfg.train:
     load_model_path = cfg.train.load_model_path
@@ -172,6 +172,9 @@ if 'load_history_path' in cfg.train:
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
 #objectives_dict =  OmegaConf.to_container(objectives_cfg, resolve=True)
+
+print("Objectives cfg:")
+print(objectives_cfg)
 
 for x in objectives_cfg:
     print(objectives_cfg[x]['label'])
@@ -202,6 +205,9 @@ input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
+
+train_dataset = train_dataset.cache().prefetch(tf.data.AUTOTUNE)
+val_dataset = val_dataset.cache().prefetch(tf.data.AUTOTUNE)
 
 metrics = {}
 for key in objectives_cfg.keys():
@@ -282,7 +288,8 @@ if load_model_path and os.path.isfile(load_model_path):
 else:
     print("Creating new model")
     model = instantiate(model_cfg)
-    
+    print("Model objectives config:")
+    print(model.objectives_cfg)
     # Initialize new model with forward pass
     sample_batch = next(iter(train_dataset))
     _ = model(sample_batch[0], training=False)
@@ -381,12 +388,12 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         val_loss = logs.get('val_loss')
         if val_loss and val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            self.model.save_weights(self.model_path.replace('.keras', '_chkpt_best.weights.h5'))
+            self.model.save_weights(self.model_path.replace('.keras', f'_chkpt_best.weights.h5'))
             print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}")
 
         # Save rolling last-N checkpoints
         if self.keep_last_n:
-            self.model.save_weights(self.model_path.replace('.keras', f'_ckpt-epoch{epoch+1:03d}.weights.h5'))
+            self.model.save_weights(self.model_path.replace('.keras', f'_ckpt-epoch_{epoch+1:03d}.weights.h5'))
             self._cleanup_old_checkpoints(epoch)
 
     def _cleanup_old_checkpoints(self, current_epoch):
@@ -414,7 +421,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 #                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
+callbacks = [tensorboard_callback] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
@@ -534,7 +541,7 @@ writer.flush()
 # Create new model
 # Define model
 new_model = instantiate(cfg.model)
-new_model.build(input_dim)
+#new_model.build(input_dim)
 new_model.compile(optimizer=Adam(learning_rate), loss=losses)
 # new_model.compile(
 #     optimizer=Adam(learning_rate),
@@ -545,6 +552,9 @@ new_model.compile(optimizer=Adam(learning_rate), loss=losses)
 #     },
 # )
 new_model.summary()
+
+print("New model objectives config:")
+print(new_model.objectives_cfg)
 
 # Test model without weights
 example = dataset['train'][example_idx]
@@ -573,6 +583,14 @@ try:
     print("Trained saved full model")
     full_model = tf.keras.models.load_model(save_model_path)
     predictions = full_model.predict(single_input)
+    print("Full model objectives config:")
+    print(full_model.objectives_cfg)
+
+    print("Full model predicitions")
+    print(predictions['polyphony_degree'][0][0])
+    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+
+
     print("Model history:")
     history_path = save_model_path.replace('.keras', '_history.pkl')
 
@@ -583,8 +601,7 @@ try:
         for epoch, value in enumerate(values, start=1):
             print(f"Epoch {epoch:03d} | {metric}: {value:.4f}")
     
-    print(predictions['polyphony_degree'][0][0])
-    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+    
 except:
     pass
 

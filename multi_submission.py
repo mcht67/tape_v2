@@ -62,22 +62,23 @@ if __name__ == "__main__":
         # "dataset": 'default',
         "embeddings": 'none',
         "model": 'SimpleMLP',
-        "objectives": 'only_polyphony_degree_class',
+        "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',
         #"train": 'perch2_spatial_embeddings',
 
         # Define specific parameters
         "log.experiment_name": experiment_name,
-        "train.epochs": 20,
-        #"train.initial_epoch": 10,
+        "train.epochs": 50,
+        #"train.initial_epoch": 20,
         #"train.train_size_batches": 20,
         #"train.val_size_batches": 5
-        "train.learning_rate": 0.001
+        "train.learning_rate": 0.001,
+        #"train.load_model_path": "model_path"
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
     hyperparams = {
                     "train.input_feature_name": [
-                                                "perch_v2_cpu_audio_embeddings",
+                                                #"perch_v2_cpu_audio_embeddings",
                                                 #"perch_v2_cpu_no_noise_audio_embeddings",
                                                 #"birdnet_V2.3_audio_embeddings",
                                                 #"birdnet_V2.3_no_noise_audio_embeddings",
@@ -91,11 +92,11 @@ if __name__ == "__main__":
                                                 #"beans_baseline_no_noise_audio_embeddings",
                                                 #"EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
                                                 #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                                                "Bird-MAE-Huge_audio_pooled_embeddings",
+                                                #"Bird-MAE-Huge_audio_pooled_embeddings",
                                                 #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",
                                                 #"AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
                                                 #"AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                                               # "AST-Birdset-XCL_audio_pooled_embeddings",
+                                                "AST-Birdset-XCL_audio_pooled_embeddings",
                                                 #"AST-Birdset-XCL_no_noise_audio_pooled_embeddings",
                                                 #"Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
                                                 #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"
