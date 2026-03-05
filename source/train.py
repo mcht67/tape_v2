@@ -361,54 +361,52 @@ model.summary()
 
 import json
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
-    def __init__(self, model_path, initial_history=None, save_every_n_epochs=5, keep_last_n=None):
+    def __init__(self, model_path, initial_history=None, save_model_every_n_epochs=5, keep_last_n=None):
         super().__init__()
         self.model_path = model_path
         self.history_path = model_path.replace('.keras', '_history.pkl')
         # self.checkpoint_path = model_path.replace('.keras', '_history.pkl')
         self.combined_history = {k: list(v) for k, v in initial_history.items()} \
                                  if initial_history else {}
-        self.save_every_n_epochs = save_every_n_epochs
+        self.save_model_every_n_epochs = save_model_every_n_epochs
         self.keep_last_n = keep_last_n
         self.best_val_loss = float('inf')
 
     def on_epoch_end(self, epoch, logs=None):
-        # Always update history in-memory
+        # Update history
         for key, value in logs.items():
             self.combined_history.setdefault(key, []).append(float(value))
+        with open(self.history_path, 'w') as f:
+            json.dump(self.combined_history, f, indent=2)
+        print(f"✓ Saved history at epoch {epoch + 1}")
 
-        # Save model and history together (always in sync)
-        if (epoch + 1) % self.save_every_n_epochs == 0:
-            self.model.save(self.model_path)
-            with open(self.history_path, 'w') as f:
-                json.dump(self.combined_history, f, indent=2)
-            print(f"✓ Saved model and history at epoch {epoch + 1}")
+        # Save current checkpoint
+        val_loss = logs.get('val_loss')
+        self.model.save_weights(self.model_path.replace('.keras', f'_ckpt-epoch_{epoch+1:03d}.weights.h5'))
+        print(f"✓ Saved checkpoint {val_loss:.4f} at epoch {epoch + 1}")
 
         # Save best checkpoint
-        val_loss = logs.get('val_loss')
         if val_loss and val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
             self.model.save_weights(self.model_path.replace('.keras', f'_chkpt_best.weights.h5'))
-            print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}")
+            print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best checkpoint.")
 
         # Save rolling last-N checkpoints
         if self.keep_last_n:
-            self.model.save_weights(self.model_path.replace('.keras', f'_ckpt-epoch_{epoch+1:03d}.weights.h5'))
             self._cleanup_old_checkpoints(epoch)
 
+        # Save model and history together (always in sync)
+        if (epoch + 1) % self.save_model_every_n_epochs == 0:
+            self.model.save(self.model_path)
+            print(f"✓ Saved model at epoch {epoch + 1}")
+            
     def _cleanup_old_checkpoints(self, current_epoch):
         for old_epoch in range(current_epoch - self.keep_last_n):
             path = self.model_path.replace('.keras', f'_ckpt-epoch{old_epoch+1:03d}.weights.h5')
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(
-    model_path=save_model_path,
-    # history_path=history_path,
-    initial_history=old_history,
-    save_every_n_epochs=1,
-    keep_last_n=10
-)
+model_and_history_saver = ModelAndHistorySaver(model_path=save_model_path, initial_history=old_history)
 
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
@@ -421,7 +419,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 #                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [tensorboard_callback] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
+callbacks = [tensorboard_callback, model_and_history_saver] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
@@ -434,37 +432,35 @@ history = model.fit(train_dataset,
 
 
 # DIAGNOSTIC: Check model state before saving
-print("\n=== BEFORE SAVING ===")
-print(f"Model has {len(model.trainable_variables)} trainable variables")
-print("First few variable values:")
-for i, var in enumerate(model.trainable_variables[:2]):
-    print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
+# print("\n=== BEFORE SAVING ===")
+# print(f"Model has {len(model.trainable_variables)} trainable variables")
+# print("First few variable values:")
+# for i, var in enumerate(model.trainable_variables[:2]):
+#     print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
 
-# Save the model
-model.save(save_model_path)
-print(f"\n✓ Saved model to {save_model_path}")
+# # Save the model
+# model.save(save_model_path)
+# print(f"\n✓ Saved model to {save_model_path}")
 
-# DIAGNOSTIC: Load it back and check
-print("\n=== VERIFYING SAVE ===")
-test_model = tf.keras.models.load_model(save_model_path, compile=False)
-print(f"Loaded model has {len(test_model.trainable_variables)} trainable variables")
+# # DIAGNOSTIC: Load it back and check
+# print("\n=== VERIFYING SAVE ===")
+# test_model = tf.keras.models.load_model(save_model_path, compile=False)
+# print(f"Loaded model has {len(test_model.trainable_variables)} trainable variables")
 
-# Initialize the loaded model
-test_sample = next(iter(train_dataset))
-_ = test_model(test_sample[0], training=False)
-print(f"After forward pass: {len(test_model.trainable_variables)} trainable variables")
+# # Initialize the loaded model
+# test_sample = next(iter(train_dataset))
+# _ = test_model(test_sample[0], training=False)
+# print(f"After forward pass: {len(test_model.trainable_variables)} trainable variables")
 
-if len(test_model.trainable_variables) > 0:
-    print("First few variable values after loading:")
-    for i, var in enumerate(test_model.trainable_variables[:2]):
-        print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
-else:
-    print("WARNING: No variables loaded!")
+# if len(test_model.trainable_variables) > 0:
+#     print("First few variable values after loading:")
+#     for i, var in enumerate(test_model.trainable_variables[:2]):
+#         print(f"  {var.path}: mean={tf.reduce_mean(var).numpy():.4f}, std={tf.math.reduce_std(var).numpy():.4f}")
+# else:
+#     print("WARNING: No variables loaded!")
 
-# TODO: needs register_keras_serializable() for losses
-#model.save(save_model_path)
 
-# TODO: Store config in file/logs
+# Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
 OmegaConf.save(cfg, os.path.join(tensorboard_path, "params.yaml"))
 
@@ -569,14 +565,20 @@ print(predictions['polyphony_degree'][0][0])
 print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 
 # Load best weights and test model again
-try:
-    print("Trained Model with best checkpoints:")
-    new_model.load_weights(save_model_path.replace('.keras', '_chkpt_best.weights.h5'))
-    predictions = new_model.predict(single_input)
-    print(predictions['polyphony_degree'][0][0])
-    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
-except:
-    pass
+# try:
+print("Trained Model with best checkpoints:")
+new_model.load_weights(save_model_path.replace('.keras', '_chkpt_best.weights.h5'))
+predictions = new_model.predict(single_input)
+print(predictions['polyphony_degree'][0][0])
+print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+best_model_path = save_model_path.replace('.keras', '_best.keras')
+new_model.save(best_model_path)
+with open(save_model_path.replace('.keras', '_history.pkl')) as f:
+    saved_history = json.load(f)
+best_epoch = np.argmin(saved_history['val_loss']) + 1
+print(f"✓ Saved model with best weights from epoch {best_epoch} [val_loss: {saved_history['val_loss'][best_epoch - 1]}] to {best_model_path}.")
+# except:
+#     pass
 
 # TODO: needs register_keras_serializable() for losses
 try:
