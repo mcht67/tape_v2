@@ -310,7 +310,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None,
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None, loss_objects={}):
+                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None, loss_objects={}, previous_history=None):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
@@ -322,6 +322,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.input_shape = input_shape
         self.cfg = cfg
         self.loss_objects = loss_objects
+        self.previous_history = previous_history
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -345,6 +346,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             str(Path(writer.log_dir) / 'validation')
         )
 
+        # Replay previous history
+        if previous_history:
+            self._replay_history_to_tensorboard(previous_history)
+            self.train_writer.flush()
+            self.val_writer.flush()
+
     def set_model(self, model):
         """Called when the callback is attached to a model"""
         super().set_model(model)
@@ -353,6 +360,67 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
         # Log the model graph once
         self._log_model_graph(model)
+
+    def _replay_history_to_tensorboard(self, previous_history):
+        """Replay previous training history into TensorBoard so graphs are continuous."""
+        if not previous_history:
+            return
+
+        num_objectives = len(self.loss_objects)
+        num_epochs = len(next(iter(previous_history.values())))
+
+        print(f"Replaying {num_epochs} epochs of history to TensorBoard...")
+
+        for epoch in range(num_epochs):
+            # Reconstruct logs dict for this epoch
+            logs = {key: values[epoch] for key, values in previous_history.items()}
+
+            # --- Replay loss weights and per-objective losses ---
+            for obj_name, loss_obj in self.loss_objects.items():
+                weight_key = f'loss_weight/{obj_name}'
+
+                # Use stored weight if available, else fall back to current
+                current_weight = (
+                    previous_history[weight_key][epoch]
+                    if weight_key in previous_history
+                    else float(loss_obj.weight.numpy())
+                )
+
+                # Log weight to main writer
+                self.writer.add_scalar(
+                    f'loss_weights/{obj_name}',
+                    current_weight,
+                    epoch
+                )
+
+                # Replay train loss
+                weighted_loss = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
+                if weighted_loss is not None:
+                    base_loss = self._calculate_base_loss(weighted_loss, current_weight)
+                    with self.train_writer.as_default():
+                        tf.summary.scalar(f'{obj_name}_loss', base_loss, step=epoch)
+
+                # Replay validation loss
+                val_weighted_loss = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
+                if val_weighted_loss is not None:
+                    val_base_loss = self._calculate_base_loss(val_weighted_loss, current_weight)
+                    with self.val_writer.as_default():
+                        tf.summary.scalar(f'{obj_name}_loss', val_base_loss, step=epoch)
+
+            # --- Replay all other scalars (total loss, metrics, lr, etc.) ---
+            with self.train_writer.as_default():
+                for key, values in previous_history.items():
+                    if not key.startswith('val_') and not key.startswith('loss_weight/'):
+                        tf.summary.scalar(key, values[epoch], step=epoch)
+
+            with self.val_writer.as_default():
+                for key, values in previous_history.items():
+                    if key.startswith('val_') and not key.startswith('loss_weight/'):
+                        tf.summary.scalar(key.removeprefix('val_'), values[epoch], step=epoch)
+
+        self.train_writer.flush()
+        self.val_writer.flush()
+        print(f"✓ Replayed {num_epochs} epochs of history to TensorBoard")
 
     def _log_model_graph(self, model):
         """Log the model computational graph to TensorBoard"""
@@ -410,6 +478,10 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         print("Training started with CustomSummaryWriter logging")
+
+        # if self.previous_history:
+        #     self._replay_history_to_tensorboard(self.previous_history)
+
         if self.standard_tb_callback:
             self.standard_tb_callback.on_train_begin(logs)
 

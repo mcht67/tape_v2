@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 import os
 import model
 from hydra.utils import instantiate
-import pickle
+from pathlib import Path
 from datetime import datetime
 
 from utils.logs import plot_spectrogram_with_metrics, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, get_dvc_exp_name
@@ -140,7 +140,7 @@ dataset_path =  cfg.path.dataset
 
 experiment_name = cfg.log.experiment_name
 load_model_path = None
-# load_checkpoint_path = None
+load_checkpoint_path = None
 load_history_path = None
 
 input_feature_name = cfg.train.input_feature_name
@@ -151,7 +151,7 @@ batch_size = cfg.train.batch_size
 train_size_batches = None
 val_size_batches = None
 
-if 'initial_epoch' in cfg.train:
+if 'initial_epoch' in cfg.train and cfg.train.initial_epoch:
     initial_epoch = cfg.train.initial_epoch    
 
 if 'train_size_batches' in cfg.train: 
@@ -163,8 +163,8 @@ if 'val_size_batches' in cfg.train:
 if 'load_model_path' in cfg.train:
     load_model_path = cfg.train.load_model_path
 
-# if 'load_checkpoint_path' in cfg.train:
-#     load_checkpoint_path = cfg.train.load_checkpoint_path
+if 'load_checkpoint_path' in cfg.train:
+    load_checkpoint_path = cfg.train.load_checkpoint_path
 
 if 'load_history_path' in cfg.train:
     load_history_path = cfg.train.load_history_path
@@ -206,8 +206,8 @@ train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_featur
 if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
 if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
 
-train_dataset = train_dataset.cache().prefetch(tf.data.AUTOTUNE)
-val_dataset = val_dataset.cache().prefetch(tf.data.AUTOTUNE)
+train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
+val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 
 metrics = {}
 for key in objectives_cfg.keys():
@@ -237,9 +237,11 @@ current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 num_batches = len(train_dataset) 
 
 # model_path = f'models/{input_feature_name}_large.keras'
-
-save_model_path = f'logs/models/{experiment_name}/{dvc_exp_name}_{input_feature_name}_large.keras'
-# history_path = save_model_path.replace('.keras', '_history.pkl')
+current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+save_model_path = f'logs/models/{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}_large.keras'
+save_model_dir = Path(save_model_path).parent
+os.makedirs(save_model_dir, exist_ok=True)
+# history_path = save_model_path.replace('.keras', '_history.json')
 
 losses = create_losses_from_objectives(objectives_cfg) 
 
@@ -249,42 +251,36 @@ losses = create_losses_from_objectives(objectives_cfg)
 tf.keras.backend.clear_session()
 
 # Get model and history
+previous_history = None
 if load_model_path and os.path.isfile(load_model_path): 
     print("Loading model from", load_model_path)
     model = tf.keras.models.load_model(load_model_path)
 
+    load_history_path = load_model_path.replace('.keras', '_history.json')
+
     # Load previous history
-    if load_history_path and os.path.isfile(load_history_path):
-        with open(load_history_path, 'rb') as f:
-            old_history = pickle.load(f)
-        initial_epoch = len(old_history['loss'])
+    if os.path.exists(load_history_path):
+        with open(load_history_path, 'r') as f:
+            previous_history = json.load(f)
+        initial_epoch = len(previous_history['loss'])
+        print(f"✓ Loaded history from {load_history_path}")
         print(f"Resuming from epoch {initial_epoch}")
     else:
-        old_history = None
+        previous_history = None
         print(f"No history found, starting from epoch {initial_epoch}")
 
-# elif load_checkpoint_path and os.path.isfile(load_checkpoint_path):
+elif load_checkpoint_path and os.path.isfile(load_checkpoint_path):
 
-#     print(f"Loading weights from {load_checkpoint_path}")
-#     model = instantiate(cfg.model)
-#     #this_model.build(input_dim)
-#     model.compile(optimizer=Adam(learning_rate), loss=losses)
+    print(f"Loading weights from {load_checkpoint_path}")
+    model = instantiate(cfg.model)
+    model.compile(optimizer=Adam(learning_rate), loss=losses)
     
-#     # Initialize variables with forward pass
-#     sample_batch = next(iter(train_dataset))
-#     _ = model(sample_batch[0], training=False)
+    # Initialize variables with forward pass
+    sample_batch = next(iter(train_dataset))
+    _ = model(sample_batch[0], training=False)
 
-#     model.load_weights(load_checkpoint_path)
-    
-    # # Load previous history
-    # if load_history_path and os.path.isfile(load_history_path):
-    #     with open(load_history_path, 'rb') as f:
-    #         old_history = pickle.load(f)
-    #     initial_epoch = len(old_history['loss'])
-    #     print(f"Resuming from epoch {initial_epoch}")
-    # else:
-    #     old_history = None
-    #     print(f"No history found, starting from epoch {initial_epoch}")
+    model.load_weights(load_checkpoint_path)
+    print(f"Resuming from epoch {initial_epoch}")
 else:
     print("Creating new model")
     model = instantiate(model_cfg)
@@ -297,7 +293,7 @@ else:
 
     model.compile(optimizer=Adam(learning_rate), loss=losses)
     
-    old_history = None
+    previous_history = None
     initial_epoch = 0
 
 model.summary()
@@ -361,21 +357,34 @@ model.summary()
 
 import json
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
-    def __init__(self, model_path, initial_history=None, save_model_every_n_epochs=5, keep_last_n=None):
+    def __init__(self, model_path, loss_objects, previous_history=None, save_model_every_n_epochs=5, keep_last_n=None):
         super().__init__()
         self.model_path = model_path
-        self.history_path = model_path.replace('.keras', '_history.pkl')
-        # self.checkpoint_path = model_path.replace('.keras', '_history.pkl')
-        self.combined_history = {k: list(v) for k, v in initial_history.items()} \
-                                 if initial_history else {}
+        self.history_path = model_path.replace('.keras', '_history.json')
+        # self.checkpoint_path = model_path.replace('.keras', '_history.json')
+        self.combined_history = {k: list(v) for k, v in previous_history.items()} \
+                                 if previous_history else {}
         self.save_model_every_n_epochs = save_model_every_n_epochs
         self.keep_last_n = keep_last_n
         self.best_val_loss = float('inf')
+        self.loss_objects = loss_objects
 
     def on_epoch_end(self, epoch, logs=None):
-        # Update history
+        # # Update history
+        # for key, value in logs.items():
+        #     self.combined_history.setdefault(key, []).append(float(value))
+        # with open(self.history_path, 'w') as f:
+        #     json.dump(self.combined_history, f, indent=2)
+        
+        # Update regular metrics
         for key, value in logs.items():
             self.combined_history.setdefault(key, []).append(float(value))
+        
+        # Update loss weights
+        for obj_name, loss_obj in self.loss_objects.items():
+            weight_key = f'loss_weight/{obj_name}'
+            current_weight = float(loss_obj.weight.numpy())
+            self.combined_history.setdefault(weight_key, []).append(current_weight)
         with open(self.history_path, 'w') as f:
             json.dump(self.combined_history, f, indent=2)
         print(f"✓ Saved history at epoch {epoch + 1}")
@@ -395,7 +404,7 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         if self.keep_last_n:
             self._cleanup_old_checkpoints(epoch)
 
-        # Save model and history together (always in sync)
+        # Save modelr
         if (epoch + 1) % self.save_model_every_n_epochs == 0:
             self.model.save(self.model_path)
             print(f"✓ Saved model at epoch {epoch + 1}")
@@ -406,12 +415,14 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(model_path=save_model_path, initial_history=old_history)
+model_and_history_saver = ModelAndHistorySaver(model_path=save_model_path, loss_objects=losses, previous_history=previous_history)
 
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
-            log_confusion_matrix=True, confusion_matrix_frequency=1, confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses)
+            log_confusion_matrix=True, confusion_matrix_frequency=1, 
+            confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
+            previous_history=previous_history)
 # checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 #                                                 save_weights_only=True,
 #                                                 verbose=1,
@@ -573,7 +584,7 @@ print(predictions['polyphony_degree'][0][0])
 print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 best_model_path = save_model_path.replace('.keras', '_best.keras')
 new_model.save(best_model_path)
-with open(save_model_path.replace('.keras', '_history.pkl')) as f:
+with open(save_model_path.replace('.keras', '_history.json')) as f:
     saved_history = json.load(f)
 best_epoch = np.argmin(saved_history['val_loss']) + 1
 print(f"✓ Saved model with best weights from epoch {best_epoch} [val_loss: {saved_history['val_loss'][best_epoch - 1]}] to {best_model_path}.")
@@ -594,7 +605,7 @@ try:
 
 
     print("Model history:")
-    history_path = save_model_path.replace('.keras', '_history.pkl')
+    history_path = save_model_path.replace('.keras', '_history.json')
 
     with open(history_path, 'r') as f:
         history = json.load(f)
