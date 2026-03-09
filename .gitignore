@@ -6,11 +6,9 @@
 .DS_Store
 __pycache__/
 
-# Ignore Python virtual environments
-envs
-venv
-train-venv
-perch2-venv
+# Ignore venvs
+venv/
+stage-venvs/
 
 # Ignore data files
 logs/*/*
