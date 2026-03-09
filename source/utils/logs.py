@@ -299,7 +299,10 @@ def build_confusion_matrix_specs(objectives):
                 **obj_config["confusion_matrix"]
             }
             if spec['type']=='classification':
-                spec['num_classes'] = obj_config["num_classes"]
+                try:
+                    spec['num_classes'] = obj_config["num_classes"]
+                except:
+                    raise Exception("Number of classes for classification task is undefined.")
             specs.append(spec)
     
     return specs

@@ -19,6 +19,7 @@ objectives:
     weight: 1.0
     confusion_matrix:
       type: classification
+      num_classes: 7
     label: polyphony_degree
 train:
   input_feature_name: Bird-MAE-Huge_audio_pooled_embeddings
