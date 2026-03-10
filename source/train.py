@@ -139,35 +139,23 @@ set_random_seeds(random_seed)
 dataset_path =  cfg.path.dataset
 
 experiment_name = cfg.log.experiment_name
-load_model_path = None
-load_checkpoint_path = None
-load_history_path = None
+load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
+load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
+load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
 
 input_feature_name = cfg.train.input_feature_name
 total_epochs = cfg.train.epochs
-initial_epoch = 0
+initial_epoch = cfg.train.initial_epoch if 'initial_epoch' in cfg.train and cfg.train.initial_epoch else 0
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
-train_size_batches = None
-val_size_batches = None
+train_size_batches = cfg.train.train_size_batches if 'train_size_batches' in cfg.train else None
+val_size_batches = cfg.train.val_size_batches if 'val_size_batches' in cfg.train else None
 
-if 'initial_epoch' in cfg.train and cfg.train.initial_epoch:
-    initial_epoch = cfg.train.initial_epoch    
+dvc_exp_name = get_dvc_exp_name()
+current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
-if 'train_size_batches' in cfg.train: 
-    train_size_batches = cfg.train.train_size_batches 
-
-if 'val_size_batches' in cfg.train: 
-    val_size_batches = cfg.train.val_size_batches
-
-if 'load_model_path' in cfg.train:
-    load_model_path = cfg.train.load_model_path
-
-if 'load_checkpoint_path' in cfg.train:
-    load_checkpoint_path = cfg.train.load_checkpoint_path
-
-if 'load_history_path' in cfg.train:
-    load_history_path = cfg.train.load_history_path
+path_suffix = cfg.logs.path_suffix if 'path_suffix' in cfg.logs else None
+checkpoint_path = f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/'
 
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
@@ -224,8 +212,7 @@ print(params)
 
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-dvc_exp_name = get_dvc_exp_name()
-current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+
 
 # checkpoint_path = f"logs/models/{experiment_name}/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 # # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
@@ -237,10 +224,11 @@ current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 num_batches = len(train_dataset) 
 
 # model_path = f'models/{input_feature_name}_large.keras'
-current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
-save_model_path = f'logs/models/{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}_large.keras'
-save_model_dir = Path(save_model_path).parent
-os.makedirs(save_model_dir, exist_ok=True)
+# current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+# save_model_path = f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}.keras'
+# save_model_dir = Path(save_model_path).parent
+# model_save_path = f'{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}'
+# os.makedirs(save_model_dir, exist_ok=True)
 # history_path = save_model_path.replace('.keras', '_history.json')
 
 losses = create_losses_from_objectives(objectives_cfg) 
@@ -357,17 +345,19 @@ model.summary()
 
 import json
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
-    def __init__(self, model_path, loss_objects, previous_history=None, save_model_every_n_epochs=5, keep_last_n=None):
+    def __init__(self, checkpoint_path, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=None):
         super().__init__()
-        self.model_path = model_path
-        self.history_path = model_path.replace('.keras', '_history.json')
-        # self.checkpoint_path = model_path.replace('.keras', '_history.json')
+        self.checkpoint_path = checkpoint_path
         self.combined_history = {k: list(v) for k, v in previous_history.items()} \
                                  if previous_history else {}
-        self.save_model_every_n_epochs = save_model_every_n_epochs
+        self.save_model_every_n_epochs = save_full_model_every_n_epochs
         self.keep_last_n = keep_last_n
         self.best_val_loss = float('inf')
         self.loss_objects = loss_objects
+
+        self.epoch_weights_path = checkpoint_path + 'epoch_weights/'
+        self.best_weights_path = checkpoint_path = 'best_weights/'
+        self.resumable_path = checkpoint_path + 'resumable_checkpoints/'
 
     def on_epoch_end(self, epoch, logs=None):
         # # Update history
@@ -385,20 +375,20 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             weight_key = f'loss_weight/{obj_name}'
             current_weight = float(loss_obj.weight.numpy())
             self.combined_history.setdefault(weight_key, []).append(current_weight)
-        with open(self.history_path, 'w') as f:
-            json.dump(self.combined_history, f, indent=2)
+        with open(self.resumable_path, 'w') as f:
+            json.dump(self.resumable_path + 'train_history.json', f, indent=2)
         print(f"✓ Saved history at epoch {epoch + 1}")
 
         # Save current checkpoint
         val_loss = logs.get('val_loss')
-        self.model.save_weights(self.model_path.replace('.keras', f'_ckpt-epoch_{epoch+1:03d}.weights.h5'))
-        print(f"✓ Saved checkpoint {val_loss:.4f} at epoch {epoch + 1}")
+        self.model.save_weights(self.epoch_weights_path + f'epoch_{epoch+1:03d}.weights.h5')
+        print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
 
         # Save best checkpoint
         if val_loss and val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            self.model.save_weights(self.model_path.replace('.keras', f'_chkpt_best.weights.h5'))
-            print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best checkpoint.")
+            self.model.save_weights(self.best_weights_path + f'best_(epoch_{epoch+1:03d}).weights.h5')
+            print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
         # Save rolling last-N checkpoints
         if self.keep_last_n:
@@ -406,16 +396,16 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
 
         # Save modelr
         if (epoch + 1) % self.save_model_every_n_epochs == 0:
-            self.model.save(self.model_path)
+            self.model.save(self.resumable_path + f'epoch_{epoch+1:03d}.keras')
             print(f"✓ Saved model at epoch {epoch + 1}")
             
     def _cleanup_old_checkpoints(self, current_epoch):
         for old_epoch in range(current_epoch - self.keep_last_n):
-            path = self.model_path.replace('.keras', f'_ckpt-epoch{old_epoch+1:03d}.weights.h5')
+            path = self.epoch_weights_path + f'epoch_{epoch+1:03d}.weights.h5'
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(model_path=save_model_path, loss_objects=losses, previous_history=previous_history)
+model_and_history_saver = ModelAndHistorySaver(checkpoint_path=checkpoint_path, loss_objects=losses, previous_history=previous_history)
 
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
@@ -578,7 +568,7 @@ print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event 
 # Load best weights and test model again
 # try:
 print("Trained Model with best checkpoints:")
-new_model.load_weights(save_model_path.replace('.keras', '_chkpt_best.weights.h5'))
+new_model.load_weights(save_model_path.replace('.keras', '_best.weights.h5'))
 predictions = new_model.predict(single_input)
 print(predictions['polyphony_degree'][0][0])
 print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
