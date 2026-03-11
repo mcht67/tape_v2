@@ -1,3 +1,2 @@
-huggingface_path: mcht67/PolyphonicBirdSet
+huggingface_path: mcht67/Polyphonic-Bird-Set
 subset: HSN
-split: train

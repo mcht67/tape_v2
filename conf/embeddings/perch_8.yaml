@@ -1,0 +1,17 @@
+# Available models
+# BIRDNET_V2_1 = 'birdnet_V2.1'
+# BIRDNET_V2_2 = 'birdnet_V2.2'
+# BIRDNET_V2_3 = 'birdnet_V2.3'
+# PERCH_8 = 'perch_8'
+# SURFPERCH = 'surfperch'
+# VGGISH = 'vggish'
+# YAMNET = 'yamnet'
+# HUMPBACK = 'humpback'
+# MULTISPECIES_WHALE = 'multispecies_whale'
+# BEANS_BASELINE = 'beans_baseline'
+# AVES = 'aves'
+# PLACEHOLDER = 'placeholder'
+
+input_feature: audio
+model: perch_8
+name: ${embeddings.model}_${embeddings.input_feature}

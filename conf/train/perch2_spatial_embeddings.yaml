@@ -4,12 +4,3 @@ batch_size: 128
 learning_rate: 0.0001
 epochs: 50
 train_size_batches: 76
-
-# TODO: remove after add_labels.py update
-use_event_logits: True
-num_event_logits: 16
-event_logits_name: event_logits
-
-use_framewise_polyphony: True
-num_frames: 16
-framewise_polyphony_name: framewise_polyphony
