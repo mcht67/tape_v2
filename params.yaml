@@ -2,12 +2,8 @@ general:
   random_seed: 42
 dataset:
   huggingface_path: mcht67/Polyphonic-Bird-Set
-  subset: PER
-labels:
-  event_logits:
-    num_logits: 16
-  framewise_polyphony:
-    num_frames: 16
+  subset: HSN
+labels: {}
 embeddings:
   input_features:
   - audio
@@ -28,13 +24,12 @@ objectives:
   polyphony_degree:
     loss:
       _target_: tensorflow.keras.losses.MeanSquaredError
-    weight: 1.0
     confusion_matrix:
       type: regression_round
       threshold: 0.5
     label: polyphony_degree
 train:
-  input_feature_name: EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
+  input_feature_name: perch_v2_cpu_audio_embeddings
   batch_size: 128
   learning_rate: 0.001
   epochs: 5
@@ -42,13 +37,12 @@ train:
   train_size_batches: null
   val_size_batches: null
 log:
-  experiment_name: Embeddings-Comparison
-  tensorboard_subfolder: Embeddings-Comparison
+  experiment_name: test-experiment
+  tensorboard_subfolder: test-experiment
   tensorboard_suffix: ''
-  hyperparameters:
-  - train.input_feature_name
+  hyperparameters: null
 path:
-  dataset: data/PER/
+  dataset: data/HSN/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json

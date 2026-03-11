@@ -1,7 +1,7 @@
-input_feature_name: 'feature_name'
+input_feature_name: perch_v2_cpu_audio_embeddings
 batch_size: 128
 learning_rate: 0.001
-epochs: 50
+epochs: 5
 initial_epoch:
 train_size_batches: 
 val_size_batches: 
