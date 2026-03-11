@@ -12,6 +12,6 @@
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
 
-input_feature: audio
+input_features: audio
 model: birdnet_V2.3
-name: ${embeddings.model}_${embeddings.input_feature}
+name: ${embeddings.model}_${embeddings.input_features}

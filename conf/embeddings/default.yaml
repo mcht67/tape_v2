@@ -12,6 +12,6 @@
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
 
-input_feature: audio
+input_features: audio
 model: perch_v2_cpu
-name: ${embeddings.model}_${embeddings.input_feature}
+name: ${embeddings.model}_${embeddings.input_features}
