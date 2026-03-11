@@ -60,7 +60,7 @@ if __name__ == "__main__":
         # Define which config files are used
         #"general": general_config,
         "dataset": 'PER',
-        "labels" 'event_logits'
+        "labels": 'all',
         "embeddings": 'perch_8',
         "model": 'SimpleMLP',
         "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',

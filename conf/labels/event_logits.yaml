@@ -1,0 +1,3 @@
+
+event_logits:
+  num_logits: 16

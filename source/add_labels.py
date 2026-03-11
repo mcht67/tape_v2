@@ -116,7 +116,7 @@ def add_event_logits(example, num_event_logits, feature_name):
         return example
 
 def add_framewise_polyphony(example, num_frames, feature_name):
-        time_freq_bounds_per_raw_file = example['raw_files_time_freq_bounds']
+        time_freq_bounds_per_raw_file = example['sources_time_freq_bounds']
         segment_durations_s = example["segment_duration_s"]
         framewise_polyphony_array = build_framewise_polyphony(time_freq_bounds_per_raw_file, segment_durations_s, num_frames)
         example[feature_name] = framewise_polyphony_array
@@ -159,6 +159,7 @@ def main():
 
     # Add event logits
     if 'event_logits' in cfg.labels:
+        print("Add event logits...")
         feature_name = 'event_logits'
         added_labels.append(feature_name)
         num_event_logits = cfg.labels.event_logits.num_logits
@@ -169,10 +170,11 @@ def main():
         for split in dataset.keys():
             dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
             dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
+        print('Done!')
 
     # Add framewise polyphony labels
-    
     if 'framewise_polyphony' in cfg.labels:
+        print('Add framewise polyphony labels...')
         feature_name = 'framewise_polyphony'
         num_frames = cfg.labels.framewise_polyphony.num_frames
         added_labels.append(feature_name)
@@ -183,6 +185,7 @@ def main():
         for split in dataset.keys():
             dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
             dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
+        print('Done!')
 
     overwrite_dataset(dataset, dataset_path, store_backup=False)
 
