@@ -1,49 +1,60 @@
 # This file defines the dvc stages and its depencies
 
 stages:
-  # load_dataset:
-  #   cmd:
-  #     envs/base-venv/bin/python source/load_dataset.py
-  #   deps:
-  #     - source/load_dataset.py
-  #   params:
-  #     - dataset.subset
-  #     - dataset.huggingface_path
-  #     - path.dataset_metadata
-  #   outs:
-  #     - ${path.dataset_metadata}
+  load_dataset:
+    cmd:
+      venv/bin/python source/load_dataset.py
+    deps:
+      - source/load_dataset.py
+    params:
+      - dataset.subset
+      - dataset.huggingface_path
+      - path.dataset_metadata
+    outs:
+      - ${path.dataset_metadata}
 
-  # embed_with_perch:
-  #   cmd: envs/perch-venv/bin/python source/embed_audio.py
-  #   deps:
-  #     - source/embed_audio.py
-  #     - ${path.dataset_metadata}
-  #   params:
-  #     - embeddings
-  #   outs:
-  #     - ${path.embeddings_metadata}
+  add_labels:
+    cmd: venv/bin/python source/add_labels.py
+    deps:
+      - source/add_labels.py
+      - ${path.dataset_metadata}
+      - ${path.embeddings_metadata}
+    params:
+      - path.dataset
+      - train.use_event_logits
+      - train.num_event_logits
+      - train.event_logits_name
+      - train.use_framewise_polyphony
+      - train.num_frames
+      - train.framewise_polyphony_name
+    outs:
+      - ${path.added_labels_metadata}
+      - ${path.dataset}: 
+          persist: true
+          cache: false
 
-  # add_labels:
-  #   cmd: envs/base-venv/bin/python source/add_labels.py
-  #   deps:
-  #     - source/add_labels.py
-  #     - ${path.dataset_metadata}
-  #     - ${path.embeddings_metadata}
-  #   params:
-  #     - path.dataset
-  #     - train.use_event_logits
-  #     - train.num_event_logits
-  #     - train.event_logits_name
-  #     - train.use_framewise_polyphony
-  #     - train.num_frames
-  #     - train.framewise_polyphony_name
-  #   outs:
-  #     - ${path.added_labels_metadata}
-  #     - ${path.dataset}: 
-  #         persist: true
+  embed_audio_with_perch:
+    cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
+    deps:
+      - source/embed_audio.py
+      - ${path.dataset_metadata}
+    params:
+      - embeddings
+    outs:
+      - ${path.perch_embeddings_metadata}
+
+  embed_audio_with_birdset:
+    cmd: stage-venvs/train_venv/bin/python source/torch_embed_audio.py
+    deps:
+      - source/torch_embed_audio.py
+      - ${path.dataset_metadata}
+    params:
+      - embeddings
+    outs:
+      - ${path.perch_embeddings_metadata}
 
   train:
-    cmd: envs/train2-venv/bin/python source/train.py
+    cmd: stage-venvs/train-venv/bin/python source/train.py
     deps:
       - source/train.py
       - ${path.dataset}
@@ -55,10 +66,8 @@ stages:
       - log
     outs:
     - logs:
-        cache: false # TODO: remove cache: false and persist: true once logs are pushed to and synced with remote
-        persist: true
+        cache: true 
+        persist: false
     - checkpoints:
-        cache: false
-        persist: true
-      
-
+        cache: true
+        persist: false
