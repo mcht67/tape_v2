@@ -61,7 +61,7 @@ if __name__ == "__main__":
         #"general": general_config,
         "dataset": 'PER',
         "labels": 'all',
-        "embeddings": 'perch_8',
+        "embeddings": 'default',
         "model": 'SimpleMLP',
         "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',
         #"train": 'perch2_spatial_embeddings',

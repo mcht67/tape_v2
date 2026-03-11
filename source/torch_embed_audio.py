@@ -378,7 +378,6 @@ def main():
 
     # Load Dataset 
     dataset = load_from_disk(dataset_path)
-    dataset['validation'] = dataset['validation'].remove_columns('AST-Birdset-XCL_audio_spatial_embeddings')
     
     print("Start embedding...")
     # Compute embeddings
@@ -386,8 +385,6 @@ def main():
         for split in dataset.keys():     
             dataset[split] = dataset[split]
             dataset[split] = dataset[split].cast_column(input_feature, Audio())
-            print("Features of split", split)
-            print(dataset[split].features)
 
     if force_recompute:
         print("force_recompute is set to True. Recompute all embeddings!")

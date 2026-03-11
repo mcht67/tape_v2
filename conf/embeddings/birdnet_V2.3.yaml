@@ -12,5 +12,7 @@
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
 
-input_features: audio
-perch_models: birdnet_V2.3
+input_features:
+- audio
+perch_models: 
+  - birdnet_V2.3

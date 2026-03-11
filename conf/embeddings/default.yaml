@@ -12,8 +12,10 @@
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
 
-input_features: audio
-perch_models: perch_v2_cpu
+input_features: 
+- audio
+perch_models: 
+  - perch_v2_cpu
 birdset_models:
     birdset_efficient_net:
       _target_: torch_models.BirdSetEfficientNet

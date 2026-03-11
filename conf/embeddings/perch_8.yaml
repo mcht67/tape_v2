@@ -12,5 +12,7 @@
 # AVES = 'aves'
 # PLACEHOLDER = 'placeholder'
 
-input_features: audio
-perch_models: perch_8
+input_features:
+- audio
+perch_models: 
+  - perch_8
