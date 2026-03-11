@@ -344,8 +344,7 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
    
 
     # Clean up any leftover temp directory from previous failed runs
-    if os.path.exists(temp_path):
-        shutil.rmtree(temp_path)
+
 
     # audio = dataset['train'][0]['audio']
     # column_names = dataset['train'].column_names
@@ -365,6 +364,9 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
      # Get temp path
     temp_path = parent_dir / f"{folder_name}_temp"
+
+    if os.path.exists(temp_path):
+        shutil.rmtree(temp_path)
 
     # Save to temporary location
     os.makedirs(temp_path, exist_ok=True)
