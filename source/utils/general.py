@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 import soundfile as sf
 import io
+from pathlib import Path
 
 def with_random_state(func):
     """
@@ -340,8 +341,7 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
     # try:
     
-    # Get temp path
-    temp_path = f"{dataset_path}_temp"
+   
 
     # Clean up any leftover temp directory from previous failed runs
     if os.path.exists(temp_path):
@@ -359,6 +359,13 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
     # audio = dataset['train'][0]['audio']
 
+    path = Path(dataset_path)
+    parent_dir = path.parent
+    folder_name = path.name
+
+     # Get temp path
+    temp_path = parent_dir / f"{folder_name}_temp"
+
     # Save to temporary location
     os.makedirs(temp_path, exist_ok=True)
     dataset.save_to_disk(temp_path)
@@ -370,7 +377,8 @@ def overwrite_dataset(dataset, dataset_path, metadata_path=None, store_backup=Tr
 
     # Move old data to backup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = f'{dataset_path}_backup_{timestamp}'
+    
+    backup_path = parent_dir / f'{folder_name}_backup_{timestamp}'
     os.makedirs(backup_path, exist_ok=True)
     if os.path.exists(dataset_path):
         shutil.move(dataset_path, backup_path)
