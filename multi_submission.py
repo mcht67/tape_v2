@@ -79,19 +79,19 @@ if __name__ == "__main__":
     # Define all lists of parameters or config files [Hyperparameters]
     hyperparams = {
                     "train.input_feature_name": [
-                                                #"perch_v2_cpu_audio_embeddings",
+                                                "perch_v2_cpu_audio_embeddings",
                                                 #"perch_v2_cpu_no_noise_audio_embeddings",
                                                 #"birdnet_V2.3_audio_embeddings",
                                                 #"birdnet_V2.3_no_noise_audio_embeddings",
                                                 #"vggish_audio_embeddings",
                                                 #"vggish_no_noise_audio_embeddings",
-                                                "perch_8_audio_embeddings",
+                                                #"perch_8_audio_embeddings",
                                                 #"perch_8_no_noise_audio_embeddings",
                                                 #"yamnet_audio_embeddings",
                                                 #"yamnet_no_noise_audio_embeddings",
                                                 #"beans_baseline_audio_embeddings",
                                                 #"beans_baseline_no_noise_audio_embeddings",
-                                                #"EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
+                                                "EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
                                                 #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
                                                 #"Bird-MAE-Huge_audio_pooled_embeddings",
                                                 #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",

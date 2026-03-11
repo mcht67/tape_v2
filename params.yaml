@@ -1,10 +1,23 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/PolyphonicBirdSet
-  subset: HSN
-  split: train
-embeddings: {}
+  huggingface_path: mcht67/Polyphonic-Bird-Set
+  subset: PER
+labels:
+  event_logits:
+    num_logits: 16
+  framewise_polyphony:
+    num_frames: 16
+embeddings:
+  input_features:
+  - audio
+  perch_models:
+  - perch_v2_cpu
+  birdset_models:
+    birdset_efficient_net:
+      _target_: torch_models.BirdSetEfficientNet
+      pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
+  force_recompute: true
 model:
   _target_: model.SimpleMLP
   hidden_units:
@@ -12,20 +25,19 @@ model:
   - 256
   dropout_rate: 0.3
 objectives:
-  polyphony_degree_class:
+  polyphony_degree:
     loss:
-      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-      from_logits: true
+      _target_: tensorflow.keras.losses.MeanSquaredError
     weight: 1.0
     confusion_matrix:
-      type: classification
-      num_classes: 7
+      type: regression_round
+      threshold: 0.5
     label: polyphony_degree
 train:
-  input_feature_name: Bird-MAE-Huge_audio_pooled_embeddings
+  input_feature_name: EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
   batch_size: 128
   learning_rate: 0.001
-  epochs: 20
+  epochs: 5
   initial_epoch: null
   train_size_batches: null
   val_size_batches: null
@@ -36,7 +48,7 @@ log:
   hyperparameters:
   - train.input_feature_name
 path:
-  dataset: dataset
+  dataset: data/PER/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json

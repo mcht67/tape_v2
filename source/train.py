@@ -154,7 +154,7 @@ val_size_batches = cfg.train.val_size_batches if 'val_size_batches' in cfg.train
 dvc_exp_name = get_dvc_exp_name()
 current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
-path_suffix = cfg.logs.path_suffix if 'path_suffix' in cfg.logs else None
+path_suffix = cfg.log.path_suffix if 'path_suffix' in cfg.log else None
 checkpoint_path = f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/'
 
 model_cfg = cfg.model
@@ -345,9 +345,9 @@ model.summary()
 
 import json
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
-    def __init__(self, checkpoint_path, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=None):
+    def __init__(self, checkpoint_dir, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=None):
         super().__init__()
-        self.checkpoint_path = checkpoint_path
+        self.checkpoint_path = checkpoint_dir
         self.combined_history = {k: list(v) for k, v in previous_history.items()} \
                                  if previous_history else {}
         self.save_model_every_n_epochs = save_full_model_every_n_epochs
@@ -355,9 +355,13 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         self.best_val_loss = float('inf')
         self.loss_objects = loss_objects
 
-        self.epoch_weights_path = checkpoint_path + 'epoch_weights/'
-        self.best_weights_path = checkpoint_path = 'best_weights/'
-        self.resumable_path = checkpoint_path + 'resumable_checkpoints/'
+        self.epoch_weights_dir = checkpoint_dir + 'epoch_weights/'
+        self.best_weights_dir = checkpoint_dir + 'best_weights/'
+        self.resumable_dir = checkpoint_dir + 'resumable_checkpoints/'
+
+        os.makedirs(self.epoch_weights_dir, exist_ok=True)
+        os.makedirs(self.best_weights_dir, exist_ok=True)
+        os.makedirs(self.resumable_dir, exist_ok=True)
 
     def on_epoch_end(self, epoch, logs=None):
         # # Update history
@@ -375,19 +379,21 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             weight_key = f'loss_weight/{obj_name}'
             current_weight = float(loss_obj.weight.numpy())
             self.combined_history.setdefault(weight_key, []).append(current_weight)
-        with open(self.resumable_path, 'w') as f:
-            json.dump(self.resumable_path + 'train_history.json', f, indent=2)
+
+        history_path = self.resumable_dir + 'train_history.json'
+        with open(history_path, 'w') as f:
+            json.dump(history_path, f, indent=2)
         print(f"✓ Saved history at epoch {epoch + 1}")
 
         # Save current checkpoint
         val_loss = logs.get('val_loss')
-        self.model.save_weights(self.epoch_weights_path + f'epoch_{epoch+1:03d}.weights.h5')
+        self.model.save_weights(self.epoch_weights_dir + f'epoch_{epoch+1:03d}.weights.h5')
         print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
 
         # Save best checkpoint
         if val_loss and val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            self.model.save_weights(self.best_weights_path + f'best_(epoch_{epoch+1:03d}).weights.h5')
+            self.model.save_weights(self.best_weights_dir + f'best_(epoch_{epoch+1:03d}).weights.h5')
             print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
         # Save rolling last-N checkpoints
@@ -396,16 +402,16 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
 
         # Save modelr
         if (epoch + 1) % self.save_model_every_n_epochs == 0:
-            self.model.save(self.resumable_path + f'epoch_{epoch+1:03d}.keras')
+            self.model.save(self.resumable_dir + f'epoch_{epoch+1:03d}.keras')
             print(f"✓ Saved model at epoch {epoch + 1}")
             
     def _cleanup_old_checkpoints(self, current_epoch):
         for old_epoch in range(current_epoch - self.keep_last_n):
-            path = self.epoch_weights_path + f'epoch_{epoch+1:03d}.weights.h5'
+            path = self.epoch_weights_dir + f'epoch_{epoch+1:03d}.weights.h5'
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(checkpoint_path=checkpoint_path, loss_objects=losses, previous_history=previous_history)
+model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_path, loss_objects=losses, previous_history=previous_history)
 
 
 writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
@@ -471,11 +477,11 @@ import matplotlib.pyplot as plt
 # Get some examples
 for idx, (split_name, example_idx) in enumerate([
     ('train', 2), 
-    ('train', 23), 
-    ('validation', 2), 
-    ('validation', 23), 
-    ('test', 2),
-    ('test', 23)
+    #('train', 23), 
+    ('validation', 0), 
+    #('validation', 23), 
+    ('test', 0),
+    #('test', 23)
 ]):
     example = dataset[split_name][example_idx]
     embedding = example[input_feature_name]
@@ -511,7 +517,7 @@ for idx, (split_name, example_idx) in enumerate([
 
     # Get all events
     all_events = []
-    for events in example['raw_files_time_freq_bounds']:
+    for events in example['sources_time_freq_bounds']:
         for event in events:
             all_events.append(event)
     
@@ -532,81 +538,87 @@ for idx, (split_name, example_idx) in enumerate([
     writer.add_figure('test_examples_{idx}', fig, global_step=idx)
     plt.close(fig)
 
-# Flush to ensure all figures are written
-writer.flush()
+# # Flush to ensure all figures are written
+# writer.flush()
 
-# Create new model
-# Define model
-new_model = instantiate(cfg.model)
-#new_model.build(input_dim)
-new_model.compile(optimizer=Adam(learning_rate), loss=losses)
-# new_model.compile(
-#     optimizer=Adam(learning_rate),
-#     loss={
-#         "perch2_event_logits": weighted_event_loss,
-#         "framewise_polyphony": weighted_frame_loss,
-#         "polyphony_degree": weighted_count_loss, 
-#     },
-# )
-new_model.summary()
+# # Create new model
+# # Define model
+# new_model = instantiate(cfg.model)
+# #new_model.build(input_dim)
+# new_model.compile(optimizer=Adam(learning_rate), loss=losses)
+# # new_model.compile(
+# #     optimizer=Adam(learning_rate),
+# #     loss={
+# #         "perch2_event_logits": weighted_event_loss,
+# #         "framewise_polyphony": weighted_frame_loss,
+# #         "polyphony_degree": weighted_count_loss, 
+# #     },
+# # )
+# new_model.summary()
 
-print("New model objectives config:")
-print(new_model.objectives_cfg)
+# print("New model objectives config:")
+# print(new_model.objectives_cfg)
 
-# Test model without weights
-example = dataset['train'][example_idx]
-embedding = example[input_feature_name]
+# # Test model without weights
+# example = dataset['train'][example_idx]
+# embedding = example[input_feature_name]
 
-# Make prediction
-print("Untrained Model:")
-single_input = np.expand_dims(embedding, axis=0)
-single_input = tf.constant(single_input, dtype=tf.float32)
-predictions = new_model.predict(single_input)
-print(predictions['polyphony_degree'][0][0])
-print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+# # Make prediction
+# print("Untrained Model:")
+# single_input = np.expand_dims(embedding, axis=0)
+# single_input = tf.constant(single_input, dtype=tf.float32)
+# predictions = new_model.predict(single_input)
+# print(predictions['polyphony_degree'][0][0])
+# print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 
-# Load best weights and test model again
-# try:
-print("Trained Model with best checkpoints:")
-new_model.load_weights(save_model_path.replace('.keras', '_best.weights.h5'))
-predictions = new_model.predict(single_input)
-print(predictions['polyphony_degree'][0][0])
-print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
-best_model_path = save_model_path.replace('.keras', '_best.keras')
-new_model.save(best_model_path)
-with open(save_model_path.replace('.keras', '_history.json')) as f:
-    saved_history = json.load(f)
-best_epoch = np.argmin(saved_history['val_loss']) + 1
-print(f"✓ Saved model with best weights from epoch {best_epoch} [val_loss: {saved_history['val_loss'][best_epoch - 1]}] to {best_model_path}.")
+# # Load best weights and test model again
+# # try:
+# print("Trained Model with best checkpoints:")
+# # Get files in best weights folder
+# from os import listdir
+# from os.path import isfile, join
+# best_weights_paths = [f for f in listdir(checkpoint_path) if isfile(join(checkpoint_path, f))]
+
+# new_model.load_weights(best_weights_paths[0]) #save_model_path.replace('.keras', '_best.weights.h5'))
+# predictions = new_model.predict(single_input)
+# print(predictions['polyphony_degree'][0][0])
+# print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+# best_model_path = save_model_path.replace('.keras', '_best.keras')
+# new_model.save(best_model_path)
+
+# Get best epoch from history
+# with open(save_model_path.replace('.keras', '_history.json')) as f:
+#     saved_history = json.load(f)
+# best_epoch = np.argmin(saved_history['val_loss']) + 1
+# print(f"✓ Saved model with best weights from epoch {best_epoch} [val_loss: {saved_history['val_loss'][best_epoch - 1]}] to {best_model_path}.")
 # except:
 #     pass
 
-# TODO: needs register_keras_serializable() for losses
-try:
-    print("Trained saved full model")
-    full_model = tf.keras.models.load_model(save_model_path)
-    predictions = full_model.predict(single_input)
-    print("Full model objectives config:")
-    print(full_model.objectives_cfg)
+# # TODO: needs register_keras_serializable() for losses
+# try:
+#     print("Trained saved full model")
+#     full_model = tf.keras.models.load_model(save_model_path)
+#     predictions = full_model.predict(single_input)
+#     print("Full model objectives config:")
+#     print(full_model.objectives_cfg)
 
-    print("Full model predicitions")
-    print(predictions['polyphony_degree'][0][0])
-    print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
+#     print("Full model predicitions")
+#     print(predictions['polyphony_degree'][0][0])
+#     print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
 
+#     print("Model history:")
+#     history_path = save_model_path.replace('.keras', '_history.json')
 
-    print("Model history:")
-    history_path = save_model_path.replace('.keras', '_history.json')
+#     with open(history_path, 'r') as f:
+#         history = json.load(f)
 
-    with open(history_path, 'r') as f:
-        history = json.load(f)
-
-    for metric, values in history.items():
-        for epoch, value in enumerate(values, start=1):
-            print(f"Epoch {epoch:03d} | {metric}: {value:.4f}")
+#     for metric, values in history.items():
+#         for epoch, value in enumerate(values, start=1):
+#             print(f"Epoch {epoch:03d} | {metric}: {value:.4f}")
     
     
-except:
-    pass
+# except:
+#     pass
 
 dataset.cleanup_cache_files()
 

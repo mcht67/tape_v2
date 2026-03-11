@@ -14,6 +14,52 @@ This template provides a minimal working project for the HPC-Cluster-Workflow in
 - Defined parameters for runs of single python files in params.yaml (outputs get stored in debug_tmp/)
 - Defined parameters for dvc runs with hydra in conf/config.yaml and subfolders
 
+# Pipeline Flowchart
+```mermaid
+  flowchart TD
+    subgraph dvc-experiment
+      A[("☁️ HuggingFace Hub<br/>Audio Dataset")] --> B
+
+      B["**load_and_label**<br/>Load dataset + add<br/>multi-task labels"]
+      B --> C[("💾 Dataset<br/>on Disk (HPC)")]
+
+      C -- Training on embeddings --> D["**embed_audio**<br/>Load data + embed<br/>audio features"]
+      D --> E[("📋 Embeddings<br/>Metadata")]
+      D --> F[("☁️ HuggingFace Hub <br/>Embeddings Dataset")]
+
+      C -- Training on raw audio --> G
+      F --> G["**train_models**<br/>Load from HuggingFace<br/>or disk + train models"]
+      G --> H[("📊 Logs &<br/>Checkpoints")]
+      H --dvc push--> I[("🗄️ DVC<br/>Remote")]
+    end
+    H --> J[("💾 HPC archive")]
+    K[("💾 Local archive")] --manual rsync--> J
+
+    style A fill:#dbeafe,stroke:#2563eb,color:#1f2937
+    style C fill:#fef3c7,stroke:#b45309,color:#1f2937
+    style E fill:#fef3c7,stroke:#b45309,color:#1f2937
+    style F fill:#dbeafe,stroke:#2563eb,color:#1f2937
+    style H fill:#fef3c7,stroke:#b45309,color:#1f2937
+    style I fill:#d1fae5,stroke:#047857,color:#1f2937
+    style B fill:#ede9fe,stroke:#6d28d9,color:#1f2937
+    style D fill:#ede9fe,stroke:#6d28d9,color:#1f2937
+    style G fill:#ede9fe,stroke:#6d28d9,color:#1f2937
+    style J fill:#fef3c7,stroke:#b45309,color:#1f2937
+    style K fill:#ffd3d7,stroke:#b45309,color:#1f2937
+```
+
+# Checkpoints saving
+
+checkpoints/global-experiment-name/dvc-exp-name/ll
+├── epoch_weights/  # delete freely once experiment done
+│   ├── epoch_05.pt
+│   └── epoch_10.pt
+├── best/           # keep permanently
+│   └── best.pt
+└── resumable/      # delete once experiment done
+    ├── epoch_05.pt
+    └── epoch_10.pt
+
 ## Setup
 
 This is taken mostly from the original setup instructions, but skips unnecessary steps for local runs and was adjusted were necessary.
