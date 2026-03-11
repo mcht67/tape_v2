@@ -127,27 +127,33 @@ def main():
     dataset_path = cfg.path.dataset
     added_labels_metadata_path = cfg.path.added_labels_metadata
 
+    use_event_logits = cfg.train.use_event_logits if 'use_event_logits' in cfg.train else None
+    num_event_logits = cfg.train.num_event_logits if 'num_event_logits' in cfg.train else None
+    event_logits_name = cfg.train.event_logits_name if 'event_logits_name' in cfg.train else None
+
+    use_framewise_polyphony = cfg.train.use_framewise_polyphony if 'use_framewise_polyphony' in cfg.train else None
+    framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name if 'framewise_polyphony_name' in cfg.train else None
+
     dataset = load_from_disk(dataset_path)
 
-    # Add duration TODO: do in dataset creation and remove here
-    def add_duration(example):
-        example["segment_duration_s"] = 5
-        return example
+    # # Add duration TODO: do in dataset creation and remove here
+    # def add_duration(example):
+    #     example["segment_duration_s"] = 5
+    #     return example
 
-    for split in dataset.keys():
-        print("Add duration to dataset split", split)
-        dataset[split] = dataset[split].map(
-            add_duration,
-            keep_in_memory=False,
-        )
+    # # TODO: remove
+    # for split in dataset.keys():
+    #     print("Add duration to dataset split", split)
+    #     dataset[split] = dataset[split].map(
+    #         add_duration,
+    #         keep_in_memory=False,
+    #     )
 
     added_labels = []
 
     # Add event logits
-    use_event_logits = cfg.train.use_event_logits
+    
     if use_event_logits:
-        num_event_logits = cfg.train.num_event_logits
-        event_logits_name = cfg.train.event_logits_name
         added_labels.append(event_logits_name)
 
         add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, logits_name=event_logits_name)
@@ -158,9 +164,9 @@ def main():
             dataset[split] = dataset[split].cast_column(event_logits_name, event_logits_feature)
 
     # Add framewise polyphony labels
-    use_framewise_polyphony = cfg.train.use_framewise_polyphony
+    
     if use_framewise_polyphony:
-        framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name
+
         num_frames = cfg.train.num_frames
         added_labels.append(framewise_polyphony_feature_name)
 
