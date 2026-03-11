@@ -13,7 +13,9 @@ from tensorflow import squeeze
 from tensorflow.math import reduce_mean
 from datasets import concatenate_datasets
 import tempfile
-
+import sys
+from datetime import datetime
+import json
 
 from utils.general import store_embeddings
 
@@ -365,6 +367,31 @@ def main():
         cfg = OmegaConf.load("params.yaml")
         # input_feature = cfg.embeddings.input_feature
         # embedding_model = cfg.embeddings.model
+
+        dataset_path = cfg.path.dataset
+        # dataset_metadata_path = cfg.path.dataset_metadata
+        embeddings_metadata_path = cfg.path.perch_embeddings_metadata
+
+        # Skip stage if no features or perch models are defined in embeddings config
+        if not 'input_features' in cfg.embeddings or not 'perch_models' in cfg.embeddings:
+
+            # Store metadata
+            metadata = {
+                    "datetime": datetime.now().isoformat(),
+                    "dataset_path": dataset_path,
+                    "embedding added": None
+                }
+
+            metadata_dir = os.path.dirname(embeddings_metadata_path)
+            if metadata_dir:
+                os.makedirs(metadata_dir, exist_ok=True)
+            with open(embeddings_metadata_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+
+            print("No input features or no perch models defined. Skip stage.")
+
+            sys.exit(0)
+
         input_features = cfg.embeddings.input_features
         embedding_models = cfg.embeddings.perch_models
         force_recompute = cfg.embeddings.force_recompute
@@ -432,18 +459,18 @@ def main():
         # # ===================
         # overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
 
-        # # Store metadata
-        # metadata = {
-        #         "datetime": datetime.now().isoformat(),
-        #         "dataset_path": dataset_path,
-        #         "embedding added": list(embedding_models)
-        #     }
+        # Store metadata
+        metadata = {
+                "datetime": datetime.now().isoformat(),
+                "dataset_path": dataset_path,
+                "embedding added": list(embedding_models)
+            }
 
-        # metadata_dir = os.path.dirname(embeddings_metadata_path)
-        # if metadata_dir:
-        #     os.makedirs(metadata_dir, exist_ok=True)
-        # with open(embeddings_metadata_path, "w") as f:
-        #     json.dump(metadata, f, indent=2)
+        metadata_dir = os.path.dirname(embeddings_metadata_path)
+        if metadata_dir:
+            os.makedirs(metadata_dir, exist_ok=True)
+        with open(embeddings_metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
 
 if __name__ == "__main__":
     main()
