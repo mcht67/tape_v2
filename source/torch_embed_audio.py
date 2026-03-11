@@ -9,6 +9,9 @@ import tempfile
 import torch
 import torchaudio
 from hydra.utils import instantiate
+import sys
+import json
+from datetime import datetime
 
 from utils.general import store_embeddings, overwrite_dataset
 
@@ -342,11 +345,32 @@ def main():
 
     dataset_path = cfg.path.dataset
     dataset_metadata_path = cfg.path.dataset_metadata
+    embeddings_metadata_path = cfg.path.birdset_embeddings_metadata
+
+    # Skip stage if no features or perch models are defined in embeddings config
+    if not 'input_features' in cfg.embeddings or not 'perch_models' in cfg.embeddings:
+
+        # Store metadata
+        metadata = {
+                "datetime": datetime.now().isoformat(),
+                "dataset_path": dataset_path,
+                "embeddings added": None
+            }
+
+        metadata_dir = os.path.dirname(embeddings_metadata_path)
+        if metadata_dir:
+            os.makedirs(metadata_dir, exist_ok=True)
+        with open(embeddings_metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        print("No input features or no birdset models defined. Skip stage.")
+
+        sys.exit(0)
 
     input_features = cfg.embeddings.input_features
     model_configs = cfg.embeddings.birdset_models
     force_recompute = cfg.embeddings.force_recompute
-    embeddings_metadata_path = cfg.path.birdset_embeddings_metadata
+    
 
     # ===================
     # Embed
@@ -380,7 +404,6 @@ def main():
             try:
                 if embeddings_added:
                     store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names)
-    
             except:
                 subset = cfg.dataset.subset
                 huggingface_user = 'mcht67'

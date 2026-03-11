@@ -38,7 +38,7 @@ stages:
       - ${path.perch_embeddings_metadata}
 
   embed_audio_with_birdset:
-    cmd: stage-venvs/train_venv/bin/python source/torch_embed_audio.py
+    cmd: stage-venvs/train-venv/bin/python source/torch_embed_audio.py
     deps:
       - source/torch_embed_audio.py
       - ${path.dataset_metadata}

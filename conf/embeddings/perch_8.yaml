@@ -13,5 +13,4 @@
 # PLACEHOLDER = 'placeholder'
 
 input_features: audio
-model: perch_8
-name: ${embeddings.model}_${embeddings.input_features}
+perch_models: perch_8

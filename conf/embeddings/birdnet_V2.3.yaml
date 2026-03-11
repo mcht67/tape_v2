@@ -13,5 +13,4 @@
 # PLACEHOLDER = 'placeholder'
 
 input_features: audio
-model: birdnet_V2.3
-name: ${embeddings.model}_${embeddings.input_features}
+perch_models: birdnet_V2.3
