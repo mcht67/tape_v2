@@ -205,6 +205,29 @@ dvc add data/raw
 git add data/raw.dvc
 dvc push
 ```
+
+## dvc remote
+
+### Setup with google drive
+First
+[setup Google Drive Project for dvc remote](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive#using-a-custom-google-cloud-project-recommended)
+
+Then
+[connect dvc with Google drive](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive)
+like this:
+```sh
+dvc remote add -d myremote gdrive://YOUR_FOLDER_ID
+dvc remote modify --local myremote gdrive_acknowledge_abuse true
+dvc remote modify --local myremote gdrive_client_id  "actual gdrive client id"
+dvc remote modify --local myremote gdrive_client_secret "actual gdrive client secret"
+dvc remote modify --local myremote \
+gdrive_user_credentials_file ./secrets/dvc-token.json
+
+dvc pull
+``` 
+To reset authentication delete dvc-token.json. This will open authentication in the browser on the next dvc pull. ->> How do I do this on HPC?
+
+
 ### 4 - Test and Debug Locally
 
 We recommend that you test and debug your DVC experiment pipeline locally before running it on the HPC cluster. This process will help you identify and resolve any problems that may occur during pipeline execution.
