@@ -1,0 +1,5 @@
+event_logits:
+  num_logits: 16
+
+framewise_polyphony:
+  num_frames: 16

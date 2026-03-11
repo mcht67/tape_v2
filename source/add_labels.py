@@ -106,13 +106,13 @@ def build_framewise_polyphony(
     return frame_polyphony
 
 
-def add_event_logits(example, num_event_logits, logits_name):
+def add_event_logits(example, num_event_logits, feature_name):
         all_events = []
-        for events in example['raw_files_time_freq_bounds']:
+        for events in example['sources_time_freq_bounds']:
             all_events.extend(events)
         segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
         event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
-        example[logits_name] = event_logits
+        example[feature_name] = event_logits
         return example
 
 def add_framewise_polyphony(example, num_frames, feature_name):
@@ -127,12 +127,18 @@ def main():
     dataset_path = cfg.path.dataset
     added_labels_metadata_path = cfg.path.added_labels_metadata
 
-    use_event_logits = cfg.train.use_event_logits if 'use_event_logits' in cfg.train else None
-    num_event_logits = cfg.train.num_event_logits if 'num_event_logits' in cfg.train else None
-    event_logits_name = cfg.train.event_logits_name if 'event_logits_name' in cfg.train else None
+    # use_event_logits = cfg.train.use_event_logits if 'use_event_logits' in cfg.train else None
+    # num_event_logits = cfg.train.num_event_logits if 'num_event_logits' in cfg.train else None
+    # event_logits_name = cfg.train.event_logits_name if 'event_logits_name' in cfg.train else None
 
-    use_framewise_polyphony = cfg.train.use_framewise_polyphony if 'use_framewise_polyphony' in cfg.train else None
-    framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name if 'framewise_polyphony_name' in cfg.train else None
+    # use_framewise_polyphony = cfg.train.use_framewise_polyphony if 'use_framewise_polyphony' in cfg.train else None
+    # framewise_polyphony_feature_name = cfg.train.framewise_polyphony_name if 'framewise_polyphony_name' in cfg.train else None
+
+    #use_event_logits = cfg.train.get("use_event_logits", None)
+    # num_event_logits = cfg.train.get("num_event_logits", None)
+    # event_logits_name = cfg.train.get("event_logits_name", None)
+    # #use_framewise_polyphony = cfg.train.get("use_framewise_polyphony", None)
+    # framewise_polyphony_feature_name = cfg.train.get("framewise_polyphony_name", None)
 
     dataset = load_from_disk(dataset_path)
 
@@ -152,30 +158,31 @@ def main():
     added_labels = []
 
     # Add event logits
-    
-    if use_event_logits:
-        added_labels.append(event_logits_name)
+    if 'event_logits' in cfg.labels:
+        feature_name = 'event_logits'
+        added_labels.append(feature_name)
+        num_event_logits = cfg.labels.event_logits.num_logits
 
-        add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, logits_name=event_logits_name)
+        add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, feature_name=feature_name)
         event_logits_feature = Sequence(Value("float32"))
         
         for split in dataset.keys():
             dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
-            dataset[split] = dataset[split].cast_column(event_logits_name, event_logits_feature)
+            dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
 
     # Add framewise polyphony labels
     
-    if use_framewise_polyphony:
+    if 'framewise_polyphony' in cfg.labels:
+        feature_name = 'framewise_polyphony'
+        num_frames = cfg.labels.framewise_polyphony.num_frames
+        added_labels.append(feature_name)
 
-        num_frames = cfg.train.num_frames
-        added_labels.append(framewise_polyphony_feature_name)
-
-        add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=framewise_polyphony_feature_name)
+        add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=feature_name)
         framewise_polyphony_feature = Sequence(Value("float32"))
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
-            dataset[split] = dataset[split].cast_column(framewise_polyphony_feature_name, framewise_polyphony_feature)
+            dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
 
     overwrite_dataset(dataset, dataset_path, store_backup=False)
 
