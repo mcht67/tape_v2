@@ -1,3 +1,4 @@
+input_feature: 
 input_feature_name: perch_v2_cpu_audio_embeddings
 batch_size: 128
 learning_rate: 0.001

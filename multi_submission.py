@@ -9,6 +9,7 @@ import subprocess
 import os
 import sys
 import shutil
+import json
 
 # Submit experiment for hyperparameter combination
 def submit_batch_job(arguments, exp_params, experiment_name):
@@ -53,19 +54,23 @@ if __name__ == "__main__":
 
     arguments = sys.argv[1:]
 
+    ##########################
+    # Configuration
+    ##########################
+
     # Define Experiment Name
     experiment_name = 'Embeddings-Comparison'
 
     # Define Base Config
     base_config = {
-        # Define which config files are used
-        #"general": general_config,
-        "dataset": 'PER',
-        "labels": 'all',
-        "embeddings": 'default',
-        "model": 'SimpleMLP',
-        "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',
-        #"train": 'perch2_spatial_embeddings',
+        # # Define which config files are used -> Done in hydra config
+        # #"general": general_config,
+        # "dataset": 'PER',
+        # "labels": 'all',
+        # "embeddings": 'default',
+        # "model": 'SimpleMLP',
+        # "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',
+        # #"train": 'perch2_spatial_embeddings',
 
         # Define specific parameters
         "log.experiment_name": experiment_name,
@@ -78,55 +83,65 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
+    input_features = ['audio', 'no_noise_audio']
+    embeddings = ['perch_8'] 
     hyperparams = {
-                    "train.input_feature_name": [
-                                                "perch_v2_cpu_audio_embeddings",
-                                                #"perch_v2_cpu_no_noise_audio_embeddings",
-                                                #"birdnet_V2.3_audio_embeddings",
-                                                #"birdnet_V2.3_no_noise_audio_embeddings",
-                                                #"vggish_audio_embeddings",
-                                                #"vggish_no_noise_audio_embeddings",
-                                                #"perch_8_audio_embeddings",
-                                                #"perch_8_no_noise_audio_embeddings",
-                                                #"yamnet_audio_embeddings",
-                                                #"yamnet_no_noise_audio_embeddings",
-                                                #"beans_baseline_audio_embeddings",
-                                                #"beans_baseline_no_noise_audio_embeddings",
-                                                "EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
-                                                #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                                                #"Bird-MAE-Huge_audio_pooled_embeddings",
-                                                #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",
-                                                #"AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
-                                                #"AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                                                #"AST-Birdset-XCL_audio_pooled_embeddings",
-                                                #"AST-Birdset-XCL_no_noise_audio_pooled_embeddings",
-                                                #"Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
-                                                #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"
-                                                ]
-                                            
+                    # "train.input_feature_name": [
+                    #                             "perch_v2_cpu_audio_embeddings",
+                    #                             #"perch_v2_cpu_no_noise_audio_embeddings",
+                    #                             #"birdnet_V2.3_audio_embeddings",
+                    #                             #"birdnet_V2.3_no_noise_audio_embeddings",
+                    #                             #"vggish_audio_embeddings",
+                    #                             #"vggish_no_noise_audio_embeddings",
+                    #                             #"perch_8_audio_embeddings",
+                    #                             #"perch_8_no_noise_audio_embeddings",
+                    #                             #"yamnet_audio_embeddings",
+                    #                             #"yamnet_no_noise_audio_embeddings",
+                    #                             #"beans_baseline_audio_embeddings",
+                    #                             #"beans_baseline_no_noise_audio_embeddings",
+                    #                             "EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
+                    #                             #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
+                    #                             #"Bird-MAE-Huge_audio_pooled_embeddings",
+                    #                             #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",
+                    #                             #"AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
+                    #                             #"AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_pooled_embeddings",
+                    #                             #"AST-Birdset-XCL_audio_pooled_embeddings",
+                    #                             #"AST-Birdset-XCL_no_noise_audio_pooled_embeddings",
+                    #                             #"Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
+                    #                             #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"
+                    #                             ],
+                    "train.input_feature": input_features,
+                    "embeddings": embeddings                                 
                 }
 
-    # Iterate over all combinations of parameters
-    # for params in (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values())):
-    # #for objectives_config, train_size_batches in itertools.product(hyperparams['objectives_configs'], hyperparams['train_sizes_batches']):
-    #     # Define Experiment
-    #     # base_config = {
-    #     #         # Define which config files are used
-    #     #         #"general": general_config,
-    #     #         # "dataset": 'default',
-    #     #         "embeddings": 'all_embeddings',
-    #     #         "model": 'TemporalCNN',
-    #     #         #"objectives": objectives_config,
-    #     #         "train": 'perch2_spatial_embeddings',
+    ##########################
+    # Prepare dataset
+    ##########################
 
-    #     #         # Define specific parameters
-    #     #         "log.experiment_name": 'MultiTask-Perch2-Spatial-Embeddings',
-    #     #         #"train.train_size_batches": train_size_batches
-    #     #     }
-        
-    #     # Add hyperparameters
-    #     config_dict.update(params)
+    # Collect all input features, embeddings and labels used
+    # Pass params (and force_recompute?) to prepare_dataset.py
 
+    # in prepare_dataset.py:
+
+    # Check if embeddings are included in dataset 
+    # Compute missing embeddings
+
+    # Check if labels are included in dataset
+    # Compute missing labels
+
+    try:
+        subprocess.run(["python", "prepare_dataset.py", 
+                        "--input_features", json.dumps(input_features), 
+                        "--embeddings", json.dumps(embeddings)],
+                        check=True)
+    except subprocess.CalledProcessError:
+        print("Dataset preparation failed. Aborting experiment submission.")
+        sys.exit(1)
+
+
+    ##########################
+    # Submit jobs
+    ##########################
     # Add hyperparameters
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
     print(all_hyper_parameter_combinations)
@@ -135,9 +150,13 @@ if __name__ == "__main__":
         # Get hyperparams keys for logging purposes
         hyperparams_keys_str = ",".join(hyperparams_config.keys())
         hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
+        if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
+            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_embeddings"
 
         # Create config
         config_dict = base_config | hyperparams_config | hyperparams_keys
+
+        print(config_dict)
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_dict)
