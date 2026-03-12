@@ -354,9 +354,9 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         self.best_val_loss = float('inf')
         self.loss_objects = loss_objects
 
-        self.epoch_weights_dir = checkpoint_dir + 'epoch_weights/'
-        self.best_weights_dir = checkpoint_dir + 'best_weights/'
-        self.resumable_dir = checkpoint_dir + 'resumable_checkpoints/'
+        self.epoch_weights_dir = checkpoint_dir + '/epoch_weights/'
+        self.best_weights_dir = checkpoint_dir + '/best_weights/'
+        self.resumable_dir = checkpoint_dir + '/resumable_checkpoints/'
 
         os.makedirs(self.epoch_weights_dir, exist_ok=True)
         os.makedirs(self.best_weights_dir, exist_ok=True)
