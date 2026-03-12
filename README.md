@@ -88,7 +88,7 @@ git clone git@github.com:<github_user>/<repository_name>.git
 
 In your Git repository open the file [global.env](./../global.env) and modify the following variable (the others can be changed later):
 
-`TUSTU_PROJECT_NAME`: Your Project Name
+`PROJECT_NAME`: Your Project Name
 
 #### Set up a Virtual Environment
 
@@ -106,7 +106,7 @@ Save the python version of your virtual environment to the global environment fi
 
 > **Info**: Check your current version with `python --version`.
 
-`TUSTU_PYTHON_VERSION`: The Python version for your project
+`PYTHON_VERSION`: The Python version for your project
 
 #### Configure your DVC Remote
 
@@ -155,7 +155,7 @@ dvc config cache.type symlink
    - `DOCKER_USERNAME`: Your Docker Hub username
    - `DOCKER_PASSWORD`: Your Docker Hub password
 - **Update Global Environment File:** Edit [global.env](./../global.env)  to set:
-   - `TUSTU_DOCKERHUB_USERNAME`: Your Docker Hub username
+   - `DOCKERHUB_USERNAME`: Your Docker Hub username
 
 ### 2 - Create a Docker Image
 
@@ -273,8 +273,8 @@ cp -r /local-ssh/* /root/.ssh/
 Next as dvc needs the git username and email to be set, we will create a `local.env` file in the repository root directory with the following content:
 
 ```env
-TUSTU_GIT_USERNAME="Your Name"
-TUSTU_GIT_EMAIL="name@domain.com"
+USERNAME="Your Name"
+GIT_EMAIL="name@domain.com"
 ```
 
 > **Info**: This file is git-ignored and is read by the [exp_workflow.sh](./../exp_workflow.sh) script. It will then configure git with the provided username and email every time the script is run. Your local git configuration will not be changed, as this happens only if the [exp_workflow.sh](./../exp_workflow.sh) script is run from within a Docker container.
@@ -327,6 +327,12 @@ Parameters for both dvc experiments and single python file runs can be accessed 
 ```
 cfg = OmegaConf.load("params.yaml")
 param = cfg.subfolder.param
+```
+
+### Syncing artifacts from HPC to Local Machine
+
+```bash
+rsync -rv $HPC:${DEFAULT_DIR}/archive/ ~/archive/
 ```
 
 

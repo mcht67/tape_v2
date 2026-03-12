@@ -3,7 +3,7 @@
 stages:
   load_dataset:
     cmd:
-      venv/bin/python source/load_dataset.py
+      ${python.base} source/load_dataset.py
     deps:
       - source/load_dataset.py
     params:
@@ -13,8 +13,28 @@ stages:
     outs:
       - ${path.dataset_metadata}
 
+  embed_audio_with_perch:
+    cmd: ${python.perch} source/embed_audio.py
+    deps:
+      - source/embed_audio.py
+      - ${path.dataset_metadata}
+    params:
+      - embeddings
+    outs:
+      - ${path.perch_embeddings_metadata}
+
+  embed_audio_with_birdset:
+    cmd: ${python.train} source/torch_embed_audio.py
+    deps:
+      - source/torch_embed_audio.py
+      - ${path.dataset_metadata}
+    params:
+      - embeddings
+    outs:
+      - ${path.birdset_embeddings_metadata}
+
   add_labels:
-    cmd: venv/bin/python source/add_labels.py
+    cmd: ${python.base} source/add_labels.py
     deps:
       - source/add_labels.py
       - ${path.dataset_metadata}
@@ -27,28 +47,8 @@ stages:
           persist: true
           cache: false
 
-  embed_audio_with_perch:
-    cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
-    deps:
-      - source/embed_audio.py
-      - ${path.dataset_metadata}
-    params:
-      - embeddings
-    outs:
-      - ${path.perch_embeddings_metadata}
-
-  embed_audio_with_birdset:
-    cmd: stage-venvs/train-venv/bin/python source/torch_embed_audio.py
-    deps:
-      - source/torch_embed_audio.py
-      - ${path.dataset_metadata}
-    params:
-      - embeddings
-    outs:
-      - ${path.birdset_embeddings_metadata}
-
   upload_dataset:
-    cmd: venv/bin/python source/upload_dataset.py
+    cmd: ${python.base} source/upload_dataset.py
     deps:
       - source/upload_dataset.py
       - ${path.dataset}
@@ -57,7 +57,7 @@ stages:
       - dataset.subset
 
   train:
-    cmd: stage-venvs/train-venv/bin/python source/train.py
+    cmd: ${python.train} source/train.py
     deps:
       - source/train.py
       - ${path.dataset}

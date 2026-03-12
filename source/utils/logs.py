@@ -165,7 +165,7 @@ class CustomSummaryWriter(SummaryWriter):
         params (Optional[config.Params[str, Any]]): config.Params object of DVC hyperparameters to display. Defaults to None.
         metrics (Optional[Dict[str, None]]): Dictionary of initial metrics to display in the HParams tab. Defaults to {}.
         sync_interval (Optional[int]): Number of steps between automatic syncs to the remote directory.
-                                       Defaults to the value of the 'TUSTU_SYNC_INTERVAL' environment variable.
+                                       Defaults to the value of the 'SYNC_INTERVAL' environment variable.
                                        If set to 0, no automatic syncs will be performed.
         remote_dir (Optional[Union[str, PosixPath]]): Remote directory with format 'host:dir' to which logs are synced.
                                 Defaults to None, in which case the remote directory is constructed from environment variables.
@@ -184,7 +184,7 @@ class CustomSummaryWriter(SummaryWriter):
         self.sync_interval = (
             sync_interval
             if sync_interval is not None
-            else int(config.get_env_variable("TUSTU_SYNC_INTERVAL"))
+            else int(config.get_env_variable("SYNC_INTERVAL"))
         )
         self.remote_dir = (
             remote_dir or self._construct_remote_dir()
@@ -203,10 +203,10 @@ class CustomSummaryWriter(SummaryWriter):
 
     def _construct_remote_dir(self) -> str:
         """Constructs the remote directory path based on environment variables."""
-        tensorboard_host_dir = config.get_env_variable("TUSTU_TENSORBOARD_HOST_DIR")
-        tensorboard_host = config.get_env_variable("TUSTU_TENSORBOARD_HOST")
+        tensorboard_host_dir = config.get_env_variable("TENSORBOARD_HOST_DIR")
+        tensorboard_host = config.get_env_variable("TENSORBOARD_HOST")
         tensorboard_host_savepath = Path(
-            f'{tensorboard_host_dir}/{config.get_env_variable("TUSTU_PROJECT_NAME")}/logs/tensorboard'
+            f'{tensorboard_host_dir}/{config.get_env_variable("PROJECT_NAME")}/logs/tensorboard'
         )
         os.system(f"ssh {tensorboard_host} 'mkdir -p {tensorboard_host_savepath}'")
         return f"{tensorboard_host}:{tensorboard_host_savepath}"

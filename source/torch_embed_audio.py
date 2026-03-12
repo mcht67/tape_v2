@@ -348,7 +348,7 @@ def main():
     embeddings_metadata_path = cfg.path.birdset_embeddings_metadata
 
     # Skip stage if no features or perch models are defined in embeddings config
-    if not 'input_features' in cfg.embeddings or not 'perch_models' in cfg.embeddings:
+    if not 'input_features' in cfg.embeddings or not 'birdset_models' in cfg.embeddings:
 
         # Store metadata
         metadata = {
@@ -371,7 +371,6 @@ def main():
     model_configs = cfg.embeddings.birdset_models
     force_recompute = cfg.embeddings.force_recompute
     
-
     # ===================
     # Embed
     # ===================

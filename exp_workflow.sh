@@ -5,6 +5,7 @@
 # See the LICENSE file in the root of this project for details.
 
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
+set -e
 
 # Set environment variables defined in global.env
 set -o allexport
@@ -13,31 +14,68 @@ set +o allexport
 
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$PWD"
-TUSTU_TMP_DIR=tmp
+TMP_DIR=tmp
+
+echo "Experiment name: "
+echo $EXP_NAME
+
+# Define python paths
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+    # In Docker - use Docker venvs from global.env
+    BASE_PYTHON="$DOCKER_BASE_PYTHON"
+    PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
+    TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
+else
+    # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
+    BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
+    PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
+    TRAIN_PYTHON="$DEFAULT_DIR$LOCAL_TRAIN_PYTHON"
+fi
+export BASE_PYTHON
+export PERCH_PYTHON
+export TRAIN_PYTHON
+
+if [ -f local.env ]; then
+        source local.env;
+fi
+
+# Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
+if [ -n "$HUGGINGFACE_TOKEN" ]; then
+    export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
+    echo "[INFO] Hugging Face token set successfully"
+fi
 
 # Setup a global git configuration if beeing inside a docker container
 # Docker containers create a /.dockerenv file in the root directory
-if [ -f /.dockerenv ]; then
-    if [ -f local.env ]; then
-        source local.env;
-    fi
-    if [ -z "$TUSTU_GIT_USERNAME" ] || [ -z "$TUSTU_GIT_EMAIL" ]; then
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+    # if [ -f local.env ]; then
+    #     source local.env;
+    # fi
+    if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
         echo "[ERROR] Please create a local.env with the vars:";
-        echo "TUSTU_GIT_USERNAME=MY NAME";
-        echo "TUSTU_GIT_EMAIL=myemail@domain.com";
+        echo "GIT_USERNAME=MY NAME";
+        echo "GIT_EMAIL=myemail@domain.com";
+        echo HUGGINGFACE_TOKEN="your_hf_token";
+        echo DOCKERHUB_USERNAME="your_dockerhub_username";
         exit 1;
     fi
-    git config --global user.name "$TUSTU_GIT_USERNAME"
-    git config --global user.email "$TUSTU_GIT_EMAIL"
+    git config --global user.name "$GIT_USERNAME"
+    git config --global user.email "$GIT_EMAIL"
     git config --global safe.directory "$PWD"
+
+    # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
+    if [ -n "$DOCKERHUB_USERNAME" ]; then
+        export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+        echo "[INFO] Dockerhub Username set successfully"
+    fi  
 fi
 
 # Create a new sub-directory in the temporary directory for the experiment
 echo "Creating temporary sub-directory..." &&
 # Generate a unique ID with the current timestamp, process ID, and hostname for the sub-directory
 UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
-TUSTU_EXP_TMP_DIR="$TUSTU_TMP_DIR/$UNIQUE_ID" &&
-mkdir -p $TUSTU_EXP_TMP_DIR &&
+EXP_TMP_DIR="$TMP_DIR/$UNIQUE_ID" &&
+mkdir -p $EXP_TMP_DIR &&
 
 # Copy the necessary files to the temporary directory
 echo "Copying files..." &&
@@ -53,29 +91,48 @@ fi
 echo ".git";
 } | while read file; do
     # --chown flag is needed for docker to avoid permission issues
-    rsync -aR --chown $(id -u):$(id -g) "$file" $TUSTU_EXP_TMP_DIR;
+    rsync -aR --chown $(id -u):$(id -g) "$file" $EXP_TMP_DIR;
 done &&
 
 # Change the working directory to the temporary sub-directory
-cd $TUSTU_EXP_TMP_DIR &&
+cd $EXP_TMP_DIR &&
 
 # Set the DVC cache directory to the shared cache located in the host directory
 echo "Setting DVC cache directory..." &&
 dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 
-# Pull the data from the DVC remote repository
-if [ -f "dataset.dvc" ]; then
-    echo "Pulling data with DVC..." 
-    dvc pull dataset;
-fi &&
+# # Pull the data from the DVC remote repository
+# if [ -f "dataset.dvc" ]; then
+#     echo "Pulling data with DVC..." 
+#     dvc pull dataset;
+# fi &&
 
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.
 echo "Running experiment..." &&
-dvc exp run $EXP_PARAMS &&
+dvc exp run \
+  --set-param python.base="$BASE_PYTHON" \
+  --set-param python.perch="$PERCH_PYTHON" \
+  --set-param python.train="$TRAIN_PYTHON" \
+  $EXP_PARAMS
+
+dvc status
 
 # Push the results to the DVC remote repository
 echo "Pushing experiment..." &&
-dvc exp push origin &&
+dvc exp push origin && \
+echo "✅ Push successful!" || echo "❌ Push failed!"
+
+# Moving everythin to archive
+DATETIME=$(date +%Y%m%d_%H%M%S)
+if [ -n "$EXP_NAME" ]; then
+    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$EXP_NAME/${DATETIME}_${DVC_EXP_NAME}
+else
+    ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_${DVC_EXP_NAME}
+fi
+
+rsync -rv logs/        ${ARCHIVE_DIR}/logs/
+rsync -rv checkpoints/ ${ARCHIVE_DIR}/checkpoints/
+rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&

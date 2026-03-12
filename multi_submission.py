@@ -11,15 +11,16 @@ import sys
 import shutil
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, exp_params):
+def submit_batch_job(arguments, exp_params, experiment_name):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
     env = {
         **os.environ,
         "EXP_PARAMS": exp_params,
+        "EXP_NAME": experiment_name,
         "DEFAULT_DIR": os.getcwd(),
-        "TUSTU_SYNC_INTERVAL": '0'
+        "SYNC_INTERVAL": '0'
     }
 
     # For debugging and local runs
@@ -140,4 +141,4 @@ if __name__ == "__main__":
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_dict)
-        submit_batch_job(arguments, exp_params)
+        submit_batch_job(arguments, exp_params, experiment_name)

@@ -15,7 +15,7 @@ logs/*/*
 logs/local_rsync_output.log
 /models
 /exp_logs/*
-dataset
+/dataset/
 debug_tensorboard
 stage_results/
 data
@@ -26,6 +26,7 @@ data
 # Not ignore
 !logs/*/.gitkeep
 !*.dvc
+!conf/
 
 # Ignore secrets
 .dvc/config.local

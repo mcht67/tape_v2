@@ -3,7 +3,8 @@ from omegaconf import OmegaConf
 import os
 from datetime import datetime
 import json
-from huggingface_hub import hf_hub_download
+import huggingface_hub
+from dotenv import load_dotenv
 
 from utils.general import overwrite_dataset
 
@@ -15,10 +16,15 @@ huggingface_path = cfg.dataset.huggingface_path
 dataset_subset = cfg.dataset.subset
 dataset_metadata_path = cfg.path.dataset_metadata
 
+# Huggingface login
+load_dotenv('local.env')
+token=os.getenv('HUGGINGFACE_TOKEN')
+huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+
 # Load polyphonic dataset
 dataset = load_dataset(huggingface_path, dataset_subset + '_polyphonic')
 
-path = hf_hub_download(
+path = huggingface_hub.hf_hub_download(
     repo_id=huggingface_path,
     filename=f"{dataset_subset}/metadata.json",
     repo_type="dataset"

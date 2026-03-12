@@ -151,11 +151,12 @@ batch_size = cfg.train.batch_size
 train_size_batches = cfg.train.train_size_batches if 'train_size_batches' in cfg.train else None
 val_size_batches = cfg.train.val_size_batches if 'val_size_batches' in cfg.train else None
 
-dvc_exp_name = get_dvc_exp_name()
-current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+# dvc_exp_name = get_dvc_exp_name()
+# current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
-path_suffix = cfg.log.path_suffix if 'path_suffix' in cfg.log else None
-checkpoint_path = f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/'
+#path_suffix = cfg.log.path_suffix if 'path_suffix' in cfg.log else None
+checkpoint_dir = 'checkpoints' #f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/'
+log_dir = 'logs'
 
 model_cfg = cfg.model
 objectives_cfg = cfg.objectives
@@ -179,8 +180,8 @@ tensorboard_suffix = cfg.log.tensorboard_suffix
 os.environ.setdefault('DEFAULT_DIR', os.getcwd())
 os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 
-tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
-os.makedirs(tensorboard_path, exist_ok=True)
+# tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
+# os.makedirs(tensorboard_path, exist_ok=True)
 
 # Load dataset
 dataset = load_from_disk(dataset_path)
@@ -211,8 +212,6 @@ params['train']['objectives'] = list(cfg.objectives.keys())
 print(params)
 
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
-
-
 
 # checkpoint_path = f"logs/models/{experiment_name}/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
 # # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
@@ -407,14 +406,14 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             
     def _cleanup_old_checkpoints(self, current_epoch):
         for old_epoch in range(current_epoch - self.keep_last_n):
-            path = self.epoch_weights_dir + f'epoch_{epoch+1:03d}.weights.h5'
+            path = self.epoch_weights_dir + f'epoch_{old_epoch+1:03d}.weights.h5'
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_path, loss_objects=losses, previous_history=previous_history)
+model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history)
 
 
-writer = CustomSummaryWriter(log_dir=tensorboard_path, params=params, metrics=metrics, sync_interval=0)
+writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
             log_confusion_matrix=True, confusion_matrix_frequency=1, 
             confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
@@ -469,7 +468,7 @@ history = model.fit(train_dataset,
 
 # Store config in file/logs
 print(OmegaConf.to_yaml(cfg))
-OmegaConf.save(cfg, os.path.join(tensorboard_path, "params.yaml"))
+OmegaConf.save(cfg, os.path.join(log_dir, "params.yaml"))
 
 # Add some examples to tensorboard
 import matplotlib.pyplot as plt
