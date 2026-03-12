@@ -9,6 +9,11 @@ path:
   # epoch_weights_path: checkpoints/epoch_weights/
   # best_weights_path: checkpoints/best_weights/
   # resumable_checkpoint_path: checkpoints/resumable_checkpoint/
+
+python:
+  base: venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
+  perch: stage-venvs/perch-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
+  train: stage-venvs/train-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
 # ==============================================
 
 hydra:
@@ -25,12 +30,12 @@ hydra:
 defaults:
   # It is possible to combine multiple configurations for the same model by using a list e.g. ["v1", "causal"]
   - general: default
-  - dataset: default
-  - labels: default
+  - dataset: PER
+  - labels: all
   - embeddings: default
   #- preprocess: default
-  - model: 'default'
-  - objectives: 'default'
+  - model: 'SimpleMLP'
+  - objectives: 'only_polyphony_degree'
   - train: 'default'
   - log: 'default'
   - _self_
