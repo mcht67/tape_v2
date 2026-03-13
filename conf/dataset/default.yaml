@@ -1,2 +1,4 @@
-huggingface_path: mcht67/Polyphonic-Bird-Set
-subset: HSN
+huggingface:
+  download_path: 'mcht67/Polyphonic-Bird-Set'
+  upload_path: 'mcht67/polyphonic-bird-set-with-embeddings'
+config: HSN

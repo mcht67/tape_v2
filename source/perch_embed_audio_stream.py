@@ -1,7 +1,7 @@
 from perch_hoplite.zoo import model_configs
 from omegaconf import OmegaConf
 import datasets
-from datasets import load_from_disk, Audio
+from datasets import load_from_disk, Audio, load_dataset
 import numpy as np
 from functools import partial
 from utils.dsp import resample_audio
@@ -254,149 +254,67 @@ def get_embedding_type(model_key):
             return embedding_type
 
 def main():
-    with tempfile.TemporaryDirectory() as temp_cache_dir:
 
-        # Set HuggingFace cache to this temporary directory
-        datasets.config.HF_DATASETS_CACHE = temp_cache_dir
+    # ===================
+    # Configuration
+    # ===================
 
-        # ===================
-        # Configuration
-        # ===================
+        # Define arguments
+    parser = argparse.ArgumentParser(
+        description="Prepares dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
+    )
 
-         # Define arguments
-        parser = argparse.ArgumentParser(
-            description="Prepares dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
-        )
+    parser.add_argument("--dataset_config", type=str)
+    parser.add_argument("--input_features", type=json.loads)
+    parser.add_argument("--embeddings", type=json.loads)
+    # parser.add_argument("--force_recompute", type=bool)
+    parser.add_argument('--force_recompute', action='store_true')
+    args = parser.parse_args()
 
-        parser.add_argument("--input_features", type=json.loads)
-        parser.add_argument("--embeddings", type=json.loads)
-        parser.add_argument("--labels", type=json.loads)
-        parser.add_argument("--recompute_embeddings", type=bool)
-        parser.add_argument("--recompute_labels", type=bool)
-        args = parser.parse_args()
-
-        ########################
-        # Setup
-        ########################
-        input_features = args.input_features
-        embeddings = args.embeddings
-        force_recompute = args.recompute_embeddings
+    ########################
+    # Setup
+    ########################
+    dataset_config = args.dataset_config
+    input_features = args.input_features
+    embeddings = args.embeddings
+    force_recompute = args.force_recompute
     
-        #cfg = OmegaConf.load(f"conf/embeddings/")
-        # input_feature = cfg.embeddings.input_feature
-        # embedding_model = cfg.embeddings.model
+    # Get default config
+    cfg = OmegaConf.load("params.yaml")
+    hf_download_path = cfg.dataset.huggingface.download_path
+    hf_upload_path = cfg.dataset.huggingface.upload_path
 
-        #dataset_path = cfg.path.dataset
-        # dataset_metadata_path = cfg.path.dataset_metadata
-        # embeddings_metadata_path = cfg.path.perch_embeddings_metadata
+    # Load Dataset 
+    dataset = load_dataset(hf_download_path, dataset_config)
 
-        # # Skip stage if no features or perch models are defined in embeddings config
-        # if not 'input_features' in cfg.embeddings or not 'perch_models' in cfg.embeddings:
+    # Reduce dataset for testing purposes TODO: remove
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))
 
-        #     # Store metadata
-        #     metadata = {
-        #             "datetime": datetime.now().isoformat(),
-        #             "dataset_path": dataset_path,
-        #             "embedding added": None
-        #         }
+    # ===================
+    # Embeddings
+    # ===================
 
-        #     metadata_dir = os.path.dirname(embeddings_metadata_path)
-        #     if metadata_dir:
-        #         os.makedirs(metadata_dir, exist_ok=True)
-        #     with open(embeddings_metadata_path, "w") as f:
-        #         json.dump(metadata, f, indent=2)
+    print("Start embedding...")
 
-        #     print("No input features or no perch models defined. Skip stage.")
+    # Compute embeddings
+    if force_recompute:
+        print("force_recompute is set to True. Recompute all embeddings!")
 
-        #     sys.exit(0)
+    embeddings_names = []
+    for model_key in embeddings:
+        for input_feature in input_features:
+            for split in dataset.keys():
+                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], temp_cache_dir, force_recompute=force_recompute)
+                if embeddings_name:
+                    embeddings_names.append(embeddings_name)
 
-        # # input_features = cfg.embeddings.input_features
-        # # embedding_models = cfg.embeddings.perch_models
-        # force_recompute = cfg.embeddings.force_recompute
-        # dataset_path = cfg.path.dataset
-        # # dataset_metadata_path = cfg.path.dataset_metadata
-        # embeddings_metadata_path = cfg.path.perch_embeddings_metadata
+    print(embeddings_names)
+    print("Embedding completed.")
 
-        # perch v1 available models
-        # BIRDNET_V2_1 = 'birdnet_V2.1'
-        # BIRDNET_V2_2 = 'birdnet_V2.2'
-        # BIRDNET_V2_3 = 'birdnet_V2.3'
-        # PERCH_8 = 'perch_8'
-        # SURFPERCH = 'surfperch'
-        # VGGISH = 'vggish'
-        # YAMNET = 'yamnet'
-        # HUMPBACK = 'humpback'
-        # MULTISPECIES_WHALE = 'multispecies_whale'
-        # BEANS_BASELINE = 'beans_baseline'
-        # AVES = 'aves'
-        # PLACEHOLDER = 'placeholder'
-
-        # perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
-        # if args.version=='perch_v1' and embedding_model not in perch_v1_models:
-        #     print("Requested embedding is no perch_v1 model, exiting.")
-        #     exit(0)
-
-        # perch_v2_models = ['perch_v2', 'perch_v2_cpu']
-        # if args.version=='perch_v2' and embedding_model not in perch_v2_models:
-        #             print("Requested embedding is no perch_v2 model, exiting.")
-        #             exit(0)
-        
-        # birdset_models = []
-        # if args.version=='birdset' and embedding_model not in birdset_models:
-        #             print("Requested embedding is no birdset model, exiting.")
-        #             exit(0)
-
-        # model_keys = [embedding_model]
-
-        # Load Dataset 
-
-        # TODO: get dataset
-        dataset = load_from_disk('data/PER')
-
-        # ===================
-        # Embeddings
-        # ===================
-
-        print("Start embedding...")
-
-        # Compute embeddings
-        if force_recompute:
-            print("force_recompute is set to True. Recompute all embeddings!")
-
-        embeddings_names = []
-        for model_key in embeddings:
-             
-            # Load embeddings config
-            #embeddings_cfg = OmegaConf.load(f"conf/embeddings/{model_key}.yaml")
-
-            for input_feature in input_features:
-                for split in dataset.keys():
-                    dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], temp_cache_dir, force_recompute=force_recompute)
-                    if embeddings_name:
-                        embeddings_names.append(embeddings_name)
-                        #store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings_names)
-
-        print("Embedding completed.")
-
-
-        print(embeddings_names)
-        # # ===================
-        # # Save dataset
-        # # ===================
-        # overwrite_dataset(dataset, dataset_path, metadata_path=dataset_metadata_path, store_backup=False)
-
-        # # Store metadata
-        # metadata = {
-        #         "datetime": datetime.now().isoformat(),
-        #         "dataset_path": dataset_path,
-        #         "embedding added": list(embedding_models)
-        #     }
-
-        # metadata_dir = os.path.dirname(embeddings_metadata_path)
-        # if metadata_dir:
-        #     os.makedirs(metadata_dir, exist_ok=True)
-        # with open(embeddings_metadata_path, "w") as f:
-        #     json.dump(metadata, f, indent=2)
+    print("Upload embeddings...")
+    commit_message_polyphonic = f"updates {dataset_config}"
+    dataset.push_to_hub(hf_upload_path, config_name=dataset_config, private=True, commit_message=commit_message_polyphonic)
 
 if __name__ == "__main__":
     main()

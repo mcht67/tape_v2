@@ -11,6 +11,9 @@ import sys
 import shutil
 import json
 
+from hydra import compose, initialize
+from omegaconf import OmegaConf
+
 # Submit experiment for hyperparameter combination
 def submit_batch_job(arguments, exp_params, experiment_name):
 
@@ -63,16 +66,8 @@ if __name__ == "__main__":
 
     # Define Base Config
     base_config = {
-        # # Define which config files are used -> Done in hydra config
-        # #"general": general_config,
-        # "dataset": 'PER',
-        # "labels": 'all',
-        # "embeddings": 'default',
-        # "model": 'SimpleMLP',
-        # "objectives": 'only_polyphony_degree', #'only_polyphony_degree_class',
-        # #"train": 'perch2_spatial_embeddings',
-
         # Define specific parameters
+
         "log.experiment_name": experiment_name,
         "train.epochs": 5,
         #"train.initial_epoch": 20,
@@ -83,33 +78,11 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
+    dataset_configs = ['HSN_polyphonic']
     input_features = ['audio', 'no_noise_audio']
-    embeddings = ['perch_8'] 
+    embeddings = ['perch_8']
     hyperparams = {
-                    # "train.input_feature_name": [
-                    #                             "perch_v2_cpu_audio_embeddings",
-                    #                             #"perch_v2_cpu_no_noise_audio_embeddings",
-                    #                             #"birdnet_V2.3_audio_embeddings",
-                    #                             #"birdnet_V2.3_no_noise_audio_embeddings",
-                    #                             #"vggish_audio_embeddings",
-                    #                             #"vggish_no_noise_audio_embeddings",
-                    #                             #"perch_8_audio_embeddings",
-                    #                             #"perch_8_no_noise_audio_embeddings",
-                    #                             #"yamnet_audio_embeddings",
-                    #                             #"yamnet_no_noise_audio_embeddings",
-                    #                             #"beans_baseline_audio_embeddings",
-                    #                             #"beans_baseline_no_noise_audio_embeddings",
-                    #                             "EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings",
-                    #                             #"EfficientNet-B1-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                    #                             #"Bird-MAE-Huge_audio_pooled_embeddings",
-                    #                             #"Bird-MAE-Huge_no_noise_audio_pooled_embeddings",
-                    #                             #"AudioProtoPNet-20-BirdSet-XCL_audio_pooled_embeddings",
-                    #                             #"AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_pooled_embeddings",
-                    #                             #"AST-Birdset-XCL_audio_pooled_embeddings",
-                    #                             #"AST-Birdset-XCL_no_noise_audio_pooled_embeddings",
-                    #                             #"Wav2Vec2-Base-BirdSet-XCL_audio_pooled_embeddings"]#,
-                    #                             #"Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_pooled_embeddings"
-                    #                             ],
+                    "dataset.config": dataset_configs,
                     "train.input_feature": input_features,
                     "embeddings": embeddings                                 
                 }
@@ -129,14 +102,25 @@ if __name__ == "__main__":
     # Check if labels are included in dataset
     # Compute missing labels
 
-    try:
-        subprocess.run(["python", "prepare_dataset.py", 
-                        "--input_features", json.dumps(input_features), 
-                        "--embeddings", json.dumps(embeddings)],
-                        check=True)
-    except subprocess.CalledProcessError:
-        print("Dataset preparation failed. Aborting experiment submission.")
-        sys.exit(1)
+    # Init config and save for prepare_dataset.py to use 
+    # [local python paths, dataset download and upload paths]
+    with initialize(config_path="conf", version_base=None):
+        cfg = compose(config_name="config")
+    OmegaConf.save(cfg, "params.yaml")
+
+    for dataset_config in dataset_configs:
+        try:
+            subprocess.run(["python", "prepare_dataset.py",
+                            "--dataset_config", dataset_config,
+                            "--input_features", json.dumps(input_features), 
+                            "--embeddings", json.dumps(embeddings),
+                            "--recompute_embeddings",
+                            #"--recompute_labels",
+                            ],
+                            check=True)
+        except subprocess.CalledProcessError:
+            print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
+            sys.exit(1)
 
 
     ##########################

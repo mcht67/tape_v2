@@ -853,7 +853,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             # Add metadata
             metadata_lines = [
                 f"Model: {self.cfg.model._target_ if hasattr(self.cfg.model, '_target_') else self.cfg.model.get('name', 'N/A')}",
-                f"Dataset subset: {self.cfg.dataset.subset if hasattr(self.cfg.dataset, 'subset') else 'N/A'}",
+                f"Dataset config: {self.cfg.dataset.config if hasattr(self.cfg.dataset, 'config') else 'N/A'}",
                 f"Input Feature: {self.cfg.train.get('input_feature_name', 'N/A')}",
                 f"Epoch: {epoch + 1}",
             ]
