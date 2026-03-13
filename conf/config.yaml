@@ -1,7 +1,7 @@
 # ==============================================
 # CHANGING THESE COULD BREAK DVC TRACKING
 path:
-  dataset: data/${dataset.subset}/
+  dataset: data/${dataset.config}/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json

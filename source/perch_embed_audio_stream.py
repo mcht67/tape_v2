@@ -1,7 +1,6 @@
 from perch_hoplite.zoo import model_configs
 from omegaconf import OmegaConf
-import datasets
-from datasets import load_from_disk, Audio, load_dataset
+from datasets import Audio, load_dataset
 import numpy as np
 from functools import partial
 from utils.dsp import resample_audio
@@ -9,16 +8,13 @@ import os
 import tensorflow_hub as hub
 import tensorflow as tf
 tf.experimental.numpy.experimental_enable_numpy_behavior()
-from tensorflow import squeeze
-from tensorflow.math import reduce_mean
+
 from datasets import concatenate_datasets
-import tempfile
-import sys
-from datetime import datetime
 import json
 import argparse
+import sys
+import tempfile
 
-from utils.general import store_embeddings
 
 def initialize_model(model):
     """Initialize a perch_hoplite model by running a dummy inference."""
@@ -74,7 +70,7 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     audio = example[input_feature]
     audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
-    embeddings_key = model_key + "_" + input_feature + "_embeddings"
+    embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key = model_key + "_" + input_feature + "_spatial_embeddings"
 
     # Normalize
@@ -163,9 +159,9 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
         modified = True
     return dataset, modified
 
-def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, cache_dir, force_recompute=False, batch_size=100):
+def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, force_recompute=False, batch_size=100):
         
-    embeddings_key = model_key + "_" + input_feature + "_embeddings"
+    embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key =  model_key + "_" + input_feature + "_spatial_embeddings"
 
     if embeddings_key in dataset.features and not force_recompute:
@@ -200,19 +196,21 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, c
     # Process in batches
     processed_datasets = []
     total_samples = len(dataset)
-    
-    for i in range(0, total_samples, batch_size):
-        end_idx = min(i + batch_size, total_samples)
-        print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+
+    with tempfile.TemporaryDirectory() as temp_cache_dir:
         
-        # Select batch
-        batch_dataset = dataset.select(range(i, end_idx))
-        
-        # Process batch
-        cache_file = os.path.join(cache_dir, f"{embeddings_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
-        batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
-        
-        processed_datasets.append(batch_processed)
+        for i in range(0, total_samples, batch_size):
+            end_idx = min(i + batch_size, total_samples)
+            print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+            
+            # Select batch
+            batch_dataset = dataset.select(range(i, end_idx))
+            
+            # Process batch
+            cache_file = os.path.join(temp_cache_dir, f"{embeddings_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
+            batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+            
+            processed_datasets.append(batch_processed)
     
     # Concatenate all processed batches
     print(f"Concatenating {len(processed_datasets)} batches...")
@@ -247,7 +245,7 @@ def get_embedding_type(model_key):
             elif model_key in birdset_models:
                 embedding_type = 'birdset'
             else:
-                print("Embedding model is not supported, skipping!")
+                print("Could not get embedding type. Embedding model is not supported, skipping!")
                 return None
             
             print(model_key, "is a ", embedding_type, "model.")
@@ -255,11 +253,13 @@ def get_embedding_type(model_key):
 
 def main():
 
+    print("Running perch embedding script...")
+
     # ===================
     # Configuration
     # ===================
 
-        # Define arguments
+    # Define arguments
     parser = argparse.ArgumentParser(
         description="Prepares dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
     )
@@ -267,22 +267,34 @@ def main():
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
-    # parser.add_argument("--force_recompute", type=bool)
     parser.add_argument('--force_recompute', action='store_true')
     args = parser.parse_args()
 
-    ########################
-    # Setup
-    ########################
     dataset_config = args.dataset_config
     input_features = args.input_features
-    embeddings = args.embeddings
+    embedding_models = args.embeddings
     force_recompute = args.force_recompute
+
+    # Exit script if no features or embeddings are passed
+    if not embedding_models or not input_features:
+        print("No input features or no embeddings passed. Skipping.")
+        sys.exit(0)
     
     # Get default config
     cfg = OmegaConf.load("params.yaml")
     hf_download_path = cfg.dataset.huggingface.download_path
     hf_upload_path = cfg.dataset.huggingface.upload_path
+
+    # Filter embedding models bny type "perch_v1" and "perch_v2"
+    perch_embeddings_models = [key for key in embedding_models if get_embedding_type(key)=='perch_v1' or get_embedding_type(key)=='perch_v2']
+
+    if not perch_embeddings_models:
+        print("No perch model keys found. Skipping.")
+        sys.exit(0)
+
+    ########################
+    # Load data
+    ########################
 
     # Load Dataset 
     dataset = load_dataset(hf_download_path, dataset_config)
@@ -302,19 +314,21 @@ def main():
         print("force_recompute is set to True. Recompute all embeddings!")
 
     embeddings_names = []
-    for model_key in embeddings:
+    embeddings_added = False
+    for model_key in embedding_models:
         for input_feature in input_features:
             for split in dataset.keys():
-                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], temp_cache_dir, force_recompute=force_recompute)
+                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], force_recompute=force_recompute)
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
-
-    print(embeddings_names)
+                    embeddings_added = True
     print("Embedding completed.")
 
     print("Upload embeddings...")
-    commit_message_polyphonic = f"updates {dataset_config}"
-    dataset.push_to_hub(hf_upload_path, config_name=dataset_config, private=True, commit_message=commit_message_polyphonic)
+    if embeddings_added:
+        commit_message = f"adds {embeddings_names} to {dataset_config}"
+        dataset.push_to_hub(hf_upload_path, config_name=dataset_config, private=True, commit_message=commit_message)
+    print("Upload done.")   
 
 if __name__ == "__main__":
     main()

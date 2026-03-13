@@ -1,0 +1,5 @@
+type: birdset
+model_cfg:
+  _target_: torch_models.BirdSetAudioProtoPNet
+  pretrained_model_path: DBD-research-group/AudioProtoPNet-20-BirdSet-XCL
+  pooling: mean

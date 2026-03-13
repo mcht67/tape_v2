@@ -58,12 +58,10 @@ if __name__ == "__main__":
     recompute_embeddings = args.recompute_embeddings 
     recompute_labels = args.recompute_labels
 
-    #########################
+    ##########################
     # Embed audio with perch
     ##########################
-    # Check if any embeddings are missing
 
-    # 1. Option: Check cfg.embeddings
     if input_features and embeddings:
         cmd =   [
                     perch_python, 
@@ -75,16 +73,20 @@ if __name__ == "__main__":
         if recompute_embeddings: cmd.append("--force_recompute")
         subprocess.run(cmd)
 
-    # 2. Option: Check input features [remove cfg.embeddings]
-    # get embedding model and input feature from input_feature_name string
+    ###########################
+    # Embed audio with birdset
+    ###########################
 
-    # --> 3. Option: Define embeddings and train.input_features as hyperparameters <--
-    # handle feature_key in train.py:
-    # if embeddings:
-    # feature key = embeddings + input_feature   
-    # else:
-    # feature_key = input_feature
-    # embeddings config has to be defined as embeddings.yaml
+    if input_features and embeddings:
+        cmd =   [
+                    train_python, 
+                    "source/birdset_embed_audio_stream.py",
+                    "--dataset_config", dataset_config,
+                    "--input_features", json.dumps(input_features), 
+                    "--embeddings", json.dumps(embeddings),
+                ]
+        if recompute_embeddings: cmd.append("--force_recompute")
+        subprocess.run(cmd)
 
 
     ###############################################################

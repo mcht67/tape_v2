@@ -2,59 +2,59 @@
 
 stages:
   load_dataset:
-    cmd:
-      ${python.base} source/load_dataset.py
-    deps:
-      - source/load_dataset.py
-    params:
-      - dataset.subset
-      - dataset.huggingface_path
-      - path.dataset_metadata
-    outs:
-      - ${path.dataset_metadata}
+  #   cmd:
+  #     ${python.base} source/load_dataset.py
+  #   deps:
+  #     - source/load_dataset.py
+  #   params:
+  #     - dataset.config
+  #     - dataset.huggingface_path
+  #     - path.dataset_metadata
+  #   outs:
+  #     - ${path.dataset_metadata}
 
-  embed_audio_with_perch:
-    cmd: ${python.perch} source/embed_audio.py
-    deps:
-      - source/embed_audio.py
-      - ${path.dataset_metadata}
-    params:
-      - embeddings
-    outs:
-      - ${path.perch_embeddings_metadata}
+  # embed_audio_with_perch:
+  #   cmd: ${python.perch} source/embed_audio.py
+  #   deps:
+  #     - source/embed_audio.py
+  #     - ${path.dataset_metadata}
+  #   params:
+  #     - embeddings
+  #   outs:
+  #     - ${path.perch_embeddings_metadata}
 
-  embed_audio_with_birdset:
-    cmd: ${python.train} source/torch_embed_audio.py
-    deps:
-      - source/torch_embed_audio.py
-      - ${path.dataset_metadata}
-    params:
-      - embeddings
-    outs:
-      - ${path.birdset_embeddings_metadata}
+  # embed_audio_with_birdset:
+  #   cmd: ${python.train} source/torch_embed_audio.py
+  #   deps:
+  #     - source/torch_embed_audio.py
+  #     - ${path.dataset_metadata}
+  #   params:
+  #     - embeddings
+  #   outs:
+  #     - ${path.birdset_embeddings_metadata}
 
-  add_labels:
-    cmd: ${python.base} source/add_labels.py
-    deps:
-      - source/add_labels.py
-      - ${path.dataset_metadata}
-    params:
-      - path.dataset
-      - labels
-    outs:
-      - ${path.added_labels_metadata}
-      - ${path.dataset}: 
-          persist: true
-          cache: false
+  # add_labels:
+  #   cmd: ${python.base} source/add_labels.py
+  #   deps:
+  #     - source/add_labels.py
+  #     - ${path.dataset_metadata}
+  #   params:
+  #     - path.dataset
+  #     - labels
+  #   outs:
+  #     - ${path.added_labels_metadata}
+  #     - ${path.dataset}: 
+  #         persist: true
+  #         cache: false
 
-  upload_dataset:
-    cmd: ${python.base} source/upload_dataset.py
-    deps:
-      - source/upload_dataset.py
-      - ${path.dataset}
-    params:
-      - path.dataset
-      - dataset.subset
+  # upload_dataset:
+  #   cmd: ${python.base} source/upload_dataset.py
+  #   deps:
+  #     - source/upload_dataset.py
+  #     - ${path.dataset}
+  #   params:
+  #     - path.dataset
+  #     - dataset.config
 
   train:
     cmd: ${python.train} source/train.py
@@ -68,9 +68,5 @@ stages:
       - train
       - log
     outs:
-    - logs:
-        cache: true 
-        persist: false
-    - checkpoints:
-        cache: true
-        persist: false
+      - logs
+      - checkpoints

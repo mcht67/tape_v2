@@ -1,0 +1,4 @@
+type: birdset
+model_cfg:
+  _target_: torch_models.BirdSetBirdMAE
+  pretrained_model_path: DBD-research-group/Bird-MAE-Huge

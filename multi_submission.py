@@ -66,8 +66,6 @@ if __name__ == "__main__":
 
     # Define Base Config
     base_config = {
-        # Define specific parameters
-
         "log.experiment_name": experiment_name,
         "train.epochs": 5,
         #"train.initial_epoch": 20,
@@ -80,12 +78,21 @@ if __name__ == "__main__":
     # Define all lists of parameters or config files [Hyperparameters]
     dataset_configs = ['HSN_polyphonic']
     input_features = ['audio', 'no_noise_audio']
-    embeddings = ['perch_8']
+
+    embedding_type = 'pooled'
+    embeddings = [
+                    'EfficientNet-B1-BirdSet-XCL',
+                    'perch_8'
+                ]
+    
     hyperparams = {
                     "dataset.config": dataset_configs,
                     "train.input_feature": input_features,
-                    "embeddings": embeddings                                 
+                    "embeddings": embeddings,                            
                 }
+    
+    recompute_embeddings = True
+    recompute_labels = True
 
     ##########################
     # Prepare dataset
@@ -110,18 +117,17 @@ if __name__ == "__main__":
 
     for dataset_config in dataset_configs:
         try:
-            subprocess.run(["python", "prepare_dataset.py",
-                            "--dataset_config", dataset_config,
-                            "--input_features", json.dumps(input_features), 
-                            "--embeddings", json.dumps(embeddings),
-                            "--recompute_embeddings",
-                            #"--recompute_labels",
-                            ],
-                            check=True)
+            cmd = [ "python", "prepare_dataset.py",
+                    "--dataset_config", dataset_config,
+                    "--input_features", json.dumps(input_features), 
+                    "--embeddings", json.dumps(embeddings)]
+
+            if recompute_embeddings: cmd.append("--recompute_embeddings")
+            if recompute_labels: cmd.append("--recompute_labels")
+            subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError:
             print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
             sys.exit(1)
-
 
     ##########################
     # Submit jobs
@@ -135,7 +141,7 @@ if __name__ == "__main__":
         hyperparams_keys_str = ",".join(hyperparams_config.keys())
         hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
         if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
-            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_embeddings"
+            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + embedding_type + "_embeddings"
 
         # Create config
         config_dict = base_config | hyperparams_config | hyperparams_keys
