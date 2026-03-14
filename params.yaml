@@ -1,35 +1,45 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/Polyphonic-Bird-Set
-  subset: HSN
-labels: {}
+  huggingface_path: mcht67/polyphonic-bird-set-with-embeddings
+  config: HSN_polyphonic
 embeddings:
-  input_features:
-  - audio
-  perch_models:
-  - perch_v2_cpu
-  birdset_models:
-    birdset_efficient_net:
-      _target_: torch_models.BirdSetEfficientNet
-      pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
-  force_recompute: true
+  type: perch_v2
 model:
-  _target_: model.SimpleMLP
-  hidden_units:
-  - 512
-  - 256
-  dropout_rate: 0.3
+  _target_: model.TemporalCNN
 objectives:
   polyphony_degree:
     loss:
       _target_: tensorflow.keras.losses.MeanSquaredError
+    weight: 1.0
     confusion_matrix:
       type: regression_round
       threshold: 0.5
     label: polyphony_degree
+  event_logits:
+    loss:
+      _target_: tensorflow.keras.losses.BinaryCrossentropy
+      from_logits: false
+      label_smoothing: 0.1
+    scheduler:
+      switch_epochs:
+      - 0
+      - 10
+      - 20
+      - 30
+      - 40
+      weights:
+      - 10.0
+      - 5.0
+      - 1.0
+      - 0.5
+      - 0.1
+    confusion_matrix:
+      type: binary
+    label: event_logits
 train:
-  input_feature_name: perch_v2_cpu_audio_embeddings
+  input_feature: no_noise_audio
+  input_feature_name: perch_v2_cpu_no_noise_audio_spatial_embeddings
   batch_size: 128
   learning_rate: 0.001
   epochs: 5
@@ -37,13 +47,22 @@ train:
   train_size_batches: null
   val_size_batches: null
 log:
-  experiment_name: test-experiment
-  tensorboard_subfolder: test-experiment
+  experiment_name: Embeddings-Comparison
+  tensorboard_subfolder: Embeddings-Comparison
   tensorboard_suffix: ''
-  hyperparameters: null
+  hyperparameters:
+  - model
+  - dataset.config
+  - train.input_feature
+  - embeddings
+  - objectives
 path:
-  dataset: data/HSN/
+  dataset: data/HSN_polyphonic/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json
   added_labels_metadata: stage_results/added_labels_metadata.json
+python:
+  base: venv/bin/python
+  perch: perch-venv/bin/python
+  train: train-venv/bin/python

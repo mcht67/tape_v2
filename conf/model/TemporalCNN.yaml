@@ -1,1 +1,1 @@
-_target_: model.TemporalCNNMultiTask_v2
+_target_: model.TemporalCNN

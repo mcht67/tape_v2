@@ -95,20 +95,20 @@ if __name__ == "__main__":
     input_features = ['audio', 'no_noise_audio']
 
     models = [
-                # 'TemporalCNN',
-                'SimpleMLP'
+                'TemporalCNN',
+                # 'SimpleMLP'
             ]
 
-    embedding_type = 'pooled'
+    embedding_type = 'spatial'
     embeddings = [
-                    'EfficientNet-B1-BirdSet-XCL',
-                    'perch_8'
-                    # 'perch_v2_cpu'
+                    # 'EfficientNet-B1-BirdSet-XCL',
+                    # 'perch_8'
+                    'perch_v2_cpu'
                 ]
     
     objectives = [
-                    # 'multi_task_v1_add_event_logits',
-                    'only_polyphony_degree'
+                    'multi_task_v1_add_event_logits',
+                    # 'only_polyphony_degree'
                 ]
 
     hyperparams = {

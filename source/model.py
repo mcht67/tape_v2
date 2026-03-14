@@ -408,79 +408,155 @@ class TemporalCNNMultiTask(tf.keras.Model):
         
 #         return loss_config
 
+# @register_keras_serializable(package="model", name="TemporalCNNMultiTask_v2")
+# class TemporalCNNMultiTask_v2(tf.keras.Model):
+#     def __init__(
+#         self,
+#         input_dim=(None, 4, 1536),
+#         conv_channels=(512, 256),
+#         dropout_rate=0.3,
+#         objectives=None,
+#         **kwargs
+#     ):
+#         super().__init__(**kwargs)
+
+#         # Store config
+#         self.input_dim = input_dim
+#         self.conv_channels = conv_channels
+#         self.dropout_rate = dropout_rate
+#         self.objectives = list(objectives) or []
+        
+#         # Build encoder
+#         self.freq_pool = tf.keras.layers.Lambda(lambda x: tf.reduce_mean(x, axis=2))
+#         self.conv1 = tf.keras.layers.Conv1D(conv_channels[0], 3, padding="same", activation="relu")
+#         self.bn1 = tf.keras.layers.BatchNormalization()
+#         self.dropout1 = tf.keras.layers.Dropout(dropout_rate)
+#         self.conv2 = tf.keras.layers.Conv1D(conv_channels[1], 3, padding="same", activation="relu")
+#         self.bn2 = tf.keras.layers.BatchNormalization()
+        
+#         # Build heads based on objectives
+#         if "event_logits" in self.objectives:
+#             self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
+        
+#         if "framewise_polyphony" in self.objectives:
+#             self.frame_polyphony_head = tf.keras.layers.Conv1D(1, kernel_size=1)
+        
+#         if "polyphony_degree" in self.objectives:
+#             self.segment_pool = tf.keras.layers.GlobalAveragePooling1D()
+#             self.segment_dense1 = tf.keras.layers.Dense(128, activation="relu")
+#             self.segment_dropout = tf.keras.layers.Dropout(dropout_rate)
+#             self.segment_dense2 = tf.keras.layers.Dense(1)
+    
+#     def call(self, inputs, training=False):
+#         # Encoder
+#         x = self.freq_pool(inputs)
+#         x = self.conv1(x)
+#         x = self.bn1(x, training=training)
+#         x = self.dropout1(x, training=training)
+#         x = self.conv2(x)
+#         features = self.bn2(x, training=training)
+        
+#         outputs = {}
+        
+#         if "event_logits" in self.objectives:
+#             event_logits = self.event_head(features, training=training)
+#             outputs["event_logits"] = tf.squeeze(event_logits, axis=-1)
+        
+#         if "framewise_polyphony" in self.objectives:
+#             frame_poly = self.frame_polyphony_head(features, training=training)
+#             outputs["framewise_polyphony"] = tf.squeeze(frame_poly, axis=-1)
+        
+#         if "polyphony_degree" in self.objectives:
+#             x = self.segment_pool(features)
+#             x = self.segment_dense1(x)
+#             x = self.segment_dropout(x, training=training)
+#             outputs["polyphony_degree"] = self.segment_dense2(x)
+        
+#         return outputs
+    
+#     def get_config(self):
+#         config = super().get_config()
+#         config.update({
+#             "input_dim": self.input_dim,
+#             "conv_channels": self.conv_channels,
+#             "dropout_rate": self.dropout_rate,
+#             "objectives": self.objectives,
+#         })
+#         return config
+    
 @register_keras_serializable(package="model", name="TemporalCNNMultiTask_v2")
-class TemporalCNNMultiTask_v2(tf.keras.Model):
+class TemporalCNN(tf.keras.Model):
     def __init__(
         self,
         input_dim=(None, 4, 1536),
         conv_channels=(512, 256),
         dropout_rate=0.3,
-        objectives=None,
+        objectives_cfg=None,
         **kwargs
     ):
         super().__init__(**kwargs)
-
         # Store config
         self.input_dim = input_dim
-        self.conv_channels = conv_channels
+        self.conv_channels = list(conv_channels)
         self.dropout_rate = dropout_rate
-        self.objectives = list(objectives) or []
-        
+        self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+
         # Build encoder
-        self.freq_pool = tf.keras.layers.Lambda(lambda x: tf.reduce_mean(x, axis=2))
-        self.conv1 = tf.keras.layers.Conv1D(conv_channels[0], 3, padding="same", activation="relu")
+        self.conv1 = tf.keras.layers.Conv1D(self.conv_channels[0], 3, padding="same", activation="relu")
         self.bn1 = tf.keras.layers.BatchNormalization()
         self.dropout1 = tf.keras.layers.Dropout(dropout_rate)
-        self.conv2 = tf.keras.layers.Conv1D(conv_channels[1], 3, padding="same", activation="relu")
+        self.conv2 = tf.keras.layers.Conv1D(self.conv_channels[1], 3, padding="same", activation="relu")
         self.bn2 = tf.keras.layers.BatchNormalization()
-        
+
         # Build heads based on objectives
-        if "event_logits" in self.objectives:
+        if "event_logits" in self.objectives_cfg:
             self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
-        
-        if "framewise_polyphony" in self.objectives:
+        if "framewise_polyphony" in self.objectives_cfg:
             self.frame_polyphony_head = tf.keras.layers.Conv1D(1, kernel_size=1)
-        
-        if "polyphony_degree" in self.objectives:
+        if "polyphony_degree" in self.objectives_cfg:
             self.segment_pool = tf.keras.layers.GlobalAveragePooling1D()
             self.segment_dense1 = tf.keras.layers.Dense(128, activation="relu")
             self.segment_dropout = tf.keras.layers.Dropout(dropout_rate)
             self.segment_dense2 = tf.keras.layers.Dense(1)
-    
+        if "polyphony_degree_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7)
+            self.segment_pool_class = tf.keras.layers.GlobalAveragePooling1D()
+            self.segment_dense1_class = tf.keras.layers.Dense(128, activation="relu")
+            self.segment_dropout_class = tf.keras.layers.Dropout(dropout_rate)
+            self.polyphony_class_head = tf.keras.layers.Dense(self.polyphony_num_classes)
+
     def call(self, inputs, training=False):
-        # Encoder
-        x = self.freq_pool(inputs)
+        x = tf.reduce_mean(inputs, axis=2)
         x = self.conv1(x)
         x = self.bn1(x, training=training)
         x = self.dropout1(x, training=training)
         x = self.conv2(x)
         features = self.bn2(x, training=training)
-        
+
         outputs = {}
-        
-        if "event_logits" in self.objectives:
-            event_logits = self.event_head(features, training=training)
-            outputs["event_logits"] = tf.squeeze(event_logits, axis=-1)
-        
-        if "framewise_polyphony" in self.objectives:
-            frame_poly = self.frame_polyphony_head(features, training=training)
-            outputs["framewise_polyphony"] = tf.squeeze(frame_poly, axis=-1)
-        
-        if "polyphony_degree" in self.objectives:
+        if "event_logits" in self.objectives_cfg:
+            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
+        if "framewise_polyphony" in self.objectives_cfg:
+            outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
+        if "polyphony_degree" in self.objectives_cfg:
             x = self.segment_pool(features)
             x = self.segment_dense1(x)
             x = self.segment_dropout(x, training=training)
             outputs["polyphony_degree"] = self.segment_dense2(x)
-        
+        if "polyphony_degree_class" in self.objectives_cfg:
+            x = self.segment_pool_class(features)
+            x = self.segment_dense1_class(x)
+            x = self.segment_dropout_class(x, training=training)
+            outputs["polyphony_degree_class"] = self.polyphony_class_head(x, training=training)
         return outputs
-    
+
     def get_config(self):
         config = super().get_config()
         config.update({
             "input_dim": self.input_dim,
             "conv_channels": self.conv_channels,
             "dropout_rate": self.dropout_rate,
-            "objectives": self.objectives,
+            "objectives_cfg": self.objectives_cfg,
         })
         return config
 
