@@ -4,7 +4,7 @@
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 import numpy as np
-from datasets import load_from_disk, concatenate_datasets
+from datasets import concatenate_datasets, load_dataset
 from omegaconf import OmegaConf
 import os
 import model
@@ -15,6 +15,7 @@ from datetime import datetime
 from utils.logs import plot_spectrogram_with_metrics, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, get_dvc_exp_name
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
+from utils.dataset import add_labels
 from losses import create_losses_from_objectives, setup_loss_scheduler
 
 tf.keras.backend.clear_session()
@@ -136,7 +137,9 @@ params = Params()
 random_seed = cfg.general.random_seed
 set_random_seeds(random_seed)
 
-dataset_path =  cfg.path.dataset
+# dataset_path =  cfg.path.dataset
+huggingface_path = cfg.dataset.huggingface_path
+dataset_config = cfg.dataset.config
 
 experiment_name = cfg.log.experiment_name
 load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
@@ -183,12 +186,18 @@ os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 # tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
 # os.makedirs(tensorboard_path, exist_ok=True)
 
-# Load dataset
-dataset = load_from_disk(dataset_path)
+# Load Dataset  
+dataset = load_dataset(huggingface_path, dataset_config)
 
 # Get input dim
 embeddings = dataset['train'][0][input_feature_name]
 input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
+
+# Compute additional labels
+time_dim = input_dim[0] if len(input_dim) > 1 else None
+freq_dim = input_dim[1] if len(input_dim) > 2 else None
+dataset, added_labels = add_labels(dataset, labels, time_dim=time_dim, freq_dim=freq_dim)
+print("Added labels: ", added_labels)
 
 # Get tensorflow datasets
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)

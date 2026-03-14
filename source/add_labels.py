@@ -122,6 +122,42 @@ def add_framewise_polyphony(example, num_frames, feature_name):
         example[feature_name] = framewise_polyphony_array
         return example
 
+def add_labels(dataset, labels, time_dim, freq_dim=None):
+    added_labels = []
+
+    # Add event logits
+    if 'event_logits' in labels:
+        print("Add event logits...")
+        feature_name = 'event_logits'
+        added_labels.append(feature_name)
+        num_event_logits = time_dim
+
+        add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, feature_name=feature_name)
+        event_logits_feature = Sequence(Value("float32"))
+        
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
+            dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
+        print('Done!')
+
+    # Add framewise polyphony labels
+    if 'framewise_polyphony' in labels:
+        print('Add framewise polyphony labels...')
+        feature_name = 'framewise_polyphony'
+        num_frames = time_dim
+        added_labels.append(feature_name)
+
+        add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=feature_name)
+        framewise_polyphony_feature = Sequence(Value("float32"))
+
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
+            dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
+        print('Done!')
+
+        return added_labels
+    
+
 def main():
     cfg = OmegaConf.load("params.yaml")
     dataset_path = cfg.path.dataset

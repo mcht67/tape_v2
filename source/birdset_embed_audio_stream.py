@@ -22,44 +22,40 @@ def get_embedding_keys(model_name, input_feature):
 
 def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, cache_dir=None, batch_size=100):
     
+    # Set HuggingFace cache to this temporary directory
+    #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
+    
+    embeddings_keys = get_embedding_keys(model_key, input_feature).values()
+
+    # any(example in split_key if example.get(key) is not None)
+    for key in embeddings_keys:
+        features = dataset.features
+        boolean = key in features
+
+    if any(key in dataset.features for key in embeddings_keys) and not force_recompute:
+        print("Embedding with model", model_key, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
+        return dataset, None
+    
     # Instantiate model
     model_cfg = model_configs[model_key]['model_cfg']
     model = instantiate(model_cfg)
 
-    # Get model name
-    #model_path = model_cfg.pretrained_model_path
-   # model_key = model_path.replace("DBD-research-group/", "")
+    print("######################################################################")
+    print("Embed", input_feature, "with:", model_key)
+    print("######################################################################")    
+        
+    embedding_fn = partial(
+            embed_example_batched,
+            model=model,
+            model_name=model_key,
+            input_feature=input_feature
+        )
+    
+    # Process in batches
+    processed_datasets = []
+    total_samples = len(dataset)
 
     with tempfile.TemporaryDirectory() as temp_cache_dir:
-
-        # Set HuggingFace cache to this temporary directory
-        #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
-        
-        embeddings_keys = get_embedding_keys(model_key, input_feature).values()
-
-        # any(example in split_key if example.get(key) is not None)
-        for key in embeddings_keys:
-            features = dataset.features
-            boolean = key in features
-
-        if any(key in dataset.features for key in embeddings_keys) and not force_recompute:
-            print("Embedding with model", model_key, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
-            return dataset, None
-
-        print("######################################################################")
-        print("Embed", input_feature, "with:", model_key)
-        print("######################################################################")    
-            
-        embedding_fn = partial(
-                embed_example_batched,
-                model=model,
-                model_name=model_key,
-                input_feature=input_feature
-            )
-        
-        # Process in batches
-        processed_datasets = []
-        total_samples = len(dataset)
         
         for i in range(0, total_samples, batch_size):
             end_idx = min(i + batch_size, total_samples)
@@ -231,15 +227,17 @@ def main():
 
     # Define arguments
     parser = argparse.ArgumentParser(
-        description="Prepares dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
+        description="Computes misssing birdset and updates dataset."
     )
 
+    parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument('--force_recompute', action='store_true')
     args = parser.parse_args()
 
+    huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
     input_features = args.input_features
     embeddings = args.embeddings
@@ -250,10 +248,10 @@ def main():
         print("No input features or no embeddings passed. Skipping.")
         sys.exit(0)
 
-     # Get default config
-    cfg = OmegaConf.load("params.yaml")
-    hf_download_path = cfg.dataset.huggingface.download_path
-    hf_upload_path = cfg.dataset.huggingface.upload_path
+    #  # Get default config
+    # cfg = OmegaConf.load("params.yaml")
+    # hf_download_path = cfg.dataset.huggingface.download_path
+    # hf_upload_path = cfg.dataset.huggingface.upload_path
 
     ########################
     # Load data
@@ -273,7 +271,7 @@ def main():
         sys.exit(0)
 
     # Load Dataset 
-    dataset = load_dataset(hf_download_path, dataset_config)
+    dataset = load_dataset(huggingface_path, dataset_config)
 
     # Reduce dataset for testing purposes TODO: remove
     for split in dataset.keys():
@@ -309,11 +307,13 @@ def main():
                     embeddings_added = True
     print("Embedding completed.")
 
-    print("Upload embeddings...")
     if embeddings_added:
+        print("Upload embeddings...")
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(hf_upload_path, config_name=dataset_config, private=True, commit_message=commit_message)
-    print("Upload done.")
+        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message)
+        print("Upload done.")
+    else:
+        print("No embeddings added. Skip upload.")  
 
 if __name__=="__main__":
      main()

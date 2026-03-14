@@ -261,15 +261,17 @@ def main():
 
     # Define arguments
     parser = argparse.ArgumentParser(
-        description="Prepares dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
+        description="Computes missing perch embeddings and updates dataset."
     )
 
+    parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument('--force_recompute', action='store_true')
     args = parser.parse_args()
 
+    huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
     input_features = args.input_features
     embedding_models = args.embeddings
@@ -280,10 +282,10 @@ def main():
         print("No input features or no embeddings passed. Skipping.")
         sys.exit(0)
     
-    # Get default config
-    cfg = OmegaConf.load("params.yaml")
-    hf_download_path = cfg.dataset.huggingface.download_path
-    hf_upload_path = cfg.dataset.huggingface.upload_path
+    # # Get default config
+    # cfg = OmegaConf.load("params.yaml")
+    # hf_download_path = cfg.dataset.huggingface.download_path
+    # hf_upload_path = cfg.dataset.huggingface.upload_path
 
     # Filter embedding models bny type "perch_v1" and "perch_v2"
     perch_embeddings_models = [key for key in embedding_models if get_embedding_type(key)=='perch_v1' or get_embedding_type(key)=='perch_v2']
@@ -297,7 +299,7 @@ def main():
     ########################
 
     # Load Dataset 
-    dataset = load_dataset(hf_download_path, dataset_config)
+    dataset = load_dataset(huggingface_path, dataset_config)
 
     # Reduce dataset for testing purposes TODO: remove
     for split in dataset.keys():
@@ -324,11 +326,13 @@ def main():
                     embeddings_added = True
     print("Embedding completed.")
 
-    print("Upload embeddings...")
     if embeddings_added:
+        print("Upload embeddings...")
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(hf_upload_path, config_name=dataset_config, private=True, commit_message=commit_message)
-    print("Upload done.")   
+        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message)
+        print("Upload done.") 
+    else:
+        print("No embeddings added. Skip upload.")  
 
 if __name__ == "__main__":
     main()

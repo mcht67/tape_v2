@@ -1,7 +1,7 @@
 # This file defines the dvc stages and its depencies
 
 stages:
-  load_dataset:
+  #load_dataset:
   #   cmd:
   #     ${python.base} source/load_dataset.py
   #   deps:
@@ -60,9 +60,10 @@ stages:
     cmd: ${python.train} source/train.py
     deps:
       - source/train.py
-      - ${path.dataset}
+      #- ${path.dataset}
     params:
       - general.random_seed
+      - dataset
       - model
       - objectives
       - train

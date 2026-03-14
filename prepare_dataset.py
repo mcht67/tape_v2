@@ -2,8 +2,9 @@ import subprocess
 import argparse
 import json
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from omegaconf import OmegaConf
+# import huggingface_hub
 
     # Collect all input features and embeddings used
     # Check if embeddings are included in dataset 
@@ -20,13 +21,13 @@ if __name__ == "__main__":
         description="Updatess dataset when provided with lists of input_features, embeddings and labels by computing missing ones."
     )
 
+    parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument("--labels", type=json.loads)
-    #parser.add_argument("--recompute_embeddings", type=bool, default=False)
+    parser.add_argument('--objectives', type=json.loads)
     parser.add_argument('--recompute_embeddings', action='store_true')
-    #parser.add_argument("--recompute_labels", type=bool, default=False)
     parser.add_argument('--recompute_labels', action='store_true')
     args = parser.parse_args()
 
@@ -51,10 +52,12 @@ if __name__ == "__main__":
     ########################
     # Setup
     ########################
+    huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
     input_features = args.input_features
     embeddings = args.embeddings
     labels = args.labels
+    objectives = args.objectives
     recompute_embeddings = args.recompute_embeddings 
     recompute_labels = args.recompute_labels
 
@@ -66,6 +69,7 @@ if __name__ == "__main__":
         cmd =   [
                     perch_python, 
                     "source/perch_embed_audio_stream.py",
+                    "--huggingface_path", huggingface_path,
                     "--dataset_config", dataset_config,
                     "--input_features", json.dumps(input_features), 
                     "--embeddings", json.dumps(embeddings),
@@ -79,8 +83,9 @@ if __name__ == "__main__":
 
     if input_features and embeddings:
         cmd =   [
-                    train_python, 
+                    train_python,
                     "source/birdset_embed_audio_stream.py",
+                    "--huggingface_path", huggingface_path,
                     "--dataset_config", dataset_config,
                     "--input_features", json.dumps(input_features), 
                     "--embeddings", json.dumps(embeddings),
@@ -88,19 +93,19 @@ if __name__ == "__main__":
         if recompute_embeddings: cmd.append("--force_recompute")
         subprocess.run(cmd)
 
+    # DO IN TRAIN 
+    # #########################
+    # # Add labels
+    # ##########################
 
-    ###############################################################
+    # if objectives:
+    #     cmd =   [
+    #                 base_python, 
+    #                 "source/add_labels_stream.py",
+    #                 "--huggingface_path", huggingface_path,
+    #                 "--dataset_config", dataset_config,
+    #                 "--objectives", json.dumps(objectives), 
+    #             ]
+    #     if recompute_labels: cmd.append("--force_recompute")
+    #     subprocess.run(cmd)
 
-    # Collect all input features and embeddings used
-    # Check if embeddings are included in dataset 
-    # Compute missing embeddings
-
-
-
-
-    #########################
-    # Add labels
-    ##########################
-
-
-    # get labels from objectives

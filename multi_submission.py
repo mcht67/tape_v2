@@ -10,7 +10,9 @@ import os
 import sys
 import shutil
 import json
+import huggingface_hub
 
+from dotenv import load_dotenv
 from hydra import compose, initialize
 from omegaconf import OmegaConf
 
@@ -53,6 +55,15 @@ def create_exp_params_str(config_dict):
         exp_params_str += f"-S  {key}={str(value)} "
     return exp_params_str
 
+# def create_exp_params_str(config_overwrite, config_append=None):
+#     exp_params_str = ''
+#     for key, value in config_overwrite.items():
+#         exp_params_str += f"-S {key}={str(value)} "
+#     if config_append:
+#         for key, value in config_append.items():
+#             exp_params_str += f"+{key}={str(value)} "
+#     return exp_params_str
+
 if __name__ == "__main__":
 
     arguments = sys.argv[1:]
@@ -63,10 +74,13 @@ if __name__ == "__main__":
 
     # Define Experiment Name
     experiment_name = 'Embeddings-Comparison'
+    huggingface_path = 'mcht67/polyphonic-bird-set-with-embeddings'
 
     # Define Base Config
     base_config = {
         "log.experiment_name": experiment_name,
+        "dataset.huggingface_path": huggingface_path,
+        
         "train.epochs": 5,
         #"train.initial_epoch": 20,
         #"train.train_size_batches": 20,
@@ -76,23 +90,44 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
+    
     dataset_configs = ['HSN_polyphonic']
     input_features = ['audio', 'no_noise_audio']
+
+    models = [
+                # 'TemporalCNN',
+                'SimpleMLP'
+            ]
 
     embedding_type = 'pooled'
     embeddings = [
                     'EfficientNet-B1-BirdSet-XCL',
                     'perch_8'
+                    # 'perch_v2_cpu'
                 ]
     
+    objectives = [
+                    # 'multi_task_v1_add_event_logits',
+                    'only_polyphony_degree'
+                ]
+
     hyperparams = {
+                    "model": models,
                     "dataset.config": dataset_configs,
                     "train.input_feature": input_features,
-                    "embeddings": embeddings,                            
+                    "embeddings": embeddings,   
+                    "objectives": objectives                         
                 }
     
-    recompute_embeddings = True
-    recompute_labels = True
+    recompute_embeddings = False
+    # recompute_labels = False
+
+    ##########################
+    # Huggingface login
+    ##########################
+
+    load_dotenv('local.env')
+    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
     ##########################
     # Prepare dataset
@@ -118,12 +153,14 @@ if __name__ == "__main__":
     for dataset_config in dataset_configs:
         try:
             cmd = [ "python", "prepare_dataset.py",
+                    "--huggingface_path", huggingface_path,
                     "--dataset_config", dataset_config,
                     "--input_features", json.dumps(input_features), 
-                    "--embeddings", json.dumps(embeddings)]
+                    "--embeddings", json.dumps(embeddings),
+                    "--objectives", json.dumps(objectives)]
 
             if recompute_embeddings: cmd.append("--recompute_embeddings")
-            if recompute_labels: cmd.append("--recompute_labels")
+            #if recompute_labels: cmd.append("--recompute_labels")
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError:
             print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
@@ -140,14 +177,15 @@ if __name__ == "__main__":
         # Get hyperparams keys for logging purposes
         hyperparams_keys_str = ",".join(hyperparams_config.keys())
         hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
+
+        # Update input feature name
         if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
             hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + embedding_type + "_embeddings"
 
         # Create config
-        config_dict = base_config | hyperparams_config | hyperparams_keys
-
-        print(config_dict)
+        config_overwrites = base_config | hyperparams_config | hyperparams_keys
+        print(config_overwrites)
         
         # Submit job for every hyperparameter configuration
-        exp_params = create_exp_params_str(config_dict)
+        exp_params = create_exp_params_str(config_overwrites)
         submit_batch_job(arguments, exp_params, experiment_name)

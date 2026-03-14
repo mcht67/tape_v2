@@ -15,8 +15,8 @@ path:
 # ==============================================  
 python:
   base: venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
-  perch: stage-venvs/perch-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
-  train: stage-venvs/train-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
+  perch: perch-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
+  train: train-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
 # ============================================== 
 
 
@@ -34,12 +34,12 @@ hydra:
 defaults:
   # It is possible to combine multiple configurations for the same model by using a list e.g. ["v1", "causal"]
   - general: default
-  - dataset: PER
-  - labels: all
-  - embeddings: default
+  - dataset: empty # should be defined in multi_submission
+  #- labels: all
+  - embeddings: empty # should be defined in multi_submission
   #- preprocess: default
-  - model: 'SimpleMLP'
-  - objectives: 'only_polyphony_degree'
+  - model: empty
+  - objectives: empty # should be defined in multi_submission
   - train: 'default'
   - log: 'default'
   - _self_
