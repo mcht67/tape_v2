@@ -35,6 +35,9 @@ export BASE_PYTHON
 export PERCH_PYTHON
 export TRAIN_PYTHON
 
+# Set default python
+source "$BASE_VENV/bin/activate"
+
 if [ -f local.env ]; then
         source local.env;
 fi

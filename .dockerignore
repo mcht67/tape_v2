@@ -3,5 +3,7 @@
 # Except this files
 !requirements.txt
 !global.env
-!.dvc/config.local
-!secrets/
+!perch_requirements.txt
+!train_requirements.txt
+.dvc/config.local
+secrets/

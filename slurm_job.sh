@@ -12,14 +12,16 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:tesla:2
 #SBATCH --mem=100GB
-#SBATCH --time=10:00:00
-#SBATCH --partition=gpu
+#SBATCH --time=01:00:00
+#SBATCH --partition=standard
 
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=<your-email-address>
+#SBATCH --mail-user=malte.crt@gmail.com
+
+set -euo pipefail
+set -x
 
 # Default variable values
 rebuild_container=false
@@ -91,19 +93,19 @@ else
 fi
 
 # Remove existing container if --rebuild-container flag is set
-if { [ -d $TUSTU_PROJECT_NAME-image_latest$container_extension ] || [ -f $TUSTU_PROJECT_NAME-image_latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
+if { [ -d $PROJECT_NAME-image_latest$container_extension ] || [ -f $PROJECT_NAME-image_latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
   echo "Removing the existing container as --rebuild-container flag is set..."
-  rm -rf $TUSTU_PROJECT_NAME-image_latest$container_extension
+  rm -rf $PROJECT_NAME-image_latest$container_extension
 fi
 
 # Build the singularity container from the docker image if it does not exist
-if ! { [ -d $TUSTU_PROJECT_NAME-image_latest$container_extension ] || [ -f $TUSTU_PROJECT_NAME-image_latest$container_extension ]; } ; then
+if ! { [ -d $PROJECT_NAME-image_latest$container_extension ] || [ -f $PROJECT_NAME-image_latest$container_extension ]; } ; then
   echo "Building the singularity container from docker image..."
   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
-  singularity build $container_build_flags $TUSTU_PROJECT_NAME-image_latest$container_extension docker://$TUSTU_DOCKERHUB_USERNAME/$TUSTU_PROJECT_NAME-image:latest
+  singularity build $container_build_flags $PROJECT_NAME-image_latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
 fi
 
 echo "Starting execution from singularity container..."
 
 # Run the singularity container
-singularity exec --nv --bind $DEFAULT_DIR $TUSTU_PROJECT_NAME-image_latest$container_extension ./exp_workflow.sh
+singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-image_latest$container_extension ./exp_workflow.sh

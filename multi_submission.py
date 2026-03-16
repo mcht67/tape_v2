@@ -15,6 +15,7 @@ import huggingface_hub
 from dotenv import load_dotenv
 from hydra import compose, initialize
 from omegaconf import OmegaConf
+from pathlib import Path
 
 # Submit experiment for hyperparameter combination
 def submit_batch_job(arguments, exp_params, experiment_name):
@@ -67,6 +68,25 @@ def create_exp_params_str(config_dict):
 if __name__ == "__main__":
 
     arguments = sys.argv[1:]
+
+    ########################
+    # Python version
+    ########################
+
+    # Ensures base-venv is used, even if running script from another venv
+    # TODO: remove?
+
+    # Get docker python path
+    base_python = os.getenv('DOCKER_BASE_PYTHON')
+
+    # Get local python path from default config if docker paths not defined
+    cfg = OmegaConf.load("params.yaml")
+    if not base_python:
+        base_python = cfg.python.base
+
+    base_venv = Path(base_python).parent.parent
+    os.environ["VIRTUAL_ENV"] = str(base_venv)
+    os.environ["PATH"] = str(base_venv / "bin") + ":" + os.environ["PATH"]
 
     ##########################
     # Configuration
@@ -150,21 +170,25 @@ if __name__ == "__main__":
         cfg = compose(config_name="config")
     OmegaConf.save(cfg, "params.yaml")
 
-    for dataset_config in dataset_configs:
-        try:
-            cmd = [ "python", "prepare_dataset.py",
-                    "--huggingface_path", huggingface_path,
-                    "--dataset_config", dataset_config,
-                    "--input_features", json.dumps(input_features), 
-                    "--embeddings", json.dumps(embeddings),
-                    "--objectives", json.dumps(objectives)]
+    # Right now just embeddings are computed in prepare dataset
+    if embeddings:
 
-            if recompute_embeddings: cmd.append("--recompute_embeddings")
-            #if recompute_labels: cmd.append("--recompute_labels")
-            subprocess.run(cmd, check=True)
-        except subprocess.CalledProcessError:
-            print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
-            sys.exit(1)
+        for dataset_config in dataset_configs:
+            try:
+                cmd = [ base_python, "prepare_dataset.py",
+                        "--huggingface_path", huggingface_path,
+                        "--dataset_config", dataset_config,
+                        "--input_features", json.dumps(input_features), 
+                        "--embeddings", json.dumps(embeddings),
+                        # "--objectives", json.dumps(objectives)
+                        ]
+
+                if recompute_embeddings: cmd.append("--recompute_embeddings")
+                #if recompute_labels: cmd.append("--recompute_labels")
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError:
+                print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
+                sys.exit(1)
 
     ##########################
     # Submit jobs
