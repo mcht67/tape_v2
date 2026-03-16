@@ -165,11 +165,9 @@ model_cfg = cfg.model
 objectives_cfg = cfg.objectives
 #objectives_dict =  OmegaConf.to_container(objectives_cfg, resolve=True)
 
-print("Objectives cfg:")
-print(objectives_cfg)
+# print("Objectives cfg:")
+# print(objectives_cfg)
 
-for x in objectives_cfg:
-    print(objectives_cfg[x]['label'])
 labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
 
 # Add objectives to the config
@@ -197,7 +195,14 @@ input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 time_dim = input_dim[0] if len(input_dim) > 1 else None
 freq_dim = input_dim[1] if len(input_dim) > 2 else None
 dataset, added_labels = add_labels(dataset, labels, time_dim=time_dim, freq_dim=freq_dim)
+
 print("Added labels: ", added_labels)
+
+existing_labels = added_labels + ['polyphony_degree']
+missing_labels = set(labels) ^ set(existing_labels)
+if missing_labels:
+    raise Exception("Not all requested labels could be computed.")
+
 
 # Get tensorflow datasets
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
