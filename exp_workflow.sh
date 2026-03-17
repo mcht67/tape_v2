@@ -35,8 +35,8 @@ export BASE_PYTHON
 export PERCH_PYTHON
 export TRAIN_PYTHON
 
-# Set default python
-source "$BASE_VENV/bin/activate"
+# # Set default python
+# source "$BASE_VENV/bin/activate"
 
 if [ -f local.env ]; then
         source local.env;
@@ -128,14 +128,16 @@ echo "✅ Push successful!" || echo "❌ Push failed!"
 # Moving everythin to archive
 DATETIME=$(date +%Y%m%d_%H%M%S)
 if [ -n "$EXP_NAME" ]; then
-    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$EXP_NAME/${DATETIME}_${DVC_EXP_NAME}
+    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$EXP_NAME/${DATETIME}_$DVC_EXP_NAME
 else
-    ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_${DVC_EXP_NAME}
+    ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
 fi
+
+mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints,metrics}
 
 rsync -rv logs/        ${ARCHIVE_DIR}/logs/
 rsync -rv checkpoints/ ${ARCHIVE_DIR}/checkpoints/
-rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
+# rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&

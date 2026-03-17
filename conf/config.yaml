@@ -34,12 +34,12 @@ hydra:
 defaults:
   # It is possible to combine multiple configurations for the same model by using a list e.g. ["v1", "causal"]
   - general: default
-  - dataset: empty # should be defined in multi_submission
+  - dataset: default #empty # should be defined in multi_submission
   #- labels: all
-  - embeddings: empty # should be defined in multi_submission
+  - embeddings: default # # should be defined in multi_submission
   #- preprocess: default
-  - model: empty
-  - objectives: empty # should be defined in multi_submission
+  - model: default #empty
+  - objectives: default #empty # should be defined in multi_submission
   - train: 'default'
   - log: 'default'
   - _self_
