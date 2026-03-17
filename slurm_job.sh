@@ -102,10 +102,10 @@ fi
 if ! { [ -d $PROJECT_NAME-image_latest$container_extension ] || [ -f $PROJECT_NAME-image_latest$container_extension ]; } ; then
   echo "Building the singularity container from docker image..."
   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
-  singularity build $container_build_flags $PROJECT_NAME-image_latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
+  singularity build $container_build_flags $PROJECT_NAME-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME:latest
 fi
 
 echo "Starting execution from singularity container..."
 
 # Run the singularity container
-singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-image_latest$container_extension ./exp_workflow.sh
+singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension ./exp_workflow.sh
