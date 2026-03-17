@@ -93,13 +93,13 @@ else
 fi
 
 # Remove existing container if --rebuild-container flag is set
-if { [ -d $PROJECT_NAME-image_latest$container_extension ] || [ -f $PROJECT_NAME-image_latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
+if { [ -d $PROJECT_NAME-latest$container_extension ] || [ -f $PROJECT_NAME-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
   echo "Removing the existing container as --rebuild-container flag is set..."
-  rm -rf $PROJECT_NAME-image_latest$container_extension
+  rm -rf $PROJECT_NAME-latest$container_extension
 fi
 
 # Build the singularity container from the docker image if it does not exist
-if ! { [ -d $PROJECT_NAME-image_latest$container_extension ] || [ -f $PROJECT_NAME-image_latest$container_extension ]; } ; then
+if ! { [ -d $PROJECT_NAME-latest$container_extension ] || [ -f $PROJECT_NAME-latest$container_extension ]; } ; then
   echo "Building the singularity container from docker image..."
   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
   singularity build $container_build_flags $PROJECT_NAME-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME:latest
