@@ -25,7 +25,7 @@
 set -euo pipefail
 set -x
 
-whomai
+whoami
 
 # Default variable values
 rebuild_container=false
