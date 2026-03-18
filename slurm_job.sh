@@ -74,7 +74,7 @@ if [ "$sif_container" = true ]; then
 fi
 
 # Load necessary modules
-module load singularity/4.4.0
+module load singularity/4.3.7
 
 # Set environment variables defined in global.env
 set -o allexport
