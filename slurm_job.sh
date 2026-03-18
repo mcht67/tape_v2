@@ -21,6 +21,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=malte.crt@gmail.com
 
+export TMPDIR=/beegfs/scratch/cohrt/tmp
+
 set -euo pipefail
 set -x
 
