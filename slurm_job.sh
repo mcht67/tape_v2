@@ -82,7 +82,7 @@ source global.env
 set +o allexport
 
 # Define DEFAULT_DIR in the host environment
-export DEFAULT_DIR="$PWD"
+export DEFAULT_DIR="$(realpath $PWD)"
 
 if [ "$sif_container" = true ]; then
   container_extension=".sif"
@@ -109,7 +109,8 @@ echo "Starting execution from singularity container..."
 
 # Run the singularity container
 # singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension ./exp_workflow.sh # GPU
-singularity exec --bind /etc/passwd:/etc/passwd \
-                --bind /etc/group:/etc/group \
-                --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension \
-                ./exp_workflow.sh # CPU
+singularity exec ---bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension ./exp_workflow.sh # CPU
+# singularity exec --bind /etc/passwd:/etc/passwd \
+#                 --bind /etc/group:/etc/group \
+#                 --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension \
+#                 ./exp_workflow.sh # CPU
