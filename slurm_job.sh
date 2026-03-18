@@ -6,6 +6,7 @@
 
 # Job name and logs
 #SBATCH -J tustu
+#SBATCH -D /beegfs/scratch/cohrt/tape_v2/ # Working Directory
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
 # Resources needed
