@@ -109,7 +109,7 @@ echo "Starting execution from singularity container..."
 
 # Run the singularity container
 # singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension ./exp_workflow.sh # GPU
-singularity exec --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension\
-                --bind /etc/passwd:/etc/passwd \
+singularity exec --bind /etc/passwd:/etc/passwd \
                 --bind /etc/group:/etc/group \
+                --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension \
                 ./exp_workflow.sh # CPU
