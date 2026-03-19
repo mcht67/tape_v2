@@ -23,6 +23,7 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.patches as patches
 from matplotlib import gridspec
 import librosa
+from dvclive import Live
 #import h5py
 
 import tensorflow as tf
@@ -177,7 +178,7 @@ class CustomSummaryWriter(SummaryWriter):
         params: Optional[config.Params[str, Any]] = None,
         metrics: Optional[Dict[str, None]] = {},
         sync_interval: Optional[int] = None,
-        remote_dir: Optional[Union[str, PosixPath]] = None,
+        remote_dir: Optional[Union[str, PosixPath]] = None
     ):
         super().__init__(log_dir=log_dir)
 
@@ -313,7 +314,10 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
     """
     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None,
-                 log_confusion_matrix=True, confusion_matrix_frequency=5, confusion_matrix_specs=None, input_shape=None, cfg=None, loss_objects={}, previous_history=None):
+                log_confusion_matrix=True, confusion_matrix_frequency=5,
+                confusion_matrix_specs=None, input_shape=None, cfg=None,
+                loss_objects={}, previous_history=None, use_dvclive = True,
+                tracked_val_metrices=["val_loss"]):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
@@ -326,6 +330,12 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.cfg = cfg
         self.loss_objects = loss_objects
         self.previous_history = previous_history
+
+        self.live = Live(dir=self.writer.log_dir + "/dvclive", dvcyaml=False) if use_dvclive else None
+        self.tracked_val_metrices = tracked_val_metrices
+
+        self._best_val = {}
+        self._best_step = {}
 
          # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
@@ -522,6 +532,24 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         if self.standard_tb_callback:
             self.standard_tb_callback.on_epoch_end(epoch, logs)
 
+        # DVCLive logging
+        if self.live:
+            for key, value in logs.items():
+                self.live.log_metric(key, value)
+            self.live.next_step()
+        
+        # Manual best tracking
+        for val_metric_key in self.tracked_val_metrices: #["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"]:
+            val_metric = logs.get(val_metric_key)
+            if val_metric is not None:
+                if self._best_val.get(val_metric_key) is None or val_metric < self._best_val[val_metric_key]:
+                    self._best_val[val_metric_key] = val_metric
+                    self._best_step[val_metric_key] = epoch
+                    self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
+                    self.live.summary[f"{val_metric_key}_best_step"] = epoch
+
+        self.live.make_summary()  # once after the loop
+
         # Step the writer (handles syncing)
         self.writer.step()
         
@@ -571,71 +599,6 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                         return self._get_predictions_and_true_labels(
                             self.val_dataset, target
                         )
-
-    # def on_epoch_end(self, epoch, logs=None):
-    #     """Log base losses and weights following TensorBoard conventions."""
-    #     if logs is None:
-    #         return
-        
-    #     # Debug: Print available log keys on first epoch
-    #     if epoch == 0:
-    #         print(f"Available log keys: {list(logs.keys())}")
-            
-    #     # Handle single vs multi-objective scenarios
-    #     num_objectives = len(self.loss_objects)
-        
-    #     for obj_name, loss_obj in self.loss_objects.items():
-    #         # Get current weight
-    #         current_weight = float(loss_obj.weight.numpy())
-            
-    #         # Log weights to main directory (using main writer)
-    #         self.writer.add_scalar(
-    #             f'loss_weights/{obj_name}',
-    #             current_weight,
-    #             epoch
-    #         )
-            
-    #         # Process train losses
-    #         weighted_loss = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
-    #         if weighted_loss is not None:
-    #             base_loss = self._calculate_base_loss(weighted_loss, current_weight)
-                
-    #             # Log to train directory
-    #             with self.train_writer.as_default():
-    #                 tf.summary.scalar(f'{obj_name}_loss', base_loss, step=epoch)
-            
-    #         # Process validation losses
-    #         val_weighted_loss = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
-    #         if val_weighted_loss is not None:
-    #             val_base_loss = self._calculate_base_loss(val_weighted_loss, current_weight)
-                
-    #             # Log to validation directory
-    #             with self.val_writer.as_default():
-    #                 tf.summary.scalar(f'{obj_name}_loss', val_base_loss, step=epoch)
-
-    #         # Log confusion matrix every N epochs
-    #         if (
-    #             self.val_dataset is not None
-    #             and self.confusion_matrix_specs
-    #             and (epoch + 1) % self.confusion_matrix_frequency == 0
-    #         ):
-    #             for spec in self.confusion_matrix_specs:
-    #                 self._log_confusion_matrix(epoch, spec)
-
-    #     # if (self.log_confusion_matrix and self.val_dataset is not None 
-    #     #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
-    #     #     self._log_confusion_matrix(epoch)
-
-        # # Call standard TensorBoard callback
-        # if self.standard_tb_callback:
-        #     self.standard_tb_callback.on_epoch_end(epoch, logs)
-
-        # # Step the writer (handles syncing)
-        # self.writer.step()
-        
-        # # Flush all writers
-        # self.train_writer.flush()
-        # self.val_writer.flush()
     
     def _get_loss_from_logs(self, logs, obj_name, prefix, num_objectives):
         """Extract loss value from logs."""
@@ -660,148 +623,6 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             return weighted_loss / weight
         else:
             return weighted_loss
-    
-    # def on_train_end(self, logs=None):
-    #     """Close file writers when training ends."""
-    #     self.train_writer.close()
-    #     self.val_writer.close()
-
-    # def on_epoch_end(self, epoch, logs=None):
-    #     # """Log epoch-level metrics and confusion matrix"""
-    #     """Log base losses (weight=1.0), weighted losses, and weights for train and val."""
-    #     if logs is None:
-    #         return
-        
-    #     # Handle single vs multi-objective scenarios
-    #     num_objectives = len(self.loss_objects)
-            
-    #     for obj_name, loss_obj in self.loss_objects.items():
-    #         # Get current weight
-    #         current_weight = float(loss_obj.weight.numpy())
-            
-    #         # Log the weight itself
-    #         self.writer.add_scalar(
-    #             f'loss_weights/{obj_name}',
-    #             current_weight,
-    #             epoch
-    #         )
-            
-    #         # Process both train and validation losses
-    #         for prefix in ['', 'val_']:
-
-    #             if num_objectives == 1:
-    #                 # Single objective: loss is logged as 'loss' or 'val_loss'
-    #                 possible_keys = [
-    #                     f'{prefix}loss',
-    #                 ]
-    #             else:
-    #                 # Multi-objective: loss is logged with output name
-    #                 possible_keys = [
-    #                     f'{prefix}{obj_name}',
-    #                     f'{prefix}{obj_name}_loss',
-    #                 ]
-                
-    #             for key in possible_keys:
-    #                 if key in logs:
-    #                     weighted_loss = logs[key]
-    #                     break
-                
-    #             if weighted_loss is not None:
-    #                 tb_prefix = 'val_' if prefix else 'train_'
-                    
-    #                 # Log the weighted loss (what actually affects training)
-    #                 self.writer.add_scalar(
-    #                     f'{tb_prefix}losses_weighted/{obj_name}',
-    #                     weighted_loss,
-    #                     epoch
-    #                 )
-                    
-    #                 # Calculate base loss (as if weight=1.0)
-    #                 # base_loss = weighted_loss / weight
-    #                 if current_weight > 1e-8:
-    #                     base_loss = weighted_loss / current_weight
-    #                 else:
-    #                     # If weight is 0, we can't recover the base loss
-    #                     # Log weighted loss (which is also ~0)
-    #                     base_loss = weighted_loss
-                    
-    #                 # Log base loss (unweighted, i.e., weight=1.0)
-    #                 self.writer.add_scalar(
-    #                     f'{tb_prefix}losses_base/{obj_name}',
-    #                     base_loss,
-    #                     epoch
-    #                 )
-    #     # train_loss = logs.get('loss', 0)
-    #     # val_loss = logs.get('val_loss', 0)
-        
-    #     # print(f"Train loss: {train_loss:>8f}")
-    #     # if val_loss > 0:
-    #     #     print(f"Val Error: \n Avg loss: {val_loss:>8f} \n")
-        
-    #     # # Log basic epoch metrics to your CustomSummaryWriter
-    #     # self.writer.add_scalar("Epoch_Loss/train", train_loss, epoch)
-    #     # if val_loss > 0:
-    #     #     self.writer.add_scalar("Epoch_Loss/val", val_loss, epoch)
-        
-    #     # Log confusion matrix every N epochs
-    #     if (
-    #         self.val_dataset is not None
-    #         and self.confusion_matrix_specs
-    #         and (epoch + 1) % self.confusion_matrix_frequency == 0
-    #     ):
-    #         for spec in self.confusion_matrix_specs:
-    #             self._log_confusion_matrix(epoch, spec)
-
-    #     # if (self.log_confusion_matrix and self.val_dataset is not None 
-    #     #     and (epoch + 1) % self.confusion_matrix_frequency == 0):
-    #     #     self._log_confusion_matrix(epoch)
-
-    #     # Call standard TensorBoard callback
-    #     if self.standard_tb_callback:
-    #         self.standard_tb_callback.on_epoch_end(epoch, logs)
-        
-    #     # Step the writer (handles syncing)
-    #     self.writer.step()
-
-    # def _log_confusion_matrix(self, epoch, spec):
-    #     try:
-    #         target = spec["name"]
-    #         cm_type = spec["type"]
-    #         threshold = spec.get("threshold", 0.5)
-
-    #         y_pred, y_true = self._get_predictions_and_true_labels(
-    #             self.val_dataset, target
-    #         )
-
-    #         if cm_type == "regression_round":
-    #             yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
-    #             labels = np.unique(yt)
-    #             title = "Polyphony Degree"
-
-    #         elif cm_type == "binary":
-    #             yt, yp = prepare_event_logits_for_cm(
-    #                 y_true, y_pred, threshold=threshold
-    #             )
-    #             labels = [0, 1]
-    #             title = "Event Detection"
-
-    #         else:
-    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
-
-    #         fig = plot_confusion_matrix_sklearn(
-    #             yt, yp, labels=labels, title=title
-    #         )
-
-    #         self.writer.add_figure(
-    #             f"Confusion_Matrix/{target}",
-    #             fig,
-    #             epoch,
-    #         )
-
-    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
-
-    #     except Exception as e:
-    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
     def _log_confusion_matrix(self, epoch, spec):
         try:
@@ -923,146 +744,6 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         except Exception as e:
             print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
-    # def _log_confusion_matrix(self, epoch, spec):
-    #     try:
-    #         target = spec["name"]
-    #         cm_type = spec["type"]
-    #         threshold = spec.get("threshold", 0.5)
-    #         y_pred, y_true = self._get_predictions_and_true_labels(
-    #             self.val_dataset, target
-    #         )
-    #         if cm_type == "regression_round":
-    #             yt, yp = prepare_polyphony_for_cm(y_true, y_pred)
-    #             labels = np.unique(yt)
-    #             title = "Polyphony Degree"
-    #         elif cm_type == "binary":
-    #             yt, yp = prepare_event_logits_for_cm(
-    #                 y_true, y_pred, threshold=threshold
-    #             )
-    #             labels = [0, 1]
-    #             title = "Event Detection"
-    #         else:
-    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
-            
-    #         fig = plot_confusion_matrix_sklearn(
-    #             yt, yp, labels=labels, title=title
-    #         )
-            
-    #         # Add metadata to the figure
-    #         metadata_lines = [
-    #             f"Model: {self.cfg.model._target_ if hasattr(self.cfg.model, '_target_') else self.cfg.model.get('name', 'N/A')}",
-    #             f"Dataset: {self.cfg.dataset.subset if hasattr(self.cfg.dataset, 'subset') else 'N/A'}",
-    #             f"Input Feature: {self.cfg.train.get('input_feature_name', 'N/A')}",
-    #             f"Epoch: {epoch + 1}",
-    #         ]
-            
-    #         # Add hyperparameters if they exist
-    #         if hasattr(self.cfg.log, 'hyperparameters') and self.cfg.log.hyperparameters:
-    #             metadata_lines.append("\nHyperparameters:")
-    #             for hp_key in self.cfg.log.hyperparameters:
-    #                 # Navigate nested config keys (e.g., 'train.learning_rate')
-    #                 value = self.cfg
-    #                 for key_part in hp_key.split('.'):
-    #                     value = getattr(value, key_part, 'N/A')
-                    
-    #                 # Check if value is a dict - if so, extract keys only
-    #                 if isinstance(value, (dict, DictConfig)):
-    #                     dict_keys = ", ".join(value.keys())
-    #                     metadata_lines.append(f"  {hp_key}: {dict_keys}")
-    #                 else:
-    #                     metadata_lines.append(f"  {hp_key}: {value}")
-
-    #         metadata_text = "\n".join(metadata_lines)
-            
-    #         # Count the number of lines to estimate required space
-    #         num_lines = len(metadata_lines)
-    #         # Estimate height needed: increase multiplier for more space
-    #         text_height = max(0.2, num_lines * 0.02)  # Increased from 0.015 to 0.02
-            
-    #         # Get current figure size and ONLY expand vertically (preserve width)
-    #         current_size = fig.get_size_inches()
-    #         original_width = current_size[0]
-    #         new_height = current_size[1] + text_height * current_size[1] * 2.5
-    #         fig.set_size_inches(original_width, new_height)
-
-    #         # Adjust layout to make room at the bottom (proportion based on new height)
-    #         bottom_margin = (text_height * 1.3) / (text_height * 1.3 + 1)
-    #         # Use subplots_adjust instead of tight_layout to preserve original sizing
-    #         fig.subplots_adjust(bottom=bottom_margin)
-
-    #         # Add text below the confusion matrix
-    #         fig.text(
-    #             0.5, bottom_margin * 0.45,
-    #             metadata_text,
-    #             fontsize=8,
-    #             verticalalignment='center',
-    #             horizontalalignment='center',
-    #             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
-    #             transform=fig.transFigure,
-    #             family='monospace'
-    #         )
-            
-    #         self.writer.add_figure(
-    #             f"Confusion_Matrix/{target}",
-    #             fig,
-    #             epoch,
-    #         )
-    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
-    #     except Exception as e:
-    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
-
-    # def _log_confusion_matrix(self, epoch, spec):
-    #     try:
-    #         target = spec["name"]
-    #         cm_type = spec["type"]
-    #         threshold = spec.get("threshold", 0.5)
-
-    #         y_pred, y_true = self._get_predictions_and_true_labels(
-    #             self.val_dataset, target
-    #         )
-
-    #         if cm_type == "regression_round":
-    #             y_pred_cls = y_pred #np.rint(y_pred).astype(int)
-    #             y_true_cls = y_true.astype(int)
-
-    #         elif cm_type == "binary":
-    #             y_pred_cls = (y_pred >= threshold).astype(int)
-    #             y_true_cls = y_true.astype(int)
-
-    #         else:
-    #             raise ValueError(f"Unknown confusion matrix type: {cm_type}")
-
-    #         figure = plot_confusion_matrix(y_pred_cls, y_true_cls)
-
-    #         self.writer.add_figure(
-    #             f"Confusion_Matrix/{target}",
-    #             figure,
-    #             epoch,
-    #         )
-
-    #         print(f"Confusion matrix logged for '{target}' at epoch {epoch + 1}")
-
-    #     except Exception as e:
-    #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
-
-    # def _log_confusion_matrix(self, epoch):
-    #     """Generate and log confusion matrix"""
-    #     try:
-            
-    #         # Get predictions and true labels
-    #         y_pred, y_true = self._get_predictions_and_true_labels(self.val_dataset)
-            
-    #         # Generate confusion matrix plot
-    #         figure = plot_confusion_matrix(y_pred, y_true)
-            
-    #         # Convert to image and log
-    #         self.writer.add_figure("Confusion_Matrix", figure, epoch)
-            
-    #         print(f"Confusion matrix logged at epoch {epoch + 1}")
-            
-    #     except Exception as e:
-    #         print(f"Failed to log confusion matrix: {e}")
-
     @tf.function
     def predict_batch(self, batch_x):
         return self.model(batch_x, training=False)
@@ -1136,6 +817,9 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
         if self.standard_tb_callback:
             self.standard_tb_callback.on_train_end(logs)
+
+        if self.live:
+            self.live.end()
         
         # # Use the last recorded metrics from self.final_metrics
         # logs = logs or {}

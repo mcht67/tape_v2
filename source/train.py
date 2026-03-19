@@ -440,7 +440,7 @@ writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=metrics, sy
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
             log_confusion_matrix=True, confusion_matrix_frequency=1, 
             confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
-            previous_history=previous_history)
+            previous_history=previous_history, tracked_val_metrices=["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"])
 # checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 #                                                 save_weights_only=True,
 #                                                 verbose=1,

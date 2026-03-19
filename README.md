@@ -57,6 +57,24 @@ checkpoints/global-experiment-name/dvc-exp-name/ll
     ├── epoch_05.pt
     └── epoch_10.pt
 
+## Local Run on Docker with GitHub Authentication via SSH
+
+Create ssh-key and add it to GitHub.
+
+Add key to ssh-agent:
+```bash
+ssh-add ~/.ssh/id_ed25519
+```
+
+```bash
+docker run --rm \
+  -v $SSH_AUTH_SOCK:$SSH_AUTH_SOCK \
+  -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
+  -v $(pwd):/home/app \
+  train-bird-models \
+  bash -c "mkdir -p ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null && ./exp_workflow.sh"
+```
+
 ## Setup
 
 This is taken mostly from the original setup instructions, but skips unnecessary steps for local runs and was adjusted were necessary.
@@ -264,6 +282,7 @@ docker run -it --rm -v ssh-config:/root/.dotfiles/ssh/.ssh -v $HOME/.ssh:/local-
 # Inside the container
 cp -r /local-ssh/* /root/.ssh/
 ```
+
 
 > **Info**: This will not change the ownership of the files on your local machine.
 
