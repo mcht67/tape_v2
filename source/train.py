@@ -11,6 +11,8 @@ import model
 from hydra.utils import instantiate
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+import huggingface_hub
 
 from utils.logs import plot_spectrogram_with_metrics, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, get_dvc_exp_name
 from utils.general import reshape_tensor_data
@@ -183,6 +185,13 @@ os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 
 # tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
 # os.makedirs(tensorboard_path, exist_ok=True)
+
+ # Load environment variables from .env file
+load_dotenv('local.env')
+token=os.getenv('HUGGINGFACE_TOKEN')
+
+# Huggingface login
+huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
 # Load Dataset  
 dataset = load_dataset(huggingface_path, dataset_config)
