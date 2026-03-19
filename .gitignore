@@ -9,6 +9,8 @@ __pycache__/
 # Ignore venvs
 venv/
 stage-venvs/
+perch-venv/
+train-venv/
 
 # Ignore data files
 logs/*/*
