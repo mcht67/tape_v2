@@ -92,10 +92,10 @@ def main():
     epochs = cfg.train.epochs
     learning_rate = cfg.train.learning_rate
     batch_size = cfg.train.batch_size
-    if 'train_size_batches' in cfg.train: 
-        train_size_batches = cfg.train.train_size_batches
+    if 'num_batches_train' in cfg.train: 
+        num_batches_train = cfg.train.num_batches_train
     else:
-        train_size_batches = None
+        num_batches_train = None
 
     objectives_cfg = cfg.objectives
     objectives_list = list(objectives_cfg.keys()) 

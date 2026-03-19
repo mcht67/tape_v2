@@ -153,8 +153,8 @@ total_epochs = cfg.train.epochs
 initial_epoch = cfg.train.initial_epoch if 'initial_epoch' in cfg.train and cfg.train.initial_epoch else 0
 learning_rate = cfg.train.learning_rate
 batch_size = cfg.train.batch_size
-train_size_batches = cfg.train.train_size_batches if 'train_size_batches' in cfg.train else None
-val_size_batches = cfg.train.val_size_batches if 'val_size_batches' in cfg.train else None
+num_batches_train = cfg.train.num_batches_train if 'num_batches_train' in cfg.train else None
+num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train else None
 
 # dvc_exp_name = get_dvc_exp_name()
 # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
@@ -215,8 +215,10 @@ if missing_labels:
 
 # Get tensorflow datasets
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
-if train_size_batches: train_dataset = train_dataset.take(train_size_batches) # take fewer batches to reduce train dataset size
-if val_size_batches: val_dataset = val_dataset.take(val_size_batches)
+if num_batches_train: train_dataset = train_dataset.take(num_batches_train) # take fewer batches to reduce train dataset size
+if num_batches_val: val_dataset = val_dataset.take(num_batches_val)
+train_size = num_batches_train * batch_size
+val_size = num_batches_val * batch_size
 
 train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
@@ -228,8 +230,8 @@ for key in objectives_cfg.keys():
 
 print("Metrics:", metrics)
 
-params['dataset']['train_size'] = str(len(dataset['train']))
-params['dataset']['val_size'] = str(len(dataset['validation']))
+params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
+params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
 params['dataset']['test_size'] = str(len(dataset['test']))
 params['train']['objectives'] = list(cfg.objectives.keys())
 print(params)

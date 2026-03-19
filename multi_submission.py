@@ -103,8 +103,8 @@ if __name__ == "__main__":
         
         "train.epochs": 5,
         #"train.initial_epoch": 20,
-        #"train.train_size_batches": 20,
-        #"train.val_size_batches": 5
+        #"train.num_batches_train": 20,
+        #"train.num_batches_val": 5
         "train.learning_rate": 0.001,
         #"train.load_model_path": "model_path"
     }
