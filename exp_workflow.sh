@@ -132,7 +132,7 @@ fi
 
 rsync -rv logs/        ${ARCHIVE_DIR}/logs/
 rsync -rv checkpoints/ ${ARCHIVE_DIR}/checkpoints/
-rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
+#rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&
