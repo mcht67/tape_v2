@@ -115,7 +115,8 @@ RUN python3.12 -m venv $TRAIN_VENV &&\
     #     seaborn \
     #     scikit-learn \
     #     psutil \
-    #     ruamel.yaml
+    #     ruamel.yaml \
+    #     python-dotenv
 
 # Add source to python path
 ENV PYTHONPATH="/home/app/source"
