@@ -3,4 +3,5 @@ input_feature_name: perch_v2_cpu_audio_spatial_embeddings
 batch_size: 128
 learning_rate: 0.0001
 epochs: 50
-train_size_batches: 76
+num_batches_train: 76
+num_batches_val:

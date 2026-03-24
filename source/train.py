@@ -217,8 +217,8 @@ if missing_labels:
 train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
 if num_batches_train: train_dataset = train_dataset.take(num_batches_train) # take fewer batches to reduce train dataset size
 if num_batches_val: val_dataset = val_dataset.take(num_batches_val)
-train_size = num_batches_train * batch_size
-val_size = num_batches_val * batch_size
+train_size = num_batches_train * batch_size if num_batches_train else len(dataset['train'])
+val_size = num_batches_val * batch_size if num_batches_val else len(dataset['validation'])
 
 train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
