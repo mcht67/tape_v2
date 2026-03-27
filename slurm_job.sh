@@ -97,30 +97,30 @@ else
 fi
 
 # Remove existing container if --rebuild-container flag is set
-if { [ -d $PROJECT_NAME-latest$container_extension ] || [ -f $PROJECT_NAME-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
+if { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
   echo "Removing the existing container as --rebuild-container flag is set..."
-  rm -rf $PROJECT_NAME-latest$container_extension
+  rm -rf $PROJECT_NAME-image-latest$container_extension
 fi
 
 # Build the singularity container from the docker image if it does not exist
-if ! { [ -d $PROJECT_NAME-latest$container_extension ] || [ -f $PROJECT_NAME-latest$container_extension ]; } ; then
+if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
   echo "Building the singularity container from docker image..."
   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
-  singularity build $container_build_flags $PROJECT_NAME-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME:latest
+  singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
 fi
 
 echo "Starting execution from singularity container..."
 
 # Run the singularity container
-# singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension ./exp_workflow.sh # GPU
+# singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-image-latest$container_extension ./exp_workflow.sh # GPU
 singularity exec \
     --bind /etc/passwd:/etc/passwd \
     --bind /etc/group:/etc/group \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
-    $PROJECT_NAME-latest$container_extension \
+    $PROJECT_NAME-image-latest$container_extension \
     ./exp_workflow.sh
 # singularity exec --bind /etc/passwd:/etc/passwd \
 #                 --bind /etc/group:/etc/group \
-#                 --bind $DEFAULT_DIR $PROJECT_NAME-latest$container_extension \
+#                 --bind $DEFAULT_DIR $PROJECT_NAME-image-latest$container_extension \
 #                 ./exp_workflow.sh # CPU
