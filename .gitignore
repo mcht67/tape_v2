@@ -13,6 +13,7 @@ perch-venv/
 stage-venvs/
 perch-venv/
 train-venv/
+complete-venv/
 
 # Ignore data files
 logs/*/*
