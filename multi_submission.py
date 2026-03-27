@@ -69,24 +69,28 @@ if __name__ == "__main__":
 
     arguments = sys.argv[1:]
 
-    ########################
-    # Python version
-    ########################
+    # ########################
+    # # Python version
+    # ########################
 
-    # Ensures base-venv is used, even if running script from another venv
-    # TODO: remove?
+    # # Ensures base-venv is used, even if running script from another venv
+    # # TODO: remove?
 
-    # Get docker python path
-    base_python = os.getenv('DOCKER_BASE_PYTHON')
+    # # Get docker python path
+    # base_python = os.getenv('DOCKER_BASE_PYTHON')
 
     # Get local python path from default config if docker paths not defined
     cfg = OmegaConf.load("params.yaml")
-    if not base_python:
-        base_python = cfg.python.base
+    # if not base_python:
+    #     base_python = cfg.python.base
 
-    base_venv = Path(base_python).parent.parent
-    os.environ["VIRTUAL_ENV"] = str(base_venv)
-    os.environ["PATH"] = str(base_venv / "bin") + ":" + os.environ["PATH"]
+    # base_venv = Path(base_python).parent.parent
+    # os.environ["VIRTUAL_ENV"] = str(base_venv)
+    # os.environ["PATH"] = str(base_venv / "bin") + ":" + os.environ["PATH"]
+
+    complete_python = os.getenv('DOCKER_COMPLETE_PYTHON')
+    if not complete_python:
+        complete_python = cfg.python.complete
 
     ##########################
     # Configuration
@@ -175,7 +179,7 @@ if __name__ == "__main__":
 
         for dataset_config in dataset_configs:
             try:
-                cmd = [ base_python, "prepare_dataset.py",
+                cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
                         "--huggingface_path", huggingface_path,
                         "--dataset_config", dataset_config,
                         "--input_features", json.dumps(input_features), 

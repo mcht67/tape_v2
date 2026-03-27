@@ -31,23 +31,26 @@ if __name__ == "__main__":
     parser.add_argument('--recompute_labels', action='store_true')
     args = parser.parse_args()
 
-    ########################
-    # Python versions
-    ########################
+    # ########################
+    # # Python versions
+    # ########################
 
-    # Get docker python paths
-    base_python = os.getenv('DOCKER_BASE_PYTHON')
-    perch_python = os.getenv('DOCKER_PERCH_PYTHON')
-    train_python = os.getenv('DOCKER_TRAIN_PYTHON')
+    # # Get docker python paths
+    # base_python = os.getenv('DOCKER_BASE_PYTHON')
+    # perch_python = os.getenv('DOCKER_PERCH_PYTHON')
+    # train_python = os.getenv('DOCKER_TRAIN_PYTHON')
+    complete_python = os.getenv(('DOCKER_COMPLETE_PYTHON'))
 
-    # Get local python paths from default config if docker paths not defined
+    # # Get local python paths from default config if docker paths not defined
     cfg = OmegaConf.load("params.yaml")
-    if not base_python:
-        base_python = cfg.python.base
-    if not perch_python:
-        perch_python = cfg.python.perch
-    if not train_python:
-        train_python = cfg.python.train
+    # if not base_python:
+    #     base_python = cfg.python.base
+    # if not perch_python:
+    #     perch_python = cfg.python.perch
+    # if not train_python:
+    #     train_python = cfg.python.train
+    if not complete_python:
+        complete_python = cfg.python.complete
 
     ########################
     # Setup
@@ -67,7 +70,7 @@ if __name__ == "__main__":
 
     if input_features and embeddings:
         cmd =   [
-                    perch_python, 
+                    complete_python, #perch_python, 
                     "source/perch_embed_audio_stream.py",
                     "--huggingface_path", huggingface_path,
                     "--dataset_config", dataset_config,
@@ -83,7 +86,7 @@ if __name__ == "__main__":
 
     if input_features and embeddings:
         cmd =   [
-                    train_python,
+                    complete_python, #train_python,
                     "source/birdset_embed_audio_stream.py",
                     "--huggingface_path", huggingface_path,
                     "--dataset_config", dataset_config,
