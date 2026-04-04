@@ -57,7 +57,7 @@ stages:
   #     - dataset.config
 
   train:
-    cmd: ${python.complete source/train.py#${python.train} source/train.py
+    cmd: ${python.complete} source/train.py #${python.train} source/train.py
     deps:
       - source/train.py
       #- ${path.dataset}

@@ -116,7 +116,9 @@ ENV COMPLETE_VENV=/opt/complete-venv
 
 # Create complete venv
 RUN python3.12 -m venv $COMPLETE_VENV &&\
-    $COMPLETE_VENV/bin/pip install --no-cache-dir -r complete_requirements.txt
+    $COMPLETE_VENV/bin/pip install -r complete_requirements.txt
+
+# TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
 
 # Add source to python path
 ENV PYTHONPATH="/home/app/source"

@@ -25,11 +25,13 @@ if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.do
     BASE_PYTHON="$DOCKER_BASE_PYTHON"
     PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
     TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
+    COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
 else
     # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
     BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
     PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
     TRAIN_PYTHON="$DEFAULT_DIR$LOCAL_TRAIN_PYTHON"
+    COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
 fi
 export BASE_PYTHON
 export PERCH_PYTHON
@@ -62,6 +64,7 @@ if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.do
         echo DOCKERHUB_USERNAME="your_dockerhub_username";
         exit 1;
     fi
+    echo "set git user config"
     git config --global user.name "$GIT_USERNAME"
     git config --global user.email "$GIT_EMAIL"
     git config --global safe.directory "$PWD"
@@ -90,7 +93,11 @@ if [ -f ".dvc/config.local" ]; then
 fi;
 if [ -f "secrets/dvc-token.json" ]; then
     echo "secrets/dvc-token.json"
+else
+  echo "WARNING: secrets/dvc-token.json not found" >&2
+  ls -la secrets/ >&2   # show what's actually there
 fi
+
 echo ".git";
 } | while read file; do
     # --chown flag is needed for docker to avoid permission issues
@@ -110,14 +117,18 @@ dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 #     dvc pull dataset;
 # fi &&
 
+pwd
+echo "python path:"
+echo $COMPLETE_PYTHON
+
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.
 echo "Running experiment..." &&
 dvc exp run \
+  --set-param python.complete="$COMPLETE_PYTHON" \
+  $EXP_PARAMS
 #   --set-param python.base="$BASE_PYTHON" \
 #   --set-param python.perch="$PERCH_PYTHON" \
 #   --set-param python.train="$TRAIN_PYTHON" \
-  --set-param python.complete="$COMPLETE_PYTHON" \
-  $EXP_PARAMS
 
 dvc status
 

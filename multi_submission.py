@@ -35,9 +35,11 @@ def submit_batch_job(arguments, exp_params, experiment_name):
         print("SLURM not available. Would submit job with:", exp_params)
 
         # Run DVC experiment directly
-        cmd = 'dvc exp run $EXP_PARAMS'
-        print("Run experiment", cmd)
-        subprocess.run(cmd, shell=True, env=env)
+        cmd = './exp_workflow.sh' #'dvc exp run'
+        print("Run command", cmd)
+        result = subprocess.run(cmd, shell=True, env=env, stderr=subprocess.PIPE, text=True)
+        print("Exit code:", result.returncode)
+        print("Stderr:", result.stderr)
 
         # Copy logs dir to local_logs
         # shutil.copytree('logs', 'local_logs', dirs_exist_ok=True)
@@ -216,4 +218,5 @@ if __name__ == "__main__":
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
+        print("Exp params: ", exp_params)
         submit_batch_job(arguments, exp_params, experiment_name)

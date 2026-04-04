@@ -5,5 +5,6 @@
 !global.env
 !perch_requirements.txt
 !train_requirements.txt
+!complete_requirements.txt
 .dvc/config.local
 secrets/
