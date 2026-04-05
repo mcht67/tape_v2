@@ -36,6 +36,7 @@ fi
 export BASE_PYTHON
 export PERCH_PYTHON
 export TRAIN_PYTHON
+export COMPLETE_PYTHON
 
 # # Set default python
 # source "$BASE_VENV/bin/activate"
