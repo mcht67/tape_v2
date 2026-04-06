@@ -191,10 +191,10 @@ load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
 
 # Huggingface login
-huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+#huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
 # Load Dataset  
-dataset = load_dataset(huggingface_path, dataset_config)
+dataset = load_dataset(huggingface_path, dataset_config, cache_dir='cache')
 
 # Get input dim
 embeddings = dataset['train'][0][input_feature_name]
