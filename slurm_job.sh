@@ -116,6 +116,7 @@ echo "Starting execution from singularity container..."
 singularity exec \
     --bind /etc/passwd:/etc/passwd \
     --bind /etc/group:/etc/group \
+    --bind /beegfs/scratch/cohrt:/beegfs/scratch/cohrt \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
     $PROJECT_NAME-image-latest$container_extension \
