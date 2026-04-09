@@ -42,27 +42,28 @@ set +o allexport
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
 
-# Define python paths
-if [ -n "${SINGULARITY_CONTAINER:-}" ] || [ -n "{$APPTAINER_CONTAINER:-}" ] || [ -f /.dockerenv ]; then
-    echo "define python paths to use inside singularity container"
-    # In Docker - use Docker venvs from global.env
-    # BASE_PYTHON="$DOCKER_BASE_PYTHON"
-    # PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
-    # TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
-    COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
-else
-    echo "define python paths to use locally"
-    # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
-    # BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
-    # PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
-    # TRAIN_PYTHON="$DEFAULT_DIR$LOCAL_TRAIN_PYTHON"
-    COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
-fi
+# # Define python paths
+# if [ -n "${SINGULARITY_CONTAINER:-}" ] || [ -n "${APPTAINER_CONTAINER:-}" ] || [ -f /.dockerenv ]; then
+#     echo "define python paths to use inside singularity container"
+#     # In Docker - use Docker venvs from global.env
+#     # BASE_PYTHON="$DOCKER_BASE_PYTHON"
+#     # PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
+#     # TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
+#     COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
+# else
+#     echo "define python paths to use locally"
+#     # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
+#     # BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
+#     # PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
+#     # TRAIN_PYTHON="$DEFAULT_DIR$LOCAL_TRAIN_PYTHON"
+#     COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
+# fi
 
 echo "export python paths"
 # export BASE_PYTHON
 # export PERCH_PYTHON
 # export TRAIN_PYTHON
+COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
 export COMPLETE_PYTHON
 
 # Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
