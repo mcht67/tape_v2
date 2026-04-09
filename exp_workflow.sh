@@ -61,6 +61,20 @@ if [ -n "$HUGGINGFACE_TOKEN" ]; then
     echo "[INFO] Hugging Face token set successfully"
 fi
 
+# Set Huggingface cache ENVs
+if [ -n "$HF_HOME" ]; then
+    export HF_HOME="$HF_HOME"
+    echo "[INFO] HF_HOME set successfully"
+fi
+if [ -n "$HF_HUB_CACHE" ]; then
+    export HF_HUB_CACHE="$HF_HUB_CACHE"
+    echo "[INFO] HF_CACHE_HUB set successfully"
+fi
+if [ -n "$HF_DATASETS_CACHE" ]; then
+    export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
+    echo "[INFO] HF_DATASETS_CACHE set successfully"
+fi
+
 # Setup a global git configuration if beeing inside a docker container
 # Docker containers create a /.dockerenv file in the root directory
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
@@ -128,7 +142,6 @@ dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 #     dvc pull dataset;
 # fi &&
 
-pwd
 echo "python path:"
 echo $COMPLETE_PYTHON
 

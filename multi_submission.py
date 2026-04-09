@@ -5,17 +5,41 @@
 # See the LICENSE file in the root of this project for details.
 
 import itertools
-import subprocess
 import os
 import sys
 import shutil
 import json
-import huggingface_hub
+import subprocess
+import shlex
+# import huggingface_hub
 
 from dotenv import load_dotenv
 from hydra import compose, initialize
-from omegaconf import OmegaConf
-from pathlib import Path
+# from omegaconf import OmegaConf
+# from pathlib import Path
+
+# Submit dataset preparation based on requested configuration
+def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=False):
+    env = {
+        **os.environ,
+        "DEFAULT_DIR": os.getcwd(),
+    }
+
+    args = [
+        "--huggingface_path", huggingface_path,
+        "--dataset_config", dataset_config,
+        "--input_features", json.dumps(input_features),
+        "--embeddings", json.dumps(embeddings),
+    ]
+    if recompute_embeddings: args.append("--recompute_embeddings")
+    
+    try:
+        subprocess.run(
+            ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
+            env=env)
+    except subprocess.CalledProcessError:
+            print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
+            sys.exit(1)
 
 # Submit experiment for hyperparameter combination
 def submit_batch_job(arguments, exp_params, experiment_name):
@@ -50,7 +74,7 @@ def submit_batch_job(arguments, exp_params, experiment_name):
         return
     
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found)
-    subprocess.run(['/usr/bin/bash', '-c', f'sbatch slurm_job.sh {" ".join(arguments)}'], env=env)
+    subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
 
 def create_exp_params_str(config_dict):
     exp_params_str = ''
@@ -75,6 +99,8 @@ if __name__ == "__main__":
     # # Python version
     # ########################
 
+    # HANDLE IN PREPARE_DATASETS.PY
+
     # # Ensures base-venv is used, even if running script from another venv
     # # TODO: remove?
 
@@ -82,7 +108,7 @@ if __name__ == "__main__":
     # base_python = os.getenv('DOCKER_BASE_PYTHON')
 
     # Get local python path from default config if docker paths not defined
-    cfg = OmegaConf.load("params.yaml")
+    # cfg = OmegaConf.load("params.yaml")
     # if not base_python:
     #     base_python = cfg.python.base
 
@@ -90,9 +116,9 @@ if __name__ == "__main__":
     # os.environ["VIRTUAL_ENV"] = str(base_venv)
     # os.environ["PATH"] = str(base_venv / "bin") + ":" + os.environ["PATH"]
 
-    complete_python = os.getenv('DOCKER_COMPLETE_PYTHON')
-    if not complete_python:
-        complete_python = cfg.python.complete
+    # complete_python = os.getenv('DOCKER_COMPLETE_PYTHON')
+    # if not complete_python:
+    #     complete_python = cfg.python.complete
 
     ##########################
     # Configuration
@@ -133,7 +159,7 @@ if __name__ == "__main__":
                 ]
     
     objectives = [
-                    'multi_task_v1_add_event_logits',
+                    'multis_task_v1_add_event_logits',
                     # 'only_polyphony_degree'
                 ]
 
@@ -148,12 +174,12 @@ if __name__ == "__main__":
     recompute_embeddings = False
     # recompute_labels = False
 
-    ##########################
-    # Huggingface login
-    ##########################
+    # ##########################
+    # # Huggingface login
+    # ##########################
 
-    load_dotenv('local.env')
-    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+    # load_dotenv('local.env')
+    # huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
     ##########################
     # Prepare dataset
@@ -162,42 +188,36 @@ if __name__ == "__main__":
     # Collect all input features, embeddings and labels used
     # Pass params (and force_recompute?) to prepare_dataset.py
 
-    # in prepare_dataset.py:
-
-    # Check if embeddings are included in dataset 
-    # Compute missing embeddings
-
-    # Check if labels are included in dataset
-    # Compute missing labels
-
     # Init config and save for prepare_dataset.py to use 
     # [local python paths, dataset download and upload paths]
-    with initialize(config_path="conf", version_base=None):
-        cfg = compose(config_name="config")
-    OmegaConf.save(cfg, "params.yaml")
+    # with initialize(config_path="conf", version_base=None):
+    #     cfg = compose(config_name="config")
+    # OmegaConf.save(cfg, "params.yaml")
 
     # Right now just embeddings are computed in prepare dataset
     if embeddings:
-
         for dataset_config in dataset_configs:
-            try:
-                cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
-                        "--huggingface_path", huggingface_path,
-                        "--dataset_config", dataset_config,
-                        "--input_features", json.dumps(input_features), 
-                        "--embeddings", json.dumps(embeddings),
-                        # "--objectives", json.dumps(objectives)
-                        ]
+            submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
 
-                if recompute_embeddings: cmd.append("--recompute_embeddings")
-                #if recompute_labels: cmd.append("--recompute_labels")
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError:
-                print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
-                sys.exit(1)
+            # try:
+            #     # Replace with singularity cmd
+            #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
+            #             "--huggingface_path", huggingface_path,
+            #             "--dataset_config", dataset_config,
+            #             "--input_features", json.dumps(input_features), 
+            #             "--embeddings", json.dumps(embeddings),
+            #             # "--objectives", json.dumps(objectives)
+            #             ]
+
+            #     if recompute_embeddings: cmd.append("--recompute_embeddings")
+            #     #if recompute_labels: cmd.append("--recompute_labels")
+            #     subprocess.run(cmd, check=True)
+            # except subprocess.CalledProcessError:
+            #     print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
+            #     sys.exit(1)
 
     ##########################
-    # Submit jobs
+    # Submit experiment jobs
     ##########################
     # Add hyperparameters
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))

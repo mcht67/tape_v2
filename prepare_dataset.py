@@ -2,17 +2,10 @@ import subprocess
 import argparse
 import json
 import os
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 from omegaconf import OmegaConf
-# import huggingface_hub
-
-    # Collect all input features and embeddings used
-    # Check if embeddings are included in dataset 
-    # Compute missing embeddings
-
-    # Collect all labels used
-    # Check if labels are included in dataset
-    # Compute missing label
+from hydra import compose, initialize
+import huggingface_hub
 
 if __name__ == "__main__":
 
@@ -31,6 +24,13 @@ if __name__ == "__main__":
     parser.add_argument('--recompute_labels', action='store_true')
     args = parser.parse_args()
 
+     ##########################
+    # Huggingface login
+    ##########################
+   
+    load_dotenv('local.env')
+    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+
     # ########################
     # # Python versions
     # ########################
@@ -41,8 +41,15 @@ if __name__ == "__main__":
     # train_python = os.getenv('DOCKER_TRAIN_PYTHON')
     complete_python = os.getenv(('DOCKER_COMPLETE_PYTHON'))
 
-    # # Get local python paths from default config if docker paths not defined
-    cfg = OmegaConf.load("params.yaml")
+    # Init config and save for prepare_dataset.py to use 
+    # [local python paths, dataset download and upload paths]
+    with initialize(config_path="conf", version_base=None):
+        cfg = compose(config_name="config")
+        print(cfg)
+    # OmegaConf.save(cfg, "params.yaml")
+
+    # # # Get local python paths from default config if docker paths not defined
+    # cfg = OmegaConf.load("params.yaml")
     # if not base_python:
     #     base_python = cfg.python.base
     # if not perch_python:
@@ -59,10 +66,10 @@ if __name__ == "__main__":
     dataset_config = args.dataset_config
     input_features = args.input_features
     embeddings = args.embeddings
-    labels = args.labels
-    objectives = args.objectives
+    # labels = args.labels
+    # objectives = args.objectives
     recompute_embeddings = args.recompute_embeddings 
-    recompute_labels = args.recompute_labels
+    # recompute_labels = args.recompute_labels
 
     ##########################
     # Embed audio with perch
