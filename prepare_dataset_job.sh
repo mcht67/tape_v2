@@ -21,7 +21,26 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=malte.crt@gmail.com
 
-source ./slurm_common.sh "$@"
+# source ./slurm_common.sh "$@"
+
+# Debugging options
+set -euo pipefail
+set -x
+
+echo "Running slurm job"
+
+whoami
+
+# Load necessary modules
+module load singularity/4.3.7
+
+# Set environment variables defined in global.env
+set -o allexport
+source global.env
+set +o allexport
+
+# Define DEFAULT_DIR in the host environment
+export DEFAULT_DIR="$(realpath $PWD)"
 
 # Define python paths
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
