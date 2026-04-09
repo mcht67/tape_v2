@@ -34,15 +34,24 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
     if recompute_embeddings: args.append("--recompute_embeddings")
     
     try:
-        subprocess.run(
-            ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
-            env=env)
+        # subprocess.run(
+        #     ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
+        #     env=env)
+        
+        result = subprocess.run(
+        ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
+        env=env, capture_output=True, text=True
+        )
+        # Output is "Submitted batch job 12345"
+        job_id = result.stdout.strip().split()[-1]
+        print(f"Dataset prep job submitted: {job_id}")
+        return job_id
     except subprocess.CalledProcessError:
             print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
             sys.exit(1)
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, exp_params, experiment_name):
+def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=None):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
@@ -74,7 +83,13 @@ def submit_batch_job(arguments, exp_params, experiment_name):
         return
     
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found)
-    subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
+    dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
+    subprocess.run(
+        ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}slurm_job.sh {" ".join(arguments)}'],
+        env=env
+    )
+    
+   # subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
 
 def create_exp_params_str(config_dict):
     exp_params_str = ''
@@ -147,8 +162,8 @@ if __name__ == "__main__":
     input_features = ['audio', 'no_noise_audio']
 
     models = [
-                'TemporalCNN',
-                # 'SimpleMLP'
+                #'TemporalCNN',
+                'SimpleMLP'
             ]
 
     embedding_type = 'spatial'
@@ -159,8 +174,8 @@ if __name__ == "__main__":
                 ]
     
     objectives = [
-                    'multis_task_v1_add_event_logits',
-                    # 'only_polyphony_degree'
+                    #'multi_task_v1_add_event_logits',
+                    'only_polyphony_degree'
                 ]
 
     hyperparams = {
@@ -171,7 +186,7 @@ if __name__ == "__main__":
                     "objectives": objectives                         
                 }
     
-    recompute_embeddings = False
+    recompute_embeddings = True
     # recompute_labels = False
 
     # ##########################
@@ -198,7 +213,7 @@ if __name__ == "__main__":
     if embeddings:
         for dataset_config in dataset_configs:
             submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
-
+            prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             # try:
             #     # Replace with singularity cmd
             #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
@@ -239,4 +254,4 @@ if __name__ == "__main__":
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
         print("Exp params: ", exp_params)
-        submit_batch_job(arguments, exp_params, experiment_name)
+        submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=prep_job_id)
