@@ -37,7 +37,7 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
         # subprocess.run(
         #     ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
         #     env=env)
-        
+
         result = subprocess.run(
         ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
         env=env, capture_output=True, text=True
@@ -82,6 +82,8 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
         # subprocess.run("dvc exp push origin", shell=True)
         return
     
+    print("Submit experiment slurm job")
+
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found)
     dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
     subprocess.run(

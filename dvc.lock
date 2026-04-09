@@ -76,8 +76,8 @@ stages:
     deps:
     - path: source/train.py
       hash: md5
-      md5: 5e8822037f115ebe65435e825fa4e0d0
-      size: 25459
+      md5: b417d7aec02ecd23380878cb45a047eb
+      size: 26006
     params:
       params.yaml:
         dataset:
@@ -133,19 +133,19 @@ stages:
           learning_rate: 0.001
           epochs: 5
           initial_epoch:
-          train_size_batches:
-          val_size_batches:
+          num_batches_train:
+          num_batches_val:
     outs:
     - path: checkpoints
       hash: md5
-      md5: e1e705662d23e320b66e52e52e22fba9.dir
-      size: 234570963
-      nfiles: 8
+      md5: f085be5320e013655d013fee019e9fab.dir
+      size: 346152315
+      nfiles: 12
     - path: logs
       hash: md5
-      md5: d9085427c6f64a539b77486854f5f2f2.dir
-      size: 2465541
-      nfiles: 6
+      md5: 42c964f3adcf7f05c951c287fa176e10.dir
+      size: 6880997
+      nfiles: 32
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:

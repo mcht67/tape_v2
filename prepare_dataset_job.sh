@@ -43,7 +43,7 @@ set +o allexport
 export DEFAULT_DIR="$(realpath $PWD)"
 
 # Define python paths
-if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+if [ -n "${SINGULARITY_CONTAINER:-}" ] || [ -n "{$APPTAINER_CONTAINER:-}" ] || [ -f /.dockerenv ]; then
     echo "define python paths to use inside singularity container"
     # In Docker - use Docker venvs from global.env
     # BASE_PYTHON="$DOCKER_BASE_PYTHON"

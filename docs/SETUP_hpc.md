@@ -33,9 +33,10 @@ chmod 700 <username>/
 
 Set up a temporary directory and hugging face and singularity cache directories on `/scratch` to get more space for temporary files. 
 ```sh
-mkdir -p /scratch/<TUB-username>/tmp
-mkdir -p /scratch/<TUB-username>/.singularity
-mkdir -p /scratch/<TUB-username>/.cache/huggingface
+mkdir -p /beegfs/scratch/<TUB-username>/tmp
+mkdir -p /beegfs/scratch/<TUB-username>/.singularity
+mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/hub
+mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/datasets
 ```
 
 Then add the `TMPDIR` environment variable to your `.bashrc` so that singularity and other applications use this directory for temporary files. These can get quite large as singularity uses them to extract the image and run the container. Then change the cache directory of singularity with the `SINGULARITY_CACHEDIR` environment variable as well as hugging face directories with 'HF_HOME', 'HF_HUB_CACHE' and 'HF_DATASETS_CACHE'. (replace <TUB-username> with your actual username!)
@@ -134,7 +135,7 @@ git clone git@github.com:<github_user>/<repository_name>.git
 
 > **Info:** On the hpc cluster, the first time you log in a ssh key is generated for you (`~/.ssh/id_rsa`). You can use this key to access your git repository. -->
 
-### Install git lfs
+<!-- ### Install git lfs
 
 <details>
 <summary>Show more...</summary>
@@ -162,7 +163,7 @@ export PATH="$HOME/.local/bin:$PATH"
 cd /scratch/username/Polyphonic-Bird-Call-Dataset/resources
 git lfs pull
 ``` -->
-</details>
+</details> -->
 
 
 ## 4. Create local.env
@@ -188,11 +189,16 @@ cat > config.local<< 'EOF'
 EOF
 ```
 
-
-
 ## Add secrets/dvc-token.json [GoogleDrive Authentication]
 ```bash
 cat > secrets/dvc-token.json << 'EOF'
 # Content of your secrets/dvc-token.json
 EOF
+```
+
+# Add python venv to run multi_submission.py
+```bash
+python3 -m venv venv
+. venv/bin/activate
+pip install huggingface_hub dotenv omegaconf pathlib hydra
 ```
