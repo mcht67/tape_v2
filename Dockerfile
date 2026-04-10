@@ -64,7 +64,8 @@ COPY complete_requirements.txt .
 # ENV BASE_VENV=/opt/venv
 # ENV PERCH_VENV=/opt/perch-venv
 # ENV TRAIN_VENV=/opt/train-venv
-ENV COMPLETE_VENV=/opt/complete-venv
+ARG COMPLETE_VENV
+ENV COMPLETE_VENV=${COMPLETE_VENV}
 
 # # Create base venv
 # RUN python3.12 -m venv $BASE_VENV && \

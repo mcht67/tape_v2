@@ -165,7 +165,11 @@ To debug your Docker image locally, install Docker for your operating system / d
 To build your Docker image, use the following command in your project directory. Substitute the placeholder `<your_image_name>` with a name for your image: 
 
 ```sh
-docker build -t <your_image_name> .
+source global.env
+
+docker build \
+  --build-arg COMPLETE_VENV \
+  -t <your_image_name> .
 ```
 
 > **Info**: The [Dockerfile](../Dockerfile) provided in the template will install the specified Python version (see [Set Up a Virtual Environment](#set-up-a-virtual-environment)) and all dependencies from the requirements.txt file on a minimal Debian image.
