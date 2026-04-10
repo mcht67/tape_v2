@@ -309,7 +309,7 @@ def main():
     # Embeddings
     # ===================
 
-    print("Start embedding...")
+    print("Running perch embedding script...")
 
     # Compute embeddings
     if force_recompute:
@@ -332,7 +332,9 @@ def main():
         dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message)
         print("Upload done.") 
     else:
-        print("No embeddings added. Skip upload.")  
+        print("No embeddings added. Skip upload.") 
+
+    print("Finished embedding with perch.") 
 
 if __name__ == "__main__":
     main()

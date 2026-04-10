@@ -315,5 +315,7 @@ def main():
     else:
         print("No embeddings added. Skip upload.")  
 
+    print("Finished birdset embedding script.")
+
 if __name__=="__main__":
      main()

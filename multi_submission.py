@@ -86,11 +86,24 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
 
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found) 
     # Run only if dataset preparation succeded otherwise abandone
-    dependency_flag = f"--dependency=afterok:{dependency_job_id}? " if dependency_job_id else ""
+    dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
     subprocess.run(
         ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
-        env=env
-    )
+        env=env)
+
+    result = subprocess.run(
+                                ['/usr/bin/bash', '-c', f'sbatch --dependency=afterok:{dependency_job_id} exp_workflow_job.sh {" ".join(arguments)}'],
+                                env=env, capture_output=True, text=True
+                            )
+    submitted_job_id = result.stdout.strip().split()[-1]
+
+    # Submit a cleanup job that cancels the pending job if the dependency fails
+    dependency_fail_flag = f"--dependency=afternotok:{dependency_job_id} " if dependency_job_id else ""
+    subprocess.run([
+                        '/usr/bin/bash', '-c',
+                        f'sbatch {dependency_fail_flag} --wrap="scancel {submitted_job_id}"'
+                    ], env=env)
+    
     
    # subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
 
@@ -108,6 +121,32 @@ def create_exp_params_str(config_dict):
 #         for key, value in config_append.items():
 #             exp_params_str += f"+{key}={str(value)} "
 #     return exp_params_str
+
+def submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id):                                                                                                           
+    all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
+    for hyperparams_config in all_hyper_parameter_combinations:
+
+        # Add dataset_config to hyperparams
+        hyperparams_config['dataset.config'] = dataset_config
+
+        # Get hyperparams keys for logging purposes
+        hyperparams_keys_str = ",".join(hyperparams_config.keys())
+        #hyperparams_keys_str = ",".join(hyperparams.keys()) #",".join(hyperparams_config.keys())
+        hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
+
+        # Update input feature name
+        if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
+            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + embedding_type + "_embeddings"
+
+        # Create config
+        config_overwrites = base_config | hyperparams_config | hyperparams_keys
+        print("Config overwrites")
+        print(config_overwrites)
+        
+        # Submit job for every hyperparameter configuration
+        exp_params = create_exp_params_str(config_overwrites)
+        print("Exp params: ", exp_params)
+        submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":
 
@@ -169,9 +208,9 @@ if __name__ == "__main__":
                 'SimpleMLP'
             ]
 
-    embedding_type = 'spatial'
+    embedding_type = 'pooled' #'spatial'
     embeddings = [
-                    # 'EfficientNet-B1-BirdSet-XCL',
+                    'EfficientNet-B1-BirdSet-XCL',
                     # 'perch_8'
                     'perch_v2_cpu'
                 ]
@@ -183,7 +222,7 @@ if __name__ == "__main__":
 
     hyperparams = {
                     "model": models,
-                    "dataset.config": dataset_configs,
+                    #"dataset.config": dataset_configs,
                     "train.input_feature": input_features,
                     "embeddings": embeddings,   
                     "objectives": objectives                         
@@ -217,6 +256,8 @@ if __name__ == "__main__":
         for dataset_config in dataset_configs:
             #submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
+            
+            submit_experiment_jobs(dataset_config, base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
             # try:
             #     # Replace with singularity cmd
             #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
@@ -238,23 +279,10 @@ if __name__ == "__main__":
     # Submit experiment jobs
     ##########################
     # Add hyperparameters
-    all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
-    print(all_hyper_parameter_combinations)
-    for hyperparams_config in all_hyper_parameter_combinations:
-
-        # Get hyperparams keys for logging purposes
-        hyperparams_keys_str = ",".join(hyperparams_config.keys())
-        hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
-
-        # Update input feature name
-        if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
-            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + embedding_type + "_embeddings"
-
-        # Create config
-        config_overwrites = base_config | hyperparams_config | hyperparams_keys
-        print(config_overwrites)
-        
-        # Submit job for every hyperparameter configuration
-        exp_params = create_exp_params_str(config_overwrites)
-        print("Exp params: ", exp_params)
-        submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=prep_job_id)
+    # old_all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
+    # filtered = {k: v for k, v in hyperparams.items() if k != "dataset.config"}
+    # all_hyper_parameter_combinations = (
+    #     dict(zip(filtered.keys(), values))
+    #     for values in itertools.product(*filtered.values())
+    # )
+  
