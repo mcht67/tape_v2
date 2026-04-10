@@ -214,7 +214,9 @@ if __name__ == "__main__":
 
     # Right now just embeddings are computed in prepare dataset
     if embeddings:
+        print(dataset_configs)
         for dataset_config in dataset_configs:
+            print(dataset_config)
             submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             # try:
