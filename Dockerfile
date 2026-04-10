@@ -64,8 +64,8 @@ COPY complete_requirements.txt .
 # ENV BASE_VENV=/opt/venv
 # ENV PERCH_VENV=/opt/perch-venv
 # ENV TRAIN_VENV=/opt/train-venv
-ARG COMPLETE_VENV
-ENV COMPLETE_VENV=${COMPLETE_VENV}
+ARG DOCKER_COMPLETE_VENV
+ENV DOCKER_COMPLETE_VENV=${DOCKER_COMPLETE_VENV}
 
 # # Create base venv
 # RUN python3.12 -m venv $BASE_VENV && \
@@ -118,8 +118,8 @@ ENV COMPLETE_VENV=${COMPLETE_VENV}
 #         python-dotenv
 
 # Create complete venv
-RUN python3.12 -m venv $COMPLETE_VENV &&\
-    $COMPLETE_VENV/bin/pip install -r complete_requirements.txt
+RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
+    $DOCKER_COMPLETE_VENV/bin/pip install -r complete_requirements.txt
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
 
@@ -128,11 +128,11 @@ ENV PYTHONPATH="/home/app/source"
 
 # # Add base venv to PATH by default
 # ENV PATH="$BASE_VENV/bin:$PATH"
-ENV PATH="$COMPLETE_VENV/bin:$PATH"
+ENV PATH="$DOCKER_COMPLETE_VENV/bin:$PATH"
 
 # # Set Python paths for scripts to use
 # ENV DOCKER_BASE_PYTHON=$BASE_VENV/bin/python
 # ENV DOCKER_PERCH_PYTHON=$PERCH_VENV/bin/python
 # ENV DOCKER_TRAIN_PYTHON=$TRAIN_VENV/bin/python
 
-ENV DOCKER_COMPLETE_PYTHON=$COMPLETE_VENV/bin/python
+ENV DOCKER_COMPLETE_PYTHON=$DOCKER_COMPLETE_VENV/bin/python

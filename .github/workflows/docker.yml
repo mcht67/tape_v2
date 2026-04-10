@@ -68,3 +68,5 @@ jobs:
         push: true
         platforms: linux/amd64 #,linux/arm64
         tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.PROJECT_NAME }}-image:latest
+        build-args: |
+          DOCKER_COMPLETE_VENV=${{ env.DOCKER_COMPLETE_VENV }}

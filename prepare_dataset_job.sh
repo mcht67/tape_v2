@@ -27,7 +27,7 @@
 set -euo pipefail
 set -x
 
-echo "Running slurm job"
+echo "Running dataset preparation slurm job"
 
 whoami
 
