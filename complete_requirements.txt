@@ -70,10 +70,10 @@ flufl.lock==9.0.0
 fonttools==4.62.1
 fqdn==1.5.1
 frozenlist==1.8.0
-#fsspec==2026.2.0
+fsspec==2026.2.0
 funcy==2.0
 gast==0.7.0
-gcsfs==2025.3.0
+gcsfs==2026.2.0
 gitdb==4.0.12
 GitPython==3.1.46
 google-api-core==2.30.0
@@ -208,6 +208,7 @@ pytz==2026.1.post1
 PyYAML==6.0.3
 pyzmq==27.1.0
 referencing==0.37.0
+regex==2026.4.4
 requests==2.33.0
 requests-oauthlib==2.0.0
 rfc3339-validator==0.1.4
@@ -217,6 +218,7 @@ rich==14.3.3
 rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
+safetensors==0.7.0
 scikit-learn==1.8.0
 scipy==1.17.1
 scmrepo==3.6.1
@@ -246,12 +248,14 @@ terminado==0.18.1
 tf_keras==2.21.0
 threadpoolctl==3.6.0
 tinycss2==1.4.0
+tokenizers==0.22.2
 tomlkit==0.14.0
 torch==2.11.0
 torchaudio==2.11.0
 tornado==6.5.5
 tqdm==4.67.3
 traitlets==5.14.3
+transformers==5.5.3
 typer==0.24.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
