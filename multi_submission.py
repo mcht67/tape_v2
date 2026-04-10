@@ -257,7 +257,7 @@ if __name__ == "__main__":
             #submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
             
-            submit_experiment_jobs(dataset_config, base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
+            submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
             # try:
             #     # Replace with singularity cmd
             #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
