@@ -103,5 +103,5 @@ singularity exec \
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
-    $PROJECT_NAME-image-latest$container_extension \
+    $PROJECT_NAME-image-latest${container_extension:-} \
     $COMPLETE_PYTHON ./prepare_dataset.py "$@"
