@@ -84,8 +84,9 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
     
     print("Submit experiment slurm job")
 
-    # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found)
-    dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
+    # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found) 
+    # Run only if dataset preparation succeded otherwise abandone
+    dependency_flag = f"--dependency=afterok:{dependency_job_id}? " if dependency_job_id else ""
     subprocess.run(
         ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
         env=env
