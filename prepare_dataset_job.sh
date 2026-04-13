@@ -29,7 +29,7 @@ set -x
 
 echo "Running dataset preparation slurm job"
 
-whoami
+# whoami
 
 # Load necessary modules
 module load singularity/4.3.7
@@ -41,7 +41,6 @@ set +o allexport
 
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
-
 
 echo "export python paths"
 # export BASE_PYTHON

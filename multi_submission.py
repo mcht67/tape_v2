@@ -106,7 +106,7 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
     result = subprocess.run([
                         '/usr/bin/bash', '-c',
                         f'sbatch {dependency_fail_flag} --wrap="scancel {submitted_job_id}"'
-                    ], env=env)
+                    ], env=env, capture_output=True, text=True)
     submitted_clean_job_id = result.stdout.strip().split()[-1]
     print("Experiment job submitted: ", submitted_clean_job_id)
     
