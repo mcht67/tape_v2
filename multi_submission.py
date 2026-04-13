@@ -97,6 +97,8 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
                             )
     submitted_job_id = result.stdout.strip().split()[-1]
 
+    print("Submit clean up job")
+
     # Submit a cleanup job that cancels the pending job if the dependency fails
     dependency_fail_flag = f"--dependency=afternotok:{dependency_job_id} " if dependency_job_id else ""
     subprocess.run([
@@ -140,12 +142,12 @@ def submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_
 
         # Create config
         config_overwrites = base_config | hyperparams_config | hyperparams_keys
-        print("Config overwrites")
-        print(config_overwrites)
+        # print("Config overwrites")
+        # print(config_overwrites)
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
-        print("Exp params: ", exp_params)
+        # print("Exp params: ", exp_params)
         submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":
@@ -237,6 +239,13 @@ if __name__ == "__main__":
 
     # load_dotenv('local.env')
     # huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+
+    ##########################
+    # Setup
+    ##########################
+
+    result = subprocess.run(["bash", "setup.sh"], check=True, capture_output=True, text=True)
+    print(result.stdout)
 
     ##########################
     # Prepare dataset

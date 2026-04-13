@@ -42,22 +42,6 @@ set +o allexport
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
 
-# # Define python paths
-# if [ -n "${SINGULARITY_CONTAINER:-}" ] || [ -n "${APPTAINER_CONTAINER:-}" ] || [ -f /.dockerenv ]; then
-#     echo "define python paths to use inside singularity container"
-#     # In Docker - use Docker venvs from global.env
-#     # BASE_PYTHON="$DOCKER_BASE_PYTHON"
-#     # PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
-#     # TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
-#     COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
-# else
-#     echo "define python paths to use locally"
-#     # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
-#     # BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
-#     # PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
-#     # TRAIN_PYTHON="$DEFAULT_DIR$LOCAL_TRAIN_PYTHON"
-#     COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
-# fi
 
 echo "export python paths"
 # export BASE_PYTHON
@@ -66,38 +50,38 @@ echo "export python paths"
 COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
 export COMPLETE_PYTHON
 
-# Import local environment variables
-if [ -f local.env ]; then
-        source local.env;
-fi
+# # Import local environment variables
+# if [ -f local.env ]; then
+#         source local.env;
+# fi
 
-# Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
-if [ -n "$HUGGINGFACE_TOKEN" ]; then
-    export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
-    echo "[INFO] Hugging Face token set successfully"
-else
-    echo "[WARNING] Hugging Face token was not set."
-fi
+# # Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
+# if [ -n "$HUGGINGFACE_TOKEN" ]; then
+#     export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
+#     echo "[INFO] Hugging Face token set successfully"
+# else
+#     echo "[WARNING] Hugging Face token was not set."
+# fi
 
-# Set Huggingface cache ENVs
-if [ -n "$HF_HOME" ]; then
-    export HF_HOME="$HF_HOME"
-    echo "[INFO] HF_HOME set successfully"
-else
-    echo "[WARNING] HF_HOME variable was not set."
-fi
-if [ -n "$HF_HUB_CACHE" ]; then
-    export HF_HUB_CACHE="$HF_HUB_CACHE"
-    echo "[INFO] HF_CACHE_HUB set successfully"
-else
-    echo "[WARNING] HF_HUB_CACHE variable was not set."
-fi
-if [ -n "$HF_DATASETS_CACHE" ]; then
-    export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-    echo "[INFO] HF_DATASETS_CACHE set successfully"
-else
-    echo "[WARNING] HF_DATASETS_CACHE variable was not set."
-fi
+# # Set Huggingface cache ENVs
+# if [ -n "$HF_HOME" ]; then
+#     export HF_HOME="$HF_HOME"
+#     echo "[INFO] HF_HOME set successfully"
+# else
+#     echo "[WARNING] HF_HOME variable was not set."
+# fi
+# if [ -n "$HF_HUB_CACHE" ]; then
+#     export HF_HUB_CACHE="$HF_HUB_CACHE"
+#     echo "[INFO] HF_CACHE_HUB set successfully"
+# else
+#     echo "[WARNING] HF_HUB_CACHE variable was not set."
+# fi
+# if [ -n "$HF_DATASETS_CACHE" ]; then
+#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
+#     echo "[INFO] HF_DATASETS_CACHE set successfully"
+# else
+#     echo "[WARNING] HF_DATASETS_CACHE variable was not set."
+# fi
 
 singularity exec \
     --bind $HF_HOME:$HF_HOME \

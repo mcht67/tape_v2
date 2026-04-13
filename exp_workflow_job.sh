@@ -87,19 +87,19 @@ set -o allexport
 source global.env
 set +o allexport
 
-# Set Huggingface cache ENVs
-if [ -n "$HF_HOME" ]; then
-    export HF_HOME="$HF_HOME"
-    echo "[INFO] HF_HOME set successfully"
-fi
-if [ -n "$HF_HUB_CACHE" ]; then
-    export HF_HUB_CACHE="$HF_HUB_CACHE"
-    echo "[INFO] HF_CACHE_HUB set successfully"
-fi
-if [ -n "$HF_DATASETS_CACHE" ]; then
-    export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-    echo "[INFO] HF_DATASETS_CACHE set successfully"
-fi
+# # Set Huggingface cache ENVs
+# if [ -n "$HF_HOME" ]; then
+#     export HF_HOME="$HF_HOME"
+#     echo "[INFO] HF_HOME set successfully"
+# fi
+# if [ -n "$HF_HUB_CACHE" ]; then
+#     export HF_HUB_CACHE="$HF_HUB_CACHE"
+#     echo "[INFO] HF_CACHE_HUB set successfully"
+# fi
+# if [ -n "$HF_DATASETS_CACHE" ]; then
+#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
+#     echo "[INFO] HF_DATASETS_CACHE set successfully"
+# fi
 
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
