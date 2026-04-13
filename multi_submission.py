@@ -80,32 +80,35 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
         # TODO: setup remote
         # print("Push to remote...")
         # subprocess.run("dvc exp push origin", shell=True)
+        
         return
     
-    print("Submit experiment slurm job")
+    #print("Submit experiment slurm job")
 
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found) 
     # Run only if dataset preparation succeded otherwise abandone
     dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
-    subprocess.run(
-        ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
-        env=env)
+    # subprocess.run(
+    #     ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
+    #     env=env)
 
     result = subprocess.run(
                                 ['/usr/bin/bash', '-c', f'sbatch --dependency=afterok:{dependency_job_id} exp_workflow_job.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
     submitted_job_id = result.stdout.strip().split()[-1]
+    print("Experiment job submitted: ", submitted_job_id)
 
-    print("Submit clean up job")
+    #print("Submit clean up job")
 
     # Submit a cleanup job that cancels the pending job if the dependency fails
     dependency_fail_flag = f"--dependency=afternotok:{dependency_job_id} " if dependency_job_id else ""
-    subprocess.run([
+    result = subprocess.run([
                         '/usr/bin/bash', '-c',
                         f'sbatch {dependency_fail_flag} --wrap="scancel {submitted_job_id}"'
                     ], env=env)
-    
+    submitted_clean_job_id = result.stdout.strip().split()[-1]
+    print("Experiment job submitted: ", submitted_clean_job_id)
     
    # subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
 
