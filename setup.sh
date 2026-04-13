@@ -16,6 +16,7 @@ if [ -f local.env ]; then
         source local.env;
 fi
 
+# Check if necessary variables are set in local.env
 if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
     echo "[ERROR] Please create a local.env with the vars:";
     echo "GIT_USERNAME=MY NAME";
@@ -25,10 +26,13 @@ if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] 
     exit 1;
 fi
 
-echo "set git user config"
+# Set git user config
+if [ "$GIT_USERNAME" ] | [ "$GIT_EMAIL" ]
     git config --global user.name "$GIT_USERNAME"
     git config --global user.email "$GIT_EMAIL"
     git config --global safe.directory "$PWD"
+    echo "[INFO] Git User Config set succesfully"
+fi
 
 # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
     if [ -n "$DOCKERHUB_USERNAME" ]; then
