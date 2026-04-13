@@ -29,7 +29,7 @@ set -x
 
 echo "Running dataset preparation slurm job"
 
-# whoami
+whoami
 
 # Load necessary modules
 module load singularity/4.3.7
