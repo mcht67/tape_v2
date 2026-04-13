@@ -27,11 +27,12 @@ if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] 
 fi
 
 # Set git user config
-if [ "$GIT_USERNAME" ] | [ "$GIT_EMAIL" ]
+if [ "$GIT_USERNAME" ] && [ "$GIT_EMAIL" ]; then
     git config --global user.name "$GIT_USERNAME"
     git config --global user.email "$GIT_EMAIL"
     git config --global safe.directory "$PWD"
-    echo "[INFO] Git User Config set succesfully"
+    echo "[INFO] Git User Config set successfully"
+    echo "Safe directory ${PWD} added."
 fi
 
 # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
