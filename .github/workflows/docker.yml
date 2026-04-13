@@ -5,7 +5,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'complete_requirements.txt'
-      - '.github/workflows/docker_image.yml'
+      - '.github/workflows/docker.yml'
       - 'global.env'
     # tags:
     #   - 'v*.*.*'
@@ -13,7 +13,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'complete_requirements.txt'
-      - '.github/workflows/docker_image.yml'
+      - '.github/workflows/docker.yml'
       - 'global.env'
 
 jobs:
