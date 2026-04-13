@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Debugging options
 set -euo pipefail
 set -x
@@ -5,6 +7,50 @@ set -x
 echo "Running setup..."
 
 whoami
+
+#################################
+# Handle options
+#################################
+
+# Default variable values
+rebuild_container=false
+sif_container=false
+
+# Function to display script usage
+usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo " -h, --help                Display this help message"
+  echo " -b, --rebuild-container   Force the rebuild of the singularity container (default: false)"
+  echo " -s, --sif-container       Build the singularity container as SIF (Singularity Image Format) file (default: false)"
+}
+
+# Function to handle options and arguments
+handle_options() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      -b | --rebuild-container)
+        rebuild_container=true
+        ;;
+      -s | --sif-container)
+        sif_container=true
+        ;;
+      *)
+        echo "Invalid option: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
+}
+
+# Main script execution
+handle_options "$@"
 
 #################################
 # Import environment variables
@@ -81,45 +127,9 @@ fi
 # Singularity
 #################################
 
-# Default variable values
-rebuild_container=false
-sif_container=false
+# Load necessary modules
+module load singularity/4.3.7
 
-# Function to display script usage
-usage() {
-  echo "Usage: $0 [OPTIONS]"
-  echo "Options:"
-  echo " -h, --help                Display this help message"
-  echo " -b, --rebuild-container   Force the rebuild of the singularity container (default: false)"
-  echo " -s, --sif-container       Build the singularity container as SIF (Singularity Image Format) file (default: false)"
-}
-
-# Function to handle options and arguments
-handle_options() {
-  while [ $# -gt 0 ]; do
-    case $1 in
-      -h | --help)
-        usage
-        exit 0
-        ;;
-      -b | --rebuild-container)
-        rebuild_container=true
-        ;;
-      -s | --sif-container)
-        sif_container=true
-        ;;
-      *)
-        echo "Invalid option: $1" >&2
-        usage
-        exit 1
-        ;;
-    esac
-    shift
-  done
-}
-
-# Main script execution
-handle_options "$@"
 
 # Perform the desired actions based on the provided flags and arguments
 if [ "$rebuild_container" = true ]; then
