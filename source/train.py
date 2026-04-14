@@ -388,11 +388,6 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         os.makedirs(self.resumable_dir, exist_ok=True)
 
     def on_epoch_end(self, epoch, logs=None):
-        # # Update history
-        # for key, value in logs.items():
-        #     self.combined_history.setdefault(key, []).append(float(value))
-        # with open(self.history_path, 'w') as f:
-        #     json.dump(self.combined_history, f, indent=2)
         
         # Update regular metrics
         for key, value in logs.items():
@@ -404,9 +399,14 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             current_weight = float(loss_obj.weight.numpy())
             self.combined_history.setdefault(weight_key, []).append(current_weight)
 
+        # # Update history
+        for key, value in logs.items():
+            self.combined_history.setdefault(key, []).append(float(value))
+
+        # Save history
         history_path = self.resumable_dir + 'train_history.json'
         with open(history_path, 'w') as f:
-            json.dump(history_path, f, indent=2)
+            json.dump(self.combined_history, f, indent=2)
         print(f"✓ Saved history at epoch {epoch + 1}")
 
         # Save current checkpoint
@@ -417,14 +417,14 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
         # Save best checkpoint
         if val_loss and val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
-            self.model.save_weights(self.best_weights_dir + f'best_(epoch_{epoch+1:03d}).weights.h5')
+            self.model.save_weights(self.best_weights_dir + f'best.weights.h5')
             print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
         # Save rolling last-N checkpoints
         if self.keep_last_n:
             self._cleanup_old_checkpoints(epoch)
 
-        # Save modelr
+        # Save model
         if (epoch + 1) % self.save_model_every_n_epochs == 0:
             self.model.save(self.resumable_dir + f'epoch_{epoch+1:03d}.keras')
             print(f"✓ Saved model at epoch {epoch + 1}")
