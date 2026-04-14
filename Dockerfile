@@ -120,7 +120,6 @@ ENV DOCKER_COMPLETE_VENV=${DOCKER_COMPLETE_VENV}
 # Create complete venv
 RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
     #$DOCKER_COMPLETE_VENV/bin/pip install -r complete_requirements.txt
-
     ## Alternatively (if requirements are broken) install these packages
     $DOCKER_COMPLETE_VENV/bin/pip install \
         datasets==3.6.0 \
@@ -142,7 +141,7 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
         scikit-learn \
         psutil \
         ruamel.yaml \
-        python-dotenv \
+        python-dotenv
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
 
