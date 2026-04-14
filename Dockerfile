@@ -137,11 +137,14 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
         hydra-core \
         torch \
         torchvision \
+        torchaudio \
         seaborn \
         scikit-learn \
         psutil \
         ruamel.yaml \
-        python-dotenv
+        python-dotenv \
+        git+https://github.com/google-research/perch-hoplite.git
+
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
 
