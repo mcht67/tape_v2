@@ -119,7 +119,30 @@ ENV DOCKER_COMPLETE_VENV=${DOCKER_COMPLETE_VENV}
 
 # Create complete venv
 RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
-    $DOCKER_COMPLETE_VENV/bin/pip install -r complete_requirements.txt
+    #$DOCKER_COMPLETE_VENV/bin/pip install -r complete_requirements.txt
+
+    ## Alternatively (if requirements are broken) install these packages
+    $DOCKER_COMPLETE_VENV/bin/pip install \
+        datasets==3.6.0 \
+        dvc \
+        dvclive \
+        dvc_gdrive \
+        librosa \
+        soundfile \
+        omegaconf \
+        numpy \
+        tensorflow \
+        tensorflow_hub \
+        tensorboard \
+        matplotlib \
+        hydra-core \
+        torch \
+        torchvision \
+        seaborn \
+        scikit-learn \
+        psutil \
+        ruamel.yaml \
+        python-dotenv \
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
 
