@@ -93,7 +93,7 @@ def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=N
     #     env=env)
 
     result = subprocess.run(
-                                ['/usr/bin/bash', '-c', f'sbatch --dependency=afterok:{dependency_job_id} --kill-on-invalid-dep=yes exp_workflow_job.sh {" ".join(arguments)}'],
+                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
     submitted_job_id = result.stdout.strip().split()[-1]
@@ -264,12 +264,14 @@ if __name__ == "__main__":
     # OmegaConf.save(cfg, "params.yaml")
 
     # Right now just embeddings are computed in prepare dataset
-    if embeddings:
-        for dataset_config in dataset_configs:
-            #submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
+    
+    for dataset_config in dataset_configs:
+        #submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
+        prep_job_id = None
+        if embeddings:
             prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
-            
-            submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
+        
+        submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
             # try:
             #     # Replace with singularity cmd
             #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
