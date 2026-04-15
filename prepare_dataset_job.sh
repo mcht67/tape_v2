@@ -24,8 +24,12 @@
 # source ./slurm_common.sh "$@"
 
 # Debugging options
-set -euo pipefail
-set -x
+# -e exit as soon as a command returns a non-zero status
+# -u makes references to unset variables an error
+# -o pipefail makes a pipeline fail if any command in the pipe fails
+# -x turns on execution tracing, so Bash prints each command
+set -euo pipefail 
+# set -x
 
 echo "Running dataset preparation slurm job"
 
@@ -132,48 +136,16 @@ fi
 [ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
 #################################
-# Set environment variables
-#################################
-
-# # Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
-# if [ -n "$HUGGINGFACE_TOKEN" ]; then
-#     export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
-#     echo "[INFO] Hugging Face token set successfully"
-# else
-#     echo "[WARNING] Hugging Face token was not set."
-# fi
-
-# # Set Huggingface cache ENVs
-# if [ -n "$HF_HOME" ]; then
-#     export HF_HOME="$HF_HOME"
-#     echo "[INFO] HF_HOME set successfully"
-# else
-#     echo "[WARNING] HF_HOME variable was not set."
-# fi
-# if [ -n "$HF_HUB_CACHE" ]; then
-#     export HF_HUB_CACHE="$HF_HUB_CACHE"
-#     echo "[INFO] HF_CACHE_HUB set successfully"
-# else
-#     echo "[WARNING] HF_HUB_CACHE variable was not set."
-# fi
-# if [ -n "$HF_DATASETS_CACHE" ]; then
-#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-#     echo "[INFO] HF_DATASETS_CACHE set successfully"
-# else
-#     echo "[WARNING] HF_DATASETS_CACHE variable was not set."
-# fi
-
-
-#################################
 # Python paths
 #################################
 
-echo "export python paths"
+echo "Export python paths:"
 # export BASE_PYTHON
 # export PERCH_PYTHON
 # export TRAIN_PYTHON
 COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
 export COMPLETE_PYTHON
+echo "COMPLETE_PYTHON: $COMPLETE_PYTHON"
 
 #################################
 # Build singularity container
