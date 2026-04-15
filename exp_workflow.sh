@@ -7,6 +7,33 @@
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
 
+# #################################
+# # Retry function
+# #################################
+
+# retry() {
+#   local max_attempts=$1
+#   local interval=$2
+#   local description=$3
+#   local attempt=1
+#   shift 3
+
+#   echo "[$description] Starting..."
+#   while [ $attempt -le $max_attempts ]; do
+#     echo "[$description] Attempt $attempt/$max_attempts..."
+#     if "$@"; then
+#       echo "[$description] Success."
+#       return 0
+#     fi
+#     echo "[$description] Failed. Retrying in ${interval}s..."
+#     attempt=$((attempt + 1))
+#     [ $attempt -le $max_attempts ] && sleep "$interval"
+#   done
+
+#   echo "[$description] All $max_attempts attempts failed."
+#   return 1
+# }
+
 #################################
 # Import environment variables
 #################################
@@ -40,10 +67,15 @@ if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.do
         echo DOCKERHUB_USERNAME="your_dockerhub_username";
         exit 1;
     fi
-    echo "set git user config"
-    git config --global user.name "$GIT_USERNAME"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global safe.directory "$PWD"
+    # retry 10 30 "Set git user config" bash -c '
+    #     git config --global user.name "$GIT_USERNAME" &&
+    #     git config --global user.email "$GIT_EMAIL" &&
+    #     git config --global safe.directory "$PWD"
+    #     '
+    # # echo "set git user config"
+    # # git config --global user.name "$GIT_USERNAME"
+    # # git config --global user.email "$GIT_EMAIL"
+    # # git config --global safe.directory "$PWD"
 fi
 
 # Print info about necessary variables
@@ -52,9 +84,9 @@ fi
 [ -n "$HUGGINGFACE_TOKEN" ] && echo "[INFO] Huggingface token set" || echo "[WARNING] Huggingface token not set"
 [ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
-# Define DEFAULT_DIR in the host environment
-export DEFAULT_DIR="$PWD"
-TMP_DIR=tmp
+#################################
+# Study name
+#################################
 
 echo "Study name: "
 echo $STUDY_NAME
@@ -86,64 +118,22 @@ echo "export python paths"
 # export TRAIN_PYTHON
 export COMPLETE_PYTHON
 
-# # Set default python
-# source "$BASE_VENV/bin/activate"
+echo "python path:"
+echo $COMPLETE_PYTHON
 
-# if [ -f local.env ]; then
-#         source local.env;
-# fi
+#################################
+# Create temporary directory
+#################################
 
-# # Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
-# if [ -n "$HUGGINGFACE_TOKEN" ]; then
-#     export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
-#     echo "[INFO] Hugging Face token set successfully"
-# fi
-
-# # Set Huggingface cache ENVs
-# if [ -n "$HF_HOME" ]; then
-#     export HF_HOME="$HF_HOME"
-#     echo "[INFO] HF_HOME set successfully"
-# fi
-# if [ -n "$HF_HUB_CACHE" ]; then
-#     export HF_HUB_CACHE="$HF_HUB_CACHE"
-#     echo "[INFO] HF_CACHE_HUB set successfully"
-# fi
-# if [ -n "$HF_DATASETS_CACHE" ]; then
-#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-#     echo "[INFO] HF_DATASETS_CACHE set successfully"
-# fi
-
-# # Setup a global git configuration if beeing inside a docker container
-# # Docker containers create a /.dockerenv file in the root directory
-# if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-#     # if [ -f local.env ]; then
-#     #     source local.env;
-#     # fi
-#     if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
-#         echo "[ERROR] Please create a local.env with the vars:";
-#         echo "GIT_USERNAME=MY NAME";
-#         echo "GIT_EMAIL=myemail@domain.com";
-#         echo HUGGINGFACE_TOKEN="your_hf_token";
-#         echo DOCKERHUB_USERNAME="your_dockerhub_username";
-#         exit 1;
-#     fi
-#     echo "set git user config"
-#     git config --global user.name "$GIT_USERNAME"
-#     git config --global user.email "$GIT_EMAIL"
-#     git config --global safe.directory "$PWD"
-
-    # # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
-    # if [ -n "$DOCKERHUB_USERNAME" ]; then
-    #     export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
-    #     echo "[INFO] Dockerhub Username set successfully"
-#     # fi  
-# fi
+# Define DEFAULT_DIR in the host environment
+export DEFAULT_DIR="$PWD"
+TMP_DIR=tmp
 
 # Create a new sub-directory in the temporary directory for the experiment
 echo "Creating temporary sub-directory..." &&
 # Generate a unique ID with the current timestamp, process ID, and hostname for the sub-directory
 UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
-EXP_TMP_DIR="$TMP_DIR/$UNIQUE_ID" &&
+EXP_TMP_DIR="$(realpath "$TMP_DIR/$UNIQUE_ID")" &&
 mkdir -p $EXP_TMP_DIR &&
 
 # Copy the necessary files to the temporary directory
@@ -170,6 +160,25 @@ done &&
 # Change the working directory to the temporary sub-directory
 cd $EXP_TMP_DIR &&
 
+#################################
+# Git config
+#################################
+
+# Set per job global git config
+export GIT_CONFIG_GLOBAL=${EXP_TMP_DIR}/.gitconfig
+
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+
+    echo "set git user config"
+    git config --global user.name "$GIT_USERNAME"
+    git config --global user.email "$GIT_EMAIL"
+    git config --global safe.directory "$DEFAULT_DIR"
+fi
+
+#################################
+# DVC cache
+#################################
+
 # Set the DVC cache directory to the shared cache located in the host directory
 echo "Setting DVC cache directory..." &&
 dvc cache dir $DEFAULT_DIR/.dvc/cache &&
@@ -180,8 +189,9 @@ dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 #     dvc pull dataset;
 # fi &&
 
-echo "python path:"
-echo $COMPLETE_PYTHON
+#################################
+# Run dvc experiment
+#################################
 
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.
 echo "Running experiment..." &&
@@ -191,6 +201,10 @@ dvc exp run \
 #   --set-param python.base="$BASE_PYTHON" \
 #   --set-param python.perch="$PERCH_PYTHON" \
 #   --set-param python.train="$TRAIN_PYTHON" \
+
+#################################
+# Pushing results
+#################################
 
 dvc status
 
