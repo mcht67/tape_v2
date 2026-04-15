@@ -1,4 +1,4 @@
-experiment_name: 'test-experiment'
-tensorboard_subfolder: ${log.experiment_name}
+study_name: 'test-study'
+tensorboard_subfolder: ${log.study_name}
 tensorboard_suffix: ''
 hyperparameters:
