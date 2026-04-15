@@ -246,8 +246,8 @@ if __name__ == "__main__":
     # Setup
     ##########################
 
-    result = subprocess.run(["bash", "setup.sh"], check=True, capture_output=True, text=True)
-    print(result.stdout)
+    # result = subprocess.run(["bash", "setup.sh"], check=True, capture_output=True, text=True)
+    # print(result.stdout)
 
     ##########################
     # Prepare dataset
