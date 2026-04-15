@@ -41,35 +41,39 @@ sif_container=false
 
 # Function to display script usage
 usage() {
-  echo "Usage: $0 [OPTIONS]"
+  echo "Usage: $0 [OPTIONS] -- [PYTHON ARGS...]"
   echo "Options:"
-  echo " -h, --help                Display this help message"
-  echo " -b, --rebuild-container   Force the rebuild of the singularity container (default: false)"
-  echo " -s, --sif-container       Build the singularity container as SIF (Singularity Image Format) file (default: false)"
+  echo "  -h, --help                Display this help message"
+  echo "  -b, --rebuild-container   Force rebuild of the singularity container"
+  echo "  -s, --sif-container       Build the singularity container as SIF"
 }
 
-# Function to handle options and arguments
 handle_options() {
-  while [ $# -gt 0 ]; do
-    case $1 in
-      -h | --help)
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
         usage
         exit 0
         ;;
-      -b | --rebuild-container)
+      -b|--rebuild-container)
         rebuild_container=true
+        shift
         ;;
-      -s | --sif-container)
+      -s|--sif-container)
         sif_container=true
+        shift
+        ;;
+      --)
+        shift
+        break
         ;;
       *)
-        echo "Invalid option: $1" >&2
-        usage
-        exit 1
+        break
         ;;
     esac
-    shift
   done
+
+  PY_ARGS=("$@")
 }
 
 # Main script execution
@@ -208,4 +212,4 @@ singularity exec \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
     $PROJECT_NAME-image-latest${container_extension:-} \
-    $COMPLETE_PYTHON ./prepare_dataset.py "$@"
+    $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
