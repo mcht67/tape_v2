@@ -29,63 +29,103 @@ echo "Running exp_workflow_job.sh"
 
 whoami
 
-# # Default variable values
-# rebuild_container=false
-# sif_container=false
+#################################
+# Handle options
+#################################
 
-# # Function to display script usage
-# usage() {
-#   echo "Usage: $0 [OPTIONS]"
-#   echo "Options:"
-#   echo " -h, --help                Display this help message"
-#   echo " -b, --rebuild-container   Force the rebuild of the singularity container (default: false)"
-#   echo " -s, --sif-container       Build the singularity container as SIF (Singularity Image Format) file (default: false)"
-# }
+# Default variable values
+rebuild_container=false
+sif_container=false
 
-# # Function to handle options and arguments
-# handle_options() {
-#   while [ $# -gt 0 ]; do
-#     case $1 in
-#       -h | --help)
-#         usage
-#         exit 0
-#         ;;
-#       -b | --rebuild-container)
-#         rebuild_container=true
-#         ;;
-#       -s | --sif-container)
-#         sif_container=true
-#         ;;
-#       *)
-#         echo "Invalid option: $1" >&2
-#         usage
-#         exit 1
-#         ;;
-#     esac
-#     shift
-#   done
-# }
+# Function to display script usage
+usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo " -h, --help                Display this help message"
+  echo " -b, --rebuild-container   Force the rebuild of the singularity container (default: false)"
+  echo " -s, --sif-container       Build the singularity container as SIF (Singularity Image Format) file (default: false)"
+}
 
-# # Main script execution
-# handle_options "$@"
+# Function to handle options and arguments
+handle_options() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      -b | --rebuild-container)
+        rebuild_container=true
+        ;;
+      -s | --sif-container)
+        sif_container=true
+        ;;
+      *)
+        echo "Invalid option: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
+}
 
-# # Perform the desired actions based on the provided flags and arguments
-# if [ "$rebuild_container" = true ]; then
-#   echo "Forcing the rebuild of the singularity container..."
-# fi
+# Main script execution
+handle_options "$@"
 
-# if [ "$sif_container" = true ]; then
-#   echo "Singularity container format set to SIF (Singularity Image Format) file..."
-#   echo "When executed, the container will be converted to a temporary sandboxed image. This may take a while..."
-# fi
+# Perform the desired actions based on the provided flags and arguments
+if [ "$rebuild_container" = true ]; then
+  echo "Forcing the rebuild of the singularity container..."
+fi
+
+if [ "$sif_container" = true ]; then
+  echo "Singularity container format set to SIF (Singularity Image Format) file..."
+  echo "When executed, the container will be converted to a temporary sandboxed image. This may take a while..."
+fi
+
+#################################
+# Load modules
+#################################
 
 # Load necessary modules
 module load singularity/4.3.7
+
+#################################
+# Import environment variables
+#################################
 
 # Set environment variables defined in global.env
 set -o allexport
 source global.env
 set +o allexport
+
+# Print info
+[ -n "$HF_HOME" ] && echo "[INFO] HF_HOME=$HF_HOME" || echo "[WARNING] HF_HOME not set"
+[ -n "$HF_HUB_CACHE" ] && echo "[INFO] HF_HUB_CACHE=$HF_HUB_CACHE" || echo "[WARNING] HF_HUB_CACHE not set"
+[ -n "$HF_DATASETS_CACHE" ] && echo "[INFO] HF_DATASETS_CACHE=$HF_DATASETS_CACHE" || echo "[WARNING] HF_DATASETS_CACHE not set"
+
+# Import local environment variables and set those needed
+if [ -f local.env ]; then
+        source local.env;
+        export DOCKERHUB_USERNAME;
+fi
+
+# Check if necessary variables are set in local.env
+if [ -z "$DOCKERHUB_USERNAME" ]; then
+    echo "[ERROR] Please create a local.env with the vars:";
+    echo "GIT_USERNAME=MY NAME";
+    echo "GIT_EMAIL=myemail@domain.com";
+    echo HUGGINGFACE_TOKEN="your_hf_token";
+    echo DOCKERHUB_USERNAME="your_dockerhub_username";
+    exit 1;
+fi
+
+# Print info about necessary variables
+[ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
+
+# #################################
+# # Set environment variables
+# #################################
 
 # # Set Huggingface cache ENVs
 # if [ -n "$HF_HOME" ]; then
@@ -101,29 +141,44 @@ set +o allexport
 #     echo "[INFO] HF_DATASETS_CACHE set successfully"
 # fi
 
+# # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
+#     if [ -n "$DOCKERHUB_USERNAME" ]; then
+#         export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+#         echo "[INFO] Dockerhub Username set successfully"
+#     fi 
+
+
+#################################
+# Build singularity container
+#################################
+
+if [ "$sif_container" = true ]; then
+  container_extension=".sif"
+  container_build_flags=""
+else
+  container_extension="/"
+  container_build_flags="--sandbox"
+fi
+
+# Remove existing container if --rebuild-container flag is set
+if { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
+  echo "Removing the existing container as --rebuild-container flag is set..."
+  rm -rf $PROJECT_NAME-image-latest$container_extension
+fi
+
+# Build the singularity container from the docker image if it does not exist
+if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
+  echo "Building the singularity container from docker image..."
+  # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
+  singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
+fi
+
+#################################
+# Run experiment workflow
+#################################
+
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
-
-# if [ "$sif_container" = true ]; then
-#   container_extension=".sif"
-#   container_build_flags=""
-# else
-#   container_extension="/"
-#   container_build_flags="--sandbox"
-# fi
-
-# # Remove existing container if --rebuild-container flag is set
-# if { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
-#   echo "Removing the existing container as --rebuild-container flag is set..."
-#   rm -rf $PROJECT_NAME-image-latest$container_extension
-# fi
-
-# # Build the singularity container from the docker image if it does not exist
-# if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
-#   echo "Building the singularity container from docker image..."
-#   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
-#   singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
-# fi
 
 echo "Starting execution from singularity container..."
 
@@ -135,7 +190,3 @@ singularity exec \
     --pwd $DEFAULT_DIR \
     $PROJECT_NAME-image-latest$container_extension \
     ./exp_workflow.sh
-# singularity exec --bind /etc/passwd:/etc/passwd \
-#                 --bind /etc/group:/etc/group \
-#                 --bind $DEFAULT_DIR $PROJECT_NAME-image-latest$container_extension \
-#                 ./exp_workflow.sh # CPU

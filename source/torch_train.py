@@ -82,7 +82,7 @@ def main():
     ###################################################
     cfg = OmegaConf.load("params.yaml")
 
-    experiment_name = cfg.log.experiment_name
+    study_name = cfg.log.study_name
     random_seed = cfg.general.random_seed
     
     dataset_path =  cfg.path.dataset
@@ -113,7 +113,7 @@ def main():
     os.environ.setdefault('DEFAULT_DIR', os.getcwd())
     os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 
-    # tensorboard_path = return_tensorboard_dir(subfolder=experiment_name)
+    # tensorboard_path = return_tensorboard_dir(subfolder=study_name)
     # os.makedirs(tensorboard_path, exist_ok=True)
 
     # Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter

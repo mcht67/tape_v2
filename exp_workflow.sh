@@ -7,17 +7,61 @@
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
 
+#################################
+# Import environment variables
+#################################
+
 # Set environment variables defined in global.env
 set -o allexport
 source global.env
 set +o allexport
 
+# Print info
+[ -n "$HF_HOME" ] && echo "[INFO] HF_HOME=$HF_HOME" || echo "[WARNING] HF_HOME not set"
+[ -n "$HF_HUB_CACHE" ] && echo "[INFO] HF_HUB_CACHE=$HF_HUB_CACHE" || echo "[WARNING] HF_HUB_CACHE not set"
+[ -n "$HF_DATASETS_CACHE" ] && echo "[INFO] HF_DATASETS_CACHE=$HF_DATASETS_CACHE" || echo "[WARNING] HF_DATASETS_CACHE not set"
+
+# Import local environment variables and set those needed
+if [ -f local.env ]; then
+        source local.env;
+        export GIT_USERNAME;
+        export GIT_EMAIL;
+        export HUGGINGFACE_TOKEN;
+        export DOCKERHUB_USERNAME;
+fi
+
+# Check if necessary variables are set in local.env
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+    if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
+        echo "[ERROR] Please create a local.env with the vars:";
+        echo "GIT_USERNAME=MY NAME";
+        echo "GIT_EMAIL=myemail@domain.com";
+        echo HUGGINGFACE_TOKEN="your_hf_token";
+        echo DOCKERHUB_USERNAME="your_dockerhub_username";
+        exit 1;
+    fi
+    echo "set git user config"
+    git config --global user.name "$GIT_USERNAME"
+    git config --global user.email "$GIT_EMAIL"
+    git config --global safe.directory "$PWD"
+fi
+
+# Print info about necessary variables
+[ -n "$GIT_USERNAME" ] && echo "[INFO] Git Username set" || echo "[WARNING] Git Username not set"
+[ -n "$GIT_EMAIL" ] && echo "[INFO] Git Email set" || echo "[WARNING] Git Email not set"
+[ -n "$HUGGINGFACE_TOKEN" ] && echo "[INFO] Huggingface token set" || echo "[WARNING] Huggingface token not set"
+[ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
+
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$PWD"
 TMP_DIR=tmp
 
-echo "Experiment name: "
-echo $EXP_NAME
+echo "Study name: "
+echo $STUDY_NAME
+
+#################################
+# Python paths
+#################################
 
 # Define python paths
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
@@ -36,70 +80,64 @@ else
     COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
 fi
 
-echo "print env"
-printenv
-
 echo "export python paths"
 # export BASE_PYTHON
 # export PERCH_PYTHON
 # export TRAIN_PYTHON
 export COMPLETE_PYTHON
 
-echo "print env"
-printenv
-
 # # Set default python
 # source "$BASE_VENV/bin/activate"
 
-if [ -f local.env ]; then
-        source local.env;
-fi
+# if [ -f local.env ]; then
+#         source local.env;
+# fi
 
-# Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
-if [ -n "$HUGGINGFACE_TOKEN" ]; then
-    export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
-    echo "[INFO] Hugging Face token set successfully"
-fi
+# # Set Hugging Face token as environment variable if available (used for download of dataset and upload of embeddings)
+# if [ -n "$HUGGINGFACE_TOKEN" ]; then
+#     export HUGGINGFACE_TOKEN="$HUGGINGFACE_TOKEN"
+#     echo "[INFO] Hugging Face token set successfully"
+# fi
 
-# Set Huggingface cache ENVs
-if [ -n "$HF_HOME" ]; then
-    export HF_HOME="$HF_HOME"
-    echo "[INFO] HF_HOME set successfully"
-fi
-if [ -n "$HF_HUB_CACHE" ]; then
-    export HF_HUB_CACHE="$HF_HUB_CACHE"
-    echo "[INFO] HF_CACHE_HUB set successfully"
-fi
-if [ -n "$HF_DATASETS_CACHE" ]; then
-    export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-    echo "[INFO] HF_DATASETS_CACHE set successfully"
-fi
+# # Set Huggingface cache ENVs
+# if [ -n "$HF_HOME" ]; then
+#     export HF_HOME="$HF_HOME"
+#     echo "[INFO] HF_HOME set successfully"
+# fi
+# if [ -n "$HF_HUB_CACHE" ]; then
+#     export HF_HUB_CACHE="$HF_HUB_CACHE"
+#     echo "[INFO] HF_CACHE_HUB set successfully"
+# fi
+# if [ -n "$HF_DATASETS_CACHE" ]; then
+#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
+#     echo "[INFO] HF_DATASETS_CACHE set successfully"
+# fi
 
-# Setup a global git configuration if beeing inside a docker container
-# Docker containers create a /.dockerenv file in the root directory
-if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-    # if [ -f local.env ]; then
-    #     source local.env;
-    # fi
-    if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
-        echo "[ERROR] Please create a local.env with the vars:";
-        echo "GIT_USERNAME=MY NAME";
-        echo "GIT_EMAIL=myemail@domain.com";
-        echo HUGGINGFACE_TOKEN="your_hf_token";
-        echo DOCKERHUB_USERNAME="your_dockerhub_username";
-        exit 1;
-    fi
-    echo "set git user config"
-    git config --global user.name "$GIT_USERNAME"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global safe.directory "$PWD"
+# # Setup a global git configuration if beeing inside a docker container
+# # Docker containers create a /.dockerenv file in the root directory
+# if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+#     # if [ -f local.env ]; then
+#     #     source local.env;
+#     # fi
+#     if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
+#         echo "[ERROR] Please create a local.env with the vars:";
+#         echo "GIT_USERNAME=MY NAME";
+#         echo "GIT_EMAIL=myemail@domain.com";
+#         echo HUGGINGFACE_TOKEN="your_hf_token";
+#         echo DOCKERHUB_USERNAME="your_dockerhub_username";
+#         exit 1;
+#     fi
+#     echo "set git user config"
+#     git config --global user.name "$GIT_USERNAME"
+#     git config --global user.email "$GIT_EMAIL"
+#     git config --global safe.directory "$PWD"
 
-    # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
-    if [ -n "$DOCKERHUB_USERNAME" ]; then
-        export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
-        echo "[INFO] Dockerhub Username set successfully"
-    fi  
-fi
+    # # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
+    # if [ -n "$DOCKERHUB_USERNAME" ]; then
+    #     export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+    #     echo "[INFO] Dockerhub Username set successfully"
+#     # fi  
+# fi
 
 # Create a new sub-directory in the temporary directory for the experiment
 echo "Creating temporary sub-directory..." &&
@@ -163,8 +201,8 @@ echo "✅ Push successful!" || echo "❌ Push failed!"
 
 # Moving everythin to archive
 DATETIME=$(date +%Y%m%d_%H%M%S)
-if [ -n "$EXP_NAME" ]; then
-    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$EXP_NAME/${DATETIME}_$DVC_EXP_NAME
+if [ -n "$STUDY_NAME" ]; then
+    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$STUDY_NAME/${DATETIME}_$DVC_EXP_NAME
 else
     ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
 fi

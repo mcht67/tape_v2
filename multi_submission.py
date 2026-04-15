@@ -51,14 +51,14 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
             sys.exit(1)
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=None):
+def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
     env = {
         **os.environ,
         "EXP_PARAMS": exp_params,
-        "EXP_NAME": experiment_name,
+        "STUDY_NAME": study_name,
         "DEFAULT_DIR": os.getcwd(),
         "SYNC_INTERVAL": '0'
     }
@@ -151,7 +151,7 @@ def submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
         # print("Exp params: ", exp_params)
-        submit_batch_job(arguments, exp_params, experiment_name, dependency_job_id=dependency_job_id)
+        submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":
 
@@ -186,13 +186,13 @@ if __name__ == "__main__":
     # Configuration
     ##########################
 
-    # Define Experiment Name
-    experiment_name = 'Embeddings-Comparison'
+    # Define Study name
+    study_name = 'Embeddings-Comparison'
     huggingface_path = 'mcht67/polyphonic-bird-set-with-embeddings'
 
     # Define Base Config
     base_config = {
-        "log.experiment_name": experiment_name,
+        "log.study_name": study_name,
         "dataset.huggingface_path": huggingface_path,
         
         "train.epochs": 5,
@@ -234,7 +234,6 @@ if __name__ == "__main__":
                 }
     
     recompute_embeddings = True
-    # recompute_labels = False
 
     # ##########################
     # # Huggingface login
@@ -247,8 +246,8 @@ if __name__ == "__main__":
     # Setup
     ##########################
 
-    result = subprocess.run(["bash", "setup.sh"], check=True, capture_output=True, text=True)
-    print(result.stdout)
+    # result = subprocess.run(["bash", "setup_singularity.sh"], check=True, capture_output=True, text=True)
+    # print(result.stdout)
 
     ##########################
     # Prepare dataset

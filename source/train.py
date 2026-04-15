@@ -143,7 +143,7 @@ set_random_seeds(random_seed)
 huggingface_path = cfg.dataset.huggingface_path
 dataset_config = cfg.dataset.config
 
-experiment_name = cfg.log.experiment_name
+study_name = cfg.log.study_name
 load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
 load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
 load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
@@ -160,7 +160,7 @@ num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train el
 # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
 #path_suffix = cfg.log.path_suffix if 'path_suffix' in cfg.log else None
-checkpoint_dir = 'checkpoints' #f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/'
+checkpoint_dir = 'checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}/'
 log_dir = 'logs'
 
 model_cfg = cfg.model
@@ -183,7 +183,7 @@ tensorboard_suffix = cfg.log.tensorboard_suffix
 os.environ.setdefault('DEFAULT_DIR', os.getcwd())
 os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 
-# tensorboard_path = return_tensorboard_dir(subfolder=experiment_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
+# tensorboard_path = return_tensorboard_dir(subfolder=study_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
 # os.makedirs(tensorboard_path, exist_ok=True)
 
  # Load environment variables from .env file
@@ -238,7 +238,7 @@ print(params)
 
 confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
-# checkpoint_path = f"logs/models/{experiment_name}/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{experiment_name}_{input_feature_name}')
+# checkpoint_path = f"logs/models/{study_name}/{current_datetime}_{dvc_exp_name}_{input_feature_name}.weights.h5" #return_checkpoint_path(subfolder=f'{study_name}_{input_feature_name}')
 # # TEMPORARY checkpoint solution should be handled by resuming experiment later TODO: 
 # checkpoint_dir = os.path.dirname(checkpoint_path)
 # # checkpoint_names = os.listdir(checkpoint_dir)
@@ -249,9 +249,9 @@ num_batches = len(train_dataset)
 
 # model_path = f'models/{input_feature_name}_large.keras'
 # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
-# save_model_path = f'checkpoints/{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}.keras'
+# save_model_path = f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}.keras'
 # save_model_dir = Path(save_model_path).parent
-# model_save_path = f'{experiment_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}'
+# model_save_path = f'{study_name}/{current_datetime}_{dvc_exp_name}/{dvc_exp_name}_{input_feature_name}'
 # os.makedirs(save_model_dir, exist_ok=True)
 # history_path = save_model_path.replace('.keras', '_history.json')
 
