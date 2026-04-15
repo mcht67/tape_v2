@@ -97,14 +97,14 @@ echo $STUDY_NAME
 
 # Define python paths
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-    echo "define python paths to use inside singularity container"
+    echo "Define python paths to use inside singularity container..."
     # In Docker - use Docker venvs from global.env
     # BASE_PYTHON="$DOCKER_BASE_PYTHON"
     # PERCH_PYTHON="$DOCKER_PERCH_PYTHON"
     # TRAIN_PYTHON="$DOCKER_TRAIN_PYTHON"
     COMPLETE_PYTHON="$DOCKER_COMPLETE_PYTHON"
 else
-    echo "define python paths to use locally"
+    echo "Define python paths to use locally..."
     # Local - use local venvs from global.env (with DEFAULT_DIR prefix)
     # BASE_PYTHON="$DEFAULT_DIR$LOCAL_BASE_PYTHON"
     # PERCH_PYTHON="$DEFAULT_DIR$LOCAL_PERCH_PYTHON"
@@ -112,13 +112,12 @@ else
     COMPLETE_PYTHON="$DEFAULT_DIR$LOCAL_COMPLETE_PYTHON"
 fi
 
-echo "export python paths"
 # export BASE_PYTHON
 # export PERCH_PYTHON
 # export TRAIN_PYTHON
 export COMPLETE_PYTHON
 
-echo "python path:"
+echo "Python paths:"
 echo $COMPLETE_PYTHON
 
 #################################
@@ -164,16 +163,16 @@ cd $EXP_TMP_DIR &&
 # Git config
 #################################
 
-# Set per job global git config
-export GIT_CONFIG_GLOBAL=${EXP_TMP_DIR}/.gitconfig
+# # Set per job global git config
+# export GIT_CONFIG_GLOBAL=${EXP_TMP_DIR}/.gitconfig
 
-if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+# if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
 
-    echo "set git user config"
-    git config --global user.name "$GIT_USERNAME"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global safe.directory "$DEFAULT_DIR"
-fi
+#     echo "Settting git user config..."
+#     git config --global user.name "$GIT_USERNAME"
+#     git config --global user.email "$GIT_EMAIL"
+#     git config --global safe.directory "$DEFAULT_DIR"
+# fi
 
 #################################
 # DVC cache
