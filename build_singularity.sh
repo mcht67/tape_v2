@@ -142,51 +142,51 @@ fi
 # Singularity
 #################################
 
-if command -v sbatch &> /dev/null; then
-    # On SLURM cluster: build Singularity container
+# if command -v sbatch &> /dev/null; then
+#     # On SLURM cluster: build Singularity container
 
-    # Load necessary modules
-    module load singularity/4.3.7
+# Load necessary modules
+module load singularity/4.3.7
 
-    # Perform the desired actions based on the provided flags and arguments
-    if [ "$rebuild_container" = true ]; then
-    echo "Forcing the rebuild of the singularity container..."
-    fi
-
-    if [ "$sif_container" = true ]; then
-    echo "Singularity container format set to SIF (Singularity Image Format) file..."
-    echo "When executed, the container will be converted to a temporary sandboxed image. This may take a while..."
-    fi
-
-    # Define DEFAULT_DIR in the host environment
-    export DEFAULT_DIR="$(realpath $PWD)"
-
-    if [ "$sif_container" = true ]; then
-        container_extension=".sif"
-        container_build_flags=""
-    else
-        container_extension="/"
-        container_build_flags="--sandbox"
-    fi
-
-    # Remove existing container if --rebuild-container flag is set
-    if { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
-        echo "Removing the existing container as --rebuild-container flag is set..."
-        rm -rf $PROJECT_NAME-image-latest$container_extension
-    fi
-
-    # Build the singularity container from the docker image if it does not exist
-    if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
-        echo "Building the singularity container from docker image..."
-        sbatch --time=4:00:00 --mem=16G \
-            --job-name=build-container \
-            --output=build-container-%j.log \
-            --wait \
-            --wrap "singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest"
-    fi
-else
-    echo "No SLURM detected, skipping Singularity container build (use Docker locally)..."
+# Perform the desired actions based on the provided flags and arguments
+if [ "$rebuild_container" = true ]; then
+echo "Forcing the rebuild of the singularity container..."
 fi
+
+if [ "$sif_container" = true ]; then
+echo "Singularity container format set to SIF (Singularity Image Format) file..."
+echo "When executed, the container will be converted to a temporary sandboxed image. This may take a while..."
+fi
+
+# Define DEFAULT_DIR in the host environment
+export DEFAULT_DIR="$(realpath $PWD)"
+
+if [ "$sif_container" = true ]; then
+    container_extension=".sif"
+    container_build_flags=""
+else
+    container_extension="/"
+    container_build_flags="--sandbox"
+fi
+
+# Remove existing container if --rebuild-container flag is set
+if { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } && [ "$rebuild_container" = true ]; then
+    echo "Removing the existing container as --rebuild-container flag is set..."
+    rm -rf $PROJECT_NAME-image-latest$container_extension
+fi
+
+# # Build the singularity container from the docker image if it does not exist
+# if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
+#     echo "Building the singularity container from docker image..."
+#     sbatch --time=4:00:00 --mem=16G \
+#         --job-name=build-container \
+#         --output=build-container-%j.log \
+#         --wait \
+#         --wrap "singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest"
+# fi
+# else
+#     echo "No SLURM detected, skipping Singularity container build (use Docker locally)..."
+# fi
 
 
 
@@ -218,11 +218,11 @@ fi
 #   rm -rf $PROJECT_NAME-image-latest$container_extension
 # fi
 
-# # Build the singularity container from the docker image if it does not exist
-# if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
-#   echo "Building the singularity container from docker image..."
-#   # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
-#   singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
-# fi
+# Build the singularity container from the docker image if it does not exist
+if ! { [ -d $PROJECT_NAME-image-latest$container_extension ] || [ -f $PROJECT_NAME-image-latest$container_extension ]; } ; then
+  echo "Building the singularity container from docker image..."
+  # Pull the latest docker image from Docker Hub and convert it to a singularity image. This will automatically take the a cached image if it exists.
+  singularity build $container_build_flags $PROJECT_NAME-image-latest$container_extension docker://$DOCKERHUB_USERNAME/$PROJECT_NAME-image:latest
+fi
 
 echo "Finished setup"
