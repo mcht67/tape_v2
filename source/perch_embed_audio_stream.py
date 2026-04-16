@@ -198,6 +198,16 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
     return dataset, modified
 
 def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, force_recompute=False, batch_size=100, device='/CPU:0'):
+
+    # Auto detect gpu
+    gpus = tf.config.list_physical_devices('GPU')
+    device = '/GPU:0' if gpus else '/CPU:0'
+    print(f"Using device: {device}")
+
+    # Prevent TF from grabbing all GPU memory at once
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
         
     embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key =  model_key + "_" + input_feature + "_spatial_embeddings"
@@ -348,15 +358,15 @@ def main():
     # Request GPU
     ########################
 
-    gpus = tf.config.list_physical_devices('GPU')
-    device = '/GPU:0' if gpus else '/CPU:0'
-    print(f"Using device: {device}")
+    # # Auto detect gpu
+    # gpus = tf.config.list_physical_devices('GPU')
+    # device = '/GPU:0' if gpus else '/CPU:0'
+    # print(f"Using device: {device}")
 
-    # Prevent TF from grabbing all GPU memory at once
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    
+    # # Prevent TF from grabbing all GPU memory at once
+    # if gpus:
+    #     for gpu in gpus:
+    #         tf.config.experimental.set_memory_growth(gpu, True)
 
     # ===================
     # Embeddings
@@ -373,7 +383,7 @@ def main():
     for model_key in embedding_models:
         for input_feature in input_features:
             for split in dataset.keys():
-                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], force_recompute=force_recompute, device=device)
+                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], force_recompute=force_recompute)
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
                     embeddings_added = True

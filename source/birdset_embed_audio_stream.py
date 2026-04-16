@@ -20,7 +20,7 @@ def get_embedding_keys(model_name, input_feature):
     "spatial_embeddings": model_name + "_" + input_feature + "_spatial_embeddings"
     }
 
-def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, cache_dir=None, batch_size=100):
+def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, batch_size=100):
     
     # Set HuggingFace cache to this temporary directory
     #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
@@ -40,6 +40,14 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
     model_cfg = model_configs[model_key]['model_cfg']
     model = instantiate(model_cfg)
 
+    # Auto-detect device
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
+
+    if hasattr(model, 'to'):
+        model = model.to(device)
+
     print("######################################################################")
     print("Embed", input_feature, "with:", model_key)
     print("######################################################################")    
@@ -48,7 +56,8 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
             embed_example_batched,
             model=model,
             model_name=model_key,
-            input_feature=input_feature
+            input_feature=input_feature,
+            device=device
         )
     
     # Process in batches
@@ -103,7 +112,7 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
     
     return dataset, embeddings_name
 
-def embed_example_batched(examples, model, model_name, input_feature):
+def embed_example_batched(examples, model, model_name, input_feature, device="cpu"):
     """Process a batch of examples at once"""
     
     # Get model sampling rate
@@ -117,45 +126,59 @@ def embed_example_batched(examples, model, model_name, input_feature):
     pooled_embeddings_key = embeddings_keys['pooled_embeddings']
     spatial_embeddings_key = embeddings_keys['spatial_embeddings']
 
-    # Check if all have same sampling rate
-    sampling_rates = [int(audio['sampling_rate']) for audio in examples[input_feature]]
+    # # Check if all have same sampling rate
+    # sampling_rates = [int(audio['sampling_rate']) for audio in examples[input_feature]]
     
-    if len(set(sampling_rates)) == 1 and sampling_rates[0] != model_sampling_rate:
-        # All same rate - create resampler once
-        resample = torchaudio.transforms.Resample(
-            orig_freq=sampling_rates[0], 
-            new_freq=model_sampling_rate
-        )
-    else:
-        resample = None
+    # if len(set(sampling_rates)) == 1 and sampling_rates[0] != model_sampling_rate:
+    #     # All same rate - create resampler once
+    #     resample = torchaudio.transforms.Resample(
+    #         orig_freq=sampling_rates[0], 
+    #         new_freq=model_sampling_rate
+    #     )
+    # else:
+    #     resample = None
     
-    # Process batch
+    # # Process batch
+    # batch_audio_list = []
+    
+    # for audio in examples[input_feature]:
+    #     # Extract and resample each audio
+    #     audio_array = audio['array']
+    #     sampling_rate = int(audio['sampling_rate'])
+    #     audio_tensor = torch.tensor(audio_array, dtype=torch.float32)
+        
+    #     batch_audio_list.append(audio_tensor)
+
+    # Process each audio sample, resampling individually if needed
     batch_audio_list = []
-    
     for audio in examples[input_feature]:
-        # Extract and resample each audio
         audio_array = audio['array']
         sampling_rate = int(audio['sampling_rate'])
         audio_tensor = torch.tensor(audio_array, dtype=torch.float32)
-        
+
+        if sampling_rate != model_sampling_rate:
+            resample = torchaudio.transforms.Resample(
+                orig_freq=sampling_rate,
+                new_freq=model_sampling_rate
+            )
+            audio_tensor = resample(audio_tensor)
+
         batch_audio_list.append(audio_tensor)
     
     # Pad sequences to same length (required for batching)
     max_length = max(audio.shape[-1] for audio in batch_audio_list)
-    
     padded_batch = []
     for audio in batch_audio_list:
         if audio.shape[-1] < max_length:
             padding = max_length - audio.shape[-1]
             audio = torch.nn.functional.pad(audio, (0, padding))
         padded_batch.append(audio)
+
+    # Move to GPU if available
+    #device = next(model.parameters()).device
     
     # Stack into batch tensor: [batch_size, time]
-    audio_batch = torch.stack(padded_batch)
-    
-    # Move to GPU if available
-    device = next(model.parameters()).device
-    audio_batch = audio_batch.to(device)
+    audio_batch = torch.stack(padded_batch).to(device)
     
     # Process entire batch at once
     with torch.no_grad():
@@ -166,29 +189,44 @@ def embed_example_batched(examples, model, model_name, input_feature):
         pooled_emb = outputs.pooled_embeddings.cpu().numpy()
         examples[pooled_embeddings_key] = [emb for emb in pooled_emb]
     
-    # if outputs.spatial_embeddings is not None:
-    #     spatial_emb = outputs.spatial_embeddings.cpu().numpy()
-    #     examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
+    if outputs.spatial_embeddings is not None:
+        spatial_emb = outputs.spatial_embeddings.cpu().numpy()
+        examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
     
     return examples
 
-def embed_example(example, model, model_name, input_feature):
+def embed_example(example, model, model_name, input_feature, device="cpu"):
 
     # Get audio
     audio = example[input_feature]
 
-    # Resample
+    # Get model sampling rate
     default_sampling_rate = 22050
     if not (model_sampling_rate := model.sampling_rate):
         model_sampling_rate = default_sampling_rate
         model.set_sampling_rate(model_sampling_rate)
 
-    audio_array = audio['array']
+    # audio_array = audio['array']
+    # sampling_rate = int(audio['sampling_rate'])
+
+    # audio_tensor = torch.tensor(audio_array, dtype=torch.float32)
+    # resample = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=model_sampling_rate)
+    # audio_resampled = resample(audio_tensor)
+    
+    # Resample if needed
+    audio = example[input_feature]
+    audio_tensor = torch.tensor(audio['array'], dtype=torch.float32)
     sampling_rate = int(audio['sampling_rate'])
 
-    audio_tensor = torch.tensor(audio_array, dtype=torch.float32)
-    resample = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=model_sampling_rate)
-    audio_resampled = resample(audio_tensor)
+    if sampling_rate != model_sampling_rate:
+        resample = torchaudio.transforms.Resample(
+            orig_freq=sampling_rate,
+            new_freq=model_sampling_rate
+        )
+        audio_tensor = resample(audio_tensor)
+
+    # Move to device and run inference
+    audio_tensor = audio_tensor.to(device)
 
     # Get embeddings keys
     embeddings_keys = get_embedding_keys(model_name, input_feature)
@@ -199,11 +237,12 @@ def embed_example(example, model, model_name, input_feature):
     # audio_resampled = audio / (np.max(np.abs(audio)) + 1e-9)
 
     # Embed
-    outputs = model(audio_resampled)
+    with torch.no_grad():
+        outputs = model(audio_resampled)
     if outputs.pooled_embeddings:
-         example[pooled_embeddings_key] = outputs.pooled_embeddings
+         example[pooled_embeddings_key] = outputs.pooled_embeddings.cpu().numpy()
     if outputs.spatial_embeddings:
-        example[spatial_embeddings_key] = outputs.spatial_embeddings
+        example[spatial_embeddings_key] = outputs.spatial_embeddings.cpu().numpy()
 
     return example
 
@@ -254,6 +293,13 @@ def main():
     # hf_upload_path = cfg.dataset.huggingface.upload_path
 
     ########################
+    # Request GPU
+    ########################
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    ########################
     # Load data
     ########################
 
@@ -301,7 +347,8 @@ def main():
                                                                            birdset_model_configs, 
                                                                            dataset[split], 
                                                                            split, 
-                                                                           force_recompute=force_recompute)
+                                                                           force_recompute=force_recompute
+                                                                           )
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
                     embeddings_added = True
