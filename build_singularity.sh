@@ -68,16 +68,15 @@ if [ -f local.env ]; then
 fi
 
 # Check if necessary variables are set in local.env
-if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-    if [ -z "$DOCKERHUB_USERNAME" ]; then
-        echo "[ERROR] Please create a local.env with the vars:";
-        echo "GIT_USERNAME=MY NAME";
-        echo "GIT_EMAIL=myemail@domain.com";
-        echo HUGGINGFACE_TOKEN="your_hf_token";
-        echo DOCKERHUB_USERNAME="your_dockerhub_username";
-        exit 1;
-    fi
+if [ -z "$DOCKERHUB_USERNAME" ]; then
+    echo "[ERROR] Please create a local.env with the vars:";
+    echo "GIT_USERNAME=MY NAME";
+    echo "GIT_EMAIL=myemail@domain.com";
+    echo HUGGINGFACE_TOKEN="your_hf_token";
+    echo DOCKERHUB_USERNAME="your_dockerhub_username";
+    exit 1;
 fi
+
 
 # Print info about necessary variables
 [ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
