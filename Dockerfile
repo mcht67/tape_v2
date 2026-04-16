@@ -2,12 +2,8 @@
 # This file is licensed under the Apache License, Version 2.0.
 # See the LICENSE file in the root of this project for details.
 
-# # Use an official Debian runtime with fixed version as a parent image
-# FROM debian:13-slim
-
-## Trigger rerun
-
-FROM ubuntu:24.04
+#FROM ubuntu:24.04
+FROM nvidia/cuda:12.5.1-cudnn-runtime-ubuntu24.04
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -130,7 +126,7 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
         soundfile \
         omegaconf \
         numpy \
-        tensorflow \
+        tensorflow[and-cuda] \
         tensorflow_hub \
         tensorboard \
         matplotlib \

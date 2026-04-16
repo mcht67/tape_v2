@@ -10,12 +10,19 @@
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
 # Resources needed
+##SBATCH --ntasks=1
+##SBATCH --nodes=1
+##SBATCH --cpus-per-task=16
+##SBATCH --mem=100GB
+##SBATCH --time=01:00:00
+##SBATCH --partition=standard
+
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=16
+#SBATCH --gres=gpu:tesla:2
 #SBATCH --mem=100GB
-#SBATCH --time=01:00:00
-#SBATCH --partition=standard
+#SBATCH --time=10:00:00
+#SBATCH --partition=gpu
 
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
