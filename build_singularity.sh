@@ -13,7 +13,7 @@ whoami
 #################################
 
 # Default variable values
-rebuild_container=false
+rebuild_container=false 
 sif_container=false
 
 # Function to display script usage
@@ -52,19 +52,35 @@ handle_options() {
 # Main script execution
 handle_options "$@"
 
-# #################################
-# # Import environment variables
-# #################################
+#################################
+# Import environment variables
+#################################
 
-# # Set environment variables defined in global.env
-# set -o allexport
-# source global.env
-# set +o allexport
+# Set environment variables defined in global.env
+set -o allexport
+source global.env
+set +o allexport
 
-# # Import local environment variables
-# if [ -f local.env ]; then
-#         source local.env;
-# fi
+# Import local environment variables
+if [ -f local.env ]; then
+        source local.env;
+        export DOCKERHUB_USERNAME;
+fi
+
+# Check if necessary variables are set in local.env
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+    if [ -z "$DOCKERHUB_USERNAME" ]; then
+        echo "[ERROR] Please create a local.env with the vars:";
+        echo "GIT_USERNAME=MY NAME";
+        echo "GIT_EMAIL=myemail@domain.com";
+        echo HUGGINGFACE_TOKEN="your_hf_token";
+        echo DOCKERHUB_USERNAME="your_dockerhub_username";
+        exit 1;
+    fi
+fi
+
+# Print info about necessary variables
+[ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
 # #################################
 # # Set environment variables
