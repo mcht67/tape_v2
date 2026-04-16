@@ -193,7 +193,8 @@ token=os.getenv('HUGGINGFACE_TOKEN')
 # Huggingface login
 huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
-# Load Dataset  
+# Load Dataset
+print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
 dataset = load_dataset(huggingface_path, dataset_config)
 
 # Get input dim

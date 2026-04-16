@@ -123,31 +123,6 @@ fi
 # Print info about necessary variables
 [ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
-# #################################
-# # Set environment variables
-# #################################
-
-# # Set Huggingface cache ENVs
-# if [ -n "$HF_HOME" ]; then
-#     export HF_HOME="$HF_HOME"
-#     echo "[INFO] HF_HOME set successfully"
-# fi
-# if [ -n "$HF_HUB_CACHE" ]; then
-#     export HF_HUB_CACHE="$HF_HUB_CACHE"
-#     echo "[INFO] HF_CACHE_HUB set successfully"
-# fi
-# if [ -n "$HF_DATASETS_CACHE" ]; then
-#     export HF_DATASETS_CACHE="$HF_DATASETS_CACHE"
-#     echo "[INFO] HF_DATASETS_CACHE set successfully"
-# fi
-
-# # Set dockerhub username as environment variable if available (used in slurm_jobs.sh)
-#     if [ -n "$DOCKERHUB_USERNAME" ]; then
-#         export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
-#         echo "[INFO] Dockerhub Username set successfully"
-#     fi 
-
-
 #################################
 # Build singularity container
 #################################
@@ -184,7 +159,9 @@ echo "Starting execution from singularity container..."
 
 # Run the singularity container
 # singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-image-latest$container_extension ./exp_workflow.sh # GPU
+# HF_DATASETS_OFFLINE=1 avoids locks on the Huggignface cache dir by forbidding fetches and updates
 singularity exec \
+    --env HF_DATASETS_OFFLINE=1 \
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
