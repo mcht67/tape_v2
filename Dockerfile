@@ -3,7 +3,7 @@
 # See the LICENSE file in the root of this project for details.
 
 #FROM ubuntu:24.04
-FROM nvidia/cuda:12.5.1-cudnn-runtime-ubuntu24.04
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -119,27 +119,27 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
     ## Alternatively (if requirements are broken) install these packages
     $DOCKER_COMPLETE_VENV/bin/pip install \
         datasets==3.6.0 \
-        dvc \
-        dvclive \
-        dvc_gdrive \
-        librosa \
-        soundfile \
-        omegaconf \
-        numpy \
-        tensorflow[and-cuda] \
-        tensorflow_hub \
-        tensorboard \
-        matplotlib \
-        hydra-core \
-        torch \
-        torchvision \
-        torchaudio \
-        transformers \
-        seaborn \
-        scikit-learn \
-        psutil \
-        ruamel.yaml \
-        python-dotenv \
+        dvc==3.67.1 \
+        dvclive==3.49.0 \
+        dvc_gdrive==3.0.1 \
+        librosa==0.11.0 \
+        soundfile==0.13.1 \
+        omegaconf==2.3.0 \
+        numpy==2.4.4 \
+        tensorflow[and-cuda]==2.21.0 \
+        tensorflow_hub==0.16.1 \
+        tensorboard==2.20.0 \
+        matplotlib==3.10.8 \
+        hydra-core==1.3.2 \
+        torch==2.11.0 \
+        torchvision==0.26.0 \
+        torchaudio==2.11.0 \
+        transformers==4.44.2 \
+        seaborn==0.13.2 \
+        scikit-learn==1.8.0 \
+        psutil==7.2.2 \
+        ruamel.yaml==0.19.1 \
+        python-dotenv==1.2.2 \
         git+https://github.com/google-research/perch-hoplite.git
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.
