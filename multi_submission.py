@@ -157,31 +157,6 @@ if __name__ == "__main__":
 
     arguments = sys.argv[1:]
 
-    # ########################
-    # # Python version
-    # ########################
-
-    # HANDLE IN PREPARE_DATASETS.PY
-
-    # # Ensures base-venv is used, even if running script from another venv
-    # # TODO: remove?
-
-    # # Get docker python path
-    # base_python = os.getenv('DOCKER_BASE_PYTHON')
-
-    # Get local python path from default config if docker paths not defined
-    # cfg = OmegaConf.load("params.yaml")
-    # if not base_python:
-    #     base_python = cfg.python.base
-
-    # base_venv = Path(base_python).parent.parent
-    # os.environ["VIRTUAL_ENV"] = str(base_venv)
-    # os.environ["PATH"] = str(base_venv / "bin") + ":" + os.environ["PATH"]
-
-    # complete_python = os.getenv('DOCKER_COMPLETE_PYTHON')
-    # if not complete_python:
-    #     complete_python = cfg.python.complete
-
     ##########################
     # Configuration
     ##########################
@@ -215,9 +190,16 @@ if __name__ == "__main__":
 
     embedding_type = 'pooled' #'spatial'
     embeddings = [
-                    'EfficientNet-B1-BirdSet-XCL',
-                    # 'perch_8'
-                    'perch_v2_cpu'
+                    "birdnet_V2.3",
+                    "vggish",
+                    "perch_8",
+                    "yamnet",
+                    "beans_baseline",
+                    "EfficientNet-B1-BirdSet-XCL",
+                    "Bird-MAE-Huge",
+                    "AudioProtoPNet-20-BirdSet-XCL",
+                    "AST-Birdset-XCL",
+                    "Wav2Vec2-Base-BirdSet-XCL"      
                 ]
     
     objectives = [
@@ -234,68 +216,12 @@ if __name__ == "__main__":
                 }
     
     recompute_embeddings = False
-
-    # ##########################
-    # # Huggingface login
-    # ##########################
-
-    # load_dotenv('local.env')
-    # huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
-
-    ##########################
-    # Setup
-    ##########################
-
-    # result = subprocess.run(["bash", "setup.sh"], check=True, capture_output=True, text=True)
-    # print(result.stdout)
-
-    ##########################
-    # Prepare dataset
-    ##########################
-
-    # Collect all input features, embeddings and labels used
-    # Pass params (and force_recompute?) to prepare_dataset.py
-
-    # Init config and save for prepare_dataset.py to use 
-    # [local python paths, dataset download and upload paths]
-    # with initialize(config_path="conf", version_base=None):
-    #     cfg = compose(config_name="config")
-    # OmegaConf.save(cfg, "params.yaml")
-
-    # Right now just embeddings are computed in prepare dataset
     
     for dataset_config in dataset_configs:
-        #submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
         prep_job_id = None
         if embeddings:
             prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
         
         submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
-            # try:
-            #     # Replace with singularity cmd
-            #     cmd = [ complete_python, "prepare_dataset.py",#base_python, "prepare_dataset.py",
-            #             "--huggingface_path", huggingface_path,
-            #             "--dataset_config", dataset_config,
-            #             "--input_features", json.dumps(input_features), 
-            #             "--embeddings", json.dumps(embeddings),
-            #             # "--objectives", json.dumps(objectives)
-            #             ]
 
-            #     if recompute_embeddings: cmd.append("--recompute_embeddings")
-            #     #if recompute_labels: cmd.append("--recompute_labels")
-            #     subprocess.run(cmd, check=True)
-            # except subprocess.CalledProcessError:
-            #     print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
-            #     sys.exit(1)
-
-    ##########################
-    # Submit experiment jobs
-    ##########################
-    # Add hyperparameters
-    # old_all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
-    # filtered = {k: v for k, v in hyperparams.items() if k != "dataset.config"}
-    # all_hyper_parameter_combinations = (
-    #     dict(zip(filtered.keys(), values))
-    #     for values in itertools.product(*filtered.values())
-    # )
   
