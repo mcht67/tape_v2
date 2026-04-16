@@ -138,7 +138,7 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
         torch \
         torchvision \
         torchaudio \
-        transformers \
+        transformers==4.44.2 \
         seaborn \
         scikit-learn \
         psutil \
