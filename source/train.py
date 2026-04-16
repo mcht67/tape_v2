@@ -186,6 +186,21 @@ os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 # tensorboard_path = return_tensorboard_dir(subfolder=study_name) #get_tensorboard_path(cfg) #TODO: refactor to work in a similar manner with dvc and without
 # os.makedirs(tensorboard_path, exist_ok=True)
 
+#################################
+# Handle GPU
+#################################
+gpus = tf.config.list_physical_devices('GPU')
+print(f"GPUs available: {gpus}")
+if gpus:
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+if not gpus:
+    print("WARNING: No GPU found, training on CPU")
+
+#################################
+# Load dataset
+#################################
+
  # Load environment variables from .env file
 load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
