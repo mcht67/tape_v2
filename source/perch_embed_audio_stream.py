@@ -65,7 +65,7 @@ def load_birdset_model(model_key):
     raise Exception("Not implemented.")
     return model, sampling_rate
 
-def embed_example(example, model, model_key, embedding_type, input_feature, sampling_rate):
+def embed_example(example, model, model_key, embedding_type, input_feature, sampling_rate, device='/CPU:0'):
 
     audio = example[input_feature]
     audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
@@ -78,61 +78,99 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
 
     # Get embeddings
     if embedding_type == 'perch_v1':
-        pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio)
+        pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio, device=device)
         if spatial_embeddings is not None:
             example[spatial_embeddings_key]= spatial_embeddings
         example[embeddings_key] = pooled_embeddings
     elif embedding_type == 'perch_v2':
-        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio)
-    elif embedding_type == 'birdset':
-        example[embeddings_key] = embed_with_birdset(model, audio)
+        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio, device=device)
+    # elif embedding_type == 'birdset':
+    #     example[embeddings_key] = embed_with_birdset(model, audio, device=device)
     else:
         raise Exception("Model family is not supported.")
 
     return example
 
-def embed_with_perch1(model, model_key, audio):
+def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
     spatial_embeddings = None
+    with tf.device(device):
+        if model_key == 'yamnet':
+            scores, embeddings, log_mel_spectrogram = model(audio)
+        elif model_key == 'vggish':
+            embeddings = model(audio)
+        else:
+            outputs = model.embed(audio)
+            embeddings = outputs.embeddings
 
-    if model_key=='yamnet':
-        scores, embeddings, log_mel_spectrogram = model(audio)
-    elif model_key=='vggish':
-        embeddings = model(audio)
-    else:
-        outputs = model.embed(audio)
-        embeddings = outputs.embeddings
+        if embeddings.ndim > 1:
+            spatial_embeddings = embeddings
+            # Average pooling
+            num_dims = len(embeddings.shape)
+            axes_to_reduce = list(range(num_dims - 1))
+            pooled_embeddings = tf.reduce_mean(embeddings, axis=axes_to_reduce, keepdims=False)
+            pooled_embeddings = tf.reshape(pooled_embeddings, [-1])  # Flatten to 1D
+            print(f'Embeddings include multiple segments. Calculate mean.')
+        else:
+            pooled_embeddings = tf.reshape(embeddings, [-1])
 
-    if embeddings.ndim > 1:
-        spatial_embeddings = embeddings
+        if spatial_embeddings is not None:
+            spatial_embeddings = tf.squeeze(spatial_embeddings)
 
-        # Average pooling
-        num_dims = len(embeddings.shape)
-        axes_to_reduce = list(range(num_dims - 1))
-        pooled_embeddings = tf.reduce_mean(embeddings, axis=axes_to_reduce, keepdims=False)
-        pooled_embeddings = tf.reshape(pooled_embeddings, [-1])  # Flatten to 1D
-        print(f'Embeddings include multiple segments. Calculate mean.')
-    else:
-        pooled_embeddings = tf.reshape(embeddings, [-1])  
+    return pooled_embeddings.numpy(), spatial_embeddings.numpy() if spatial_embeddings is not None else None
 
-    if spatial_embeddings is not None:
-        spatial_embeddings = tf.squeeze(spatial_embeddings)
+def embed_with_perch2(model, audio, device='/CPU:0'):
+    with tf.device(device):
+        infer_fn = model.signatures['serving_default']
+        audio_batched = tf.constant(audio[np.newaxis, :], dtype=tf.float32)  # Shape: (1, 160000)
+        outputs = infer_fn(inputs=audio_batched)
 
-    return pooled_embeddings, spatial_embeddings
+        spatial_embeddings = outputs['spatial_embedding']  # (1, 16, 4, 1536)
+        one_dim_embeddings = outputs['embedding']          # (1, 1536)
 
-def embed_with_perch2(model, audio):
-    infer_fn = model.signatures['serving_default']
-    audio_batched = audio[np.newaxis, :]  # Shape: (1, 160000)
-    outputs = infer_fn(inputs=audio_batched)
-    # logits = outputs['label']  # (1, 14795) - classification logits
-    # spectrogram = outputs['spectrogram']  # (1, 500, 128)
-    spatial_embeddings = outputs['spatial_embedding']  # (1, 16, 4, 1536) (batch, time, freq embeddings)
-    one_dim_embeddings = outputs['embedding']  # (1, 1536) - mean pooled
-    return tf.squeeze(one_dim_embeddings), tf.squeeze(spatial_embeddings)
+    return tf.squeeze(one_dim_embeddings).numpy(), tf.squeeze(spatial_embeddings).numpy()
 
-# TODO: implement
-def embed_with_birdset(model, audio):
-    raise Exception("Embedding function for birdset is not implemented.")
-    return embeddings
+# def embed_with_perch1(model, model_key, audio):
+#     spatial_embeddings = None
+
+#     if model_key=='yamnet':
+#         scores, embeddings, log_mel_spectrogram = model(audio)
+#     elif model_key=='vggish':
+#         embeddings = model(audio)
+#     else:
+#         outputs = model.embed(audio)
+#         embeddings = outputs.embeddings
+
+#     if embeddings.ndim > 1:
+#         spatial_embeddings = embeddings
+
+#         # Average pooling
+#         num_dims = len(embeddings.shape)
+#         axes_to_reduce = list(range(num_dims - 1))
+#         pooled_embeddings = tf.reduce_mean(embeddings, axis=axes_to_reduce, keepdims=False)
+#         pooled_embeddings = tf.reshape(pooled_embeddings, [-1])  # Flatten to 1D
+#         print(f'Embeddings include multiple segments. Calculate mean.')
+#     else:
+#         pooled_embeddings = tf.reshape(embeddings, [-1])  
+
+#     if spatial_embeddings is not None:
+#         spatial_embeddings = tf.squeeze(spatial_embeddings)
+
+#     return pooled_embeddings, spatial_embeddings
+
+# def embed_with_perch2(model, audio):
+#     infer_fn = model.signatures['serving_default']
+#     audio_batched = audio[np.newaxis, :]  # Shape: (1, 160000)
+#     outputs = infer_fn(inputs=audio_batched)
+#     # logits = outputs['label']  # (1, 14795) - classification logits
+#     # spectrogram = outputs['spectrogram']  # (1, 500, 128)
+#     spatial_embeddings = outputs['spatial_embedding']  # (1, 16, 4, 1536) (batch, time, freq embeddings)
+#     one_dim_embeddings = outputs['embedding']  # (1, 1536) - mean pooled
+#     return tf.squeeze(one_dim_embeddings), tf.squeeze(spatial_embeddings)
+
+# # TODO: implement
+# def embed_with_birdset(model, audio):
+#     raise Exception("Embedding function for birdset is not implemented.")
+#     return embeddings
 
 def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir, recompute=False):
     modified = False
@@ -159,7 +197,7 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
         modified = True
     return dataset, modified
 
-def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, force_recompute=False, batch_size=100):
+def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, force_recompute=False, batch_size=100, device='/CPU:0'):
         
     embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key =  model_key + "_" + input_feature + "_spatial_embeddings"
@@ -191,6 +229,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
         embedding_type=embedding_type,
         input_feature=input_feature,
         sampling_rate=sampling_rate,
+        device=device
     )
     
     # Process in batches
@@ -305,6 +344,20 @@ def main():
     for split in dataset.keys():
         dataset[split] = dataset[split].select(range(10))
 
+    ########################
+    # Request GPU
+    ########################
+
+    gpus = tf.config.list_physical_devices('GPU')
+    device = '/GPU:0' if gpus else '/CPU:0'
+    print(f"Using device: {device}")
+
+    # Prevent TF from grabbing all GPU memory at once
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    
+
     # ===================
     # Embeddings
     # ===================
@@ -320,7 +373,7 @@ def main():
     for model_key in embedding_models:
         for input_feature in input_features:
             for split in dataset.keys():
-                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], force_recompute=force_recompute)
+                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, input_feature, dataset[split], force_recompute=force_recompute, device=device)
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
                     embeddings_added = True
