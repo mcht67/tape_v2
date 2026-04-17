@@ -79,8 +79,6 @@ fi
 
 if [ -z "$DOCKERHUB_USERNAME" ]; then
     echo "[ERROR] Please create a local.env with the vars:";
-    echo "GIT_USERNAME=MY NAME";
-    echo "GIT_EMAIL=myemail@domain.com";
     echo HUGGINGFACE_TOKEN="your_hf_token";
     echo DOCKERHUB_USERNAME="your_dockerhub_username";
     exit 1;

@@ -65,9 +65,6 @@ Create a local.env file in the repository. You can use the local.env.template an
 # Copy this to local.env and fill in your values
 # DO NOT commit local.env to git!
 
-GIT_REPO_URL=https://github.com/mcht67/Polyphonic-Bird-Call-Dataset.git
-GIT_USERNAME="Your Username"
-GIT_EMAIL="your.email@example.com"
 HUGGINGFACE_TOKEN="your_hf_token_here"
 DOCKERHUB_USERNAME="your_dockerhub_username"
 ```

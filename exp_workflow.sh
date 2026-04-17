@@ -51,36 +51,21 @@ set +o allexport
 # Import local environment variables and set those needed
 if [ -f local.env ]; then
         source local.env;
-        export GIT_USERNAME;
-        export GIT_EMAIL;
         export HUGGINGFACE_TOKEN;
         export DOCKERHUB_USERNAME;
 fi
 
 # Check if necessary variables are set in local.env
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-    if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ] || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
+    if  || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
         echo "[ERROR] Please create a local.env with the vars:";
-        echo "GIT_USERNAME=MY NAME";
-        echo "GIT_EMAIL=myemail@domain.com";
         echo HUGGINGFACE_TOKEN="your_hf_token";
         echo DOCKERHUB_USERNAME="your_dockerhub_username";
         exit 1;
     fi
-    # retry 10 30 "Set git user config" bash -c '
-    #     git config --global user.name "$GIT_USERNAME" &&
-    #     git config --global user.email "$GIT_EMAIL" &&
-    #     git config --global safe.directory "$PWD"
-    #     '
-    # # echo "set git user config"
-    # # git config --global user.name "$GIT_USERNAME"
-    # # git config --global user.email "$GIT_EMAIL"
-    # # git config --global safe.directory "$PWD"
 fi
 
 # Print info about necessary variables
-[ -n "$GIT_USERNAME" ] && echo "[INFO] Git Username set" || echo "[WARNING] Git Username not set"
-[ -n "$GIT_EMAIL" ] && echo "[INFO] Git Email set" || echo "[WARNING] Git Email not set"
 [ -n "$HUGGINGFACE_TOKEN" ] && echo "[INFO] Huggingface token set" || echo "[WARNING] Huggingface token not set"
 [ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
@@ -158,21 +143,6 @@ done &&
 
 # Change the working directory to the temporary sub-directory
 cd $EXP_TMP_DIR &&
-
-#################################
-# Git config
-#################################
-
-# # Set per job global git config
-# export GIT_CONFIG_GLOBAL=${EXP_TMP_DIR}/.gitconfig
-
-# if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-
-#     echo "Settting git user config..."
-#     git config --global user.name "$GIT_USERNAME"
-#     git config --global user.email "$GIT_EMAIL"
-#     git config --global safe.directory "$DEFAULT_DIR"
-# fi
 
 #################################
 # DVC cache
