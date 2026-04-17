@@ -186,7 +186,17 @@ fi
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
 
+# # CPU
+# singularity exec \
+#     --bind $HF_HOME:$HF_HOME \
+#     --bind $DEFAULT_DIR \
+#     --pwd $DEFAULT_DIR \
+#     $PROJECT_NAME-image-latest${container_extension:-} \
+#     $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
+
+# GPU
 singularity exec \
+    --nv \ 
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
