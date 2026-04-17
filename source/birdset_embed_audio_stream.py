@@ -20,7 +20,7 @@ def get_embedding_keys(model_name, input_feature):
     "spatial_embeddings": model_name + "_" + input_feature + "_spatial_embeddings"
     }
 
-def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, batch_size=100):
+def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, batch_size=100, device=torch.device("cpu")):
     
     # Set HuggingFace cache to this temporary directory
     #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
@@ -40,10 +40,9 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
     model_cfg = model_configs[model_key]['model_cfg']
     model = instantiate(model_cfg)
 
-    # Auto-detect device
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
+    # # Auto-detect device
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # print(f"Using device: {device}")
 
     if hasattr(model, 'to'):
         model = model.to(device)
@@ -112,7 +111,7 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
     
     return dataset, embeddings_name
 
-def embed_example_batched(examples, model, model_name, input_feature, device="cpu"):
+def embed_example_batched(examples, model, model_name, input_feature, device=torch.device("cpu")):
     """Process a batch of examples at once"""
     
     # Get model sampling rate
@@ -195,7 +194,7 @@ def embed_example_batched(examples, model, model_name, input_feature, device="cp
     
     return examples
 
-def embed_example(example, model, model_name, input_feature, device="cpu"):
+def embed_example(example, model, model_name, input_feature, device=torch.device("cpu")):
 
     # Get audio
     audio = example[input_feature]
@@ -238,7 +237,7 @@ def embed_example(example, model, model_name, input_feature, device="cpu"):
 
     # Embed
     with torch.no_grad():
-        outputs = model(audio_resampled)
+        outputs = model(audio_tensor)
     if outputs.pooled_embeddings:
          example[pooled_embeddings_key] = outputs.pooled_embeddings.cpu().numpy()
     if outputs.spatial_embeddings:
@@ -347,7 +346,8 @@ def main():
                                                                            birdset_model_configs, 
                                                                            dataset[split], 
                                                                            split, 
-                                                                           force_recompute=force_recompute
+                                                                           force_recompute=force_recompute,
+                                                                           device=device,
                                                                            )
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
