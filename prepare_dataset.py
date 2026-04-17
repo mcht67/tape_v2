@@ -72,6 +72,21 @@ if __name__ == "__main__":
     # recompute_labels = args.recompute_labels
 
     ##########################
+    # Download/Update dataset
+    ##########################
+
+    # Download/Update dataset to use hf dataset offline later on, avoiding locks on hf cache
+
+    cmd =   [
+                complete_python, #base_python, 
+                "source/load_dataset.py",
+                "--huggingface_path", huggingface_path,
+                "--dataset_config", dataset_config,
+            ]
+    subprocess.run(cmd)
+
+
+    ##########################
     # Embed audio with perch
     ##########################
 

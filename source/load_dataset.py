@@ -1,58 +1,24 @@
-from datasets import load_dataset
-from omegaconf import OmegaConf
+import argparse
 import os
-from datetime import datetime
-import json
-import huggingface_hub
+from datasets import load_dataset
 from dotenv import load_dotenv
 
-from utils.general import overwrite_dataset
+print("Running load dataset script...")
 
-# Configuration
-cfg = OmegaConf.load("params.yaml")
+parser = argparse.ArgumentParser(description="Downloads/Updates huggingface dataset.")
+parser.add_argument("--huggingface_path", type=str, required=True)
+parser.add_argument("--dataset_config", type=str, required=True)
+args = parser.parse_args()
 
-dataset_path = cfg.path.dataset
-huggingface_path = cfg.dataset.huggingface_path
-dataset_subset = cfg.dataset.subset
-dataset_metadata_path = cfg.path.dataset_metadata
+print(f"[INFO] Downloading {args.huggingface_path} / {args.dataset_config}")
 
-# Huggingface login
-load_dotenv('local.env')
-token=os.getenv('HUGGINGFACE_TOKEN')
-huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+load_dotenv("global.env", override=True)
+cache_dir = os.environ.get("HF_DATASETS_CACHE")
+if not cache_dir:
+    raise ValueError("HF_DATASETS_CACHE is not set — check global.env or your environment")
+print(f"[INFO] HF_DATASETS_CACHE={os.environ.get('HF_DATASETS_CACHE', 'NOT SET')}")
 
-# Load polyphonic dataset
-dataset = load_dataset(huggingface_path, dataset_subset + '_polyphonic')
+dataset = load_dataset(args.huggingface_path, args.dataset_config, cache_dir=cache_dir)
 
-path = huggingface_hub.hf_hub_download(
-    repo_id=huggingface_path,
-    filename=f"{dataset_subset}/metadata.json",
-    repo_type="dataset"
-)
-
-metadata = None
-with open(path) as f:
-    metadata = json.load(f)
-
-dataset['train'] = dataset['train'].select(range(10))
-dataset['test'] = dataset['test'].select(range(1))
-dataset['validation'] = dataset['validation'].select(range(1))
-
-# Store dataset
-os.makedirs(dataset_path, exist_ok=True)
-overwrite_dataset(dataset, dataset_path, store_backup=False)
-
-# Store metadata
-if not metadata:
-    metadata = {
-        "datetime": datetime.now().isoformat(),
-        "huggingface_path": huggingface_path,
-        "subset": dataset_subset,
-        "dataset_path": dataset_path
-    }
-
-metadata_dir = os.path.dirname(dataset_metadata_path)
-if metadata_dir:
-    os.makedirs(metadata_dir, exist_ok=True)
-with open(dataset_metadata_path, "w") as f:
-    json.dump(metadata, f, indent=2)
+print(f"[INFO] Done. Splits: {list(dataset.keys())}")
+print(f"[INFO] Sizes: { {k: len(v) for k, v in dataset.items()} }")

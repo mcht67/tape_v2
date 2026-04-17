@@ -1,6 +1,10 @@
-## 0. Preparations on Cluster (HPC)
-<details>
-<summary>Show instructions...</summary>
+# Setup [HPC Cluster]
+
+This guide describes the setup on the HPC Cluster of the TU Berlin. For other SLURM-based HPC Clusters this might has to be adapted.
+
+> **Info:** See [HPC Documentation](https://hpc.tu-berlin.de/doku.php?id=hpc:hardware:beegfs) for general information about the filesystem on [HPC Cluster - ZECM, TU Berlin](https://www.tu.berlin/campusmanagement/angebot/high-performance-computing-hpc).
+
+## 1. Login
 
 Login into HPC from terminal with your TUB-Account credentials:
 ```bash
@@ -8,20 +12,16 @@ ssh <TUB-Account>@sshgate.tu-berlin.de
 ssh gateway.hpc.tu-berlin.de
 ```
 
-### Setup directories
-
-<details>
-<summary>Show more...</summary>
-
-Create a personal subdirectory on /scratch, since space is limited on the user home directory:
+## 2. Setup directories temporary data
+Create a personal subdirectory on /beegfs/scratch, since space is limited on the user home directory:
 ```sh
-cd /scratch
+cd /beegfs/scratch
 mkdir <username>
 ```
 Update the global environment file [global.env](./../global.env) with the path to your HPC scratch directory:
 
 ```env
-TUSTU_HPC_DIR=/scratch/<username>
+HPC_DIR=/scratch/<username>
 ```
 
 Restrict permissions on your subdirectory (Optional):
@@ -29,9 +29,7 @@ Restrict permissions on your subdirectory (Optional):
 chmod 700 <username>/
 ```
 
-> **Info:** See [HPC Documentation](https://hpc.tu-berlin.de/doku.php?id=hpc:hardware:beegfs) for general information about the filesystem on [HPC Cluster - ZECM, TU Berlin](https://www.tu.berlin/campusmanagement/angebot/high-performance-computing-hpc).
-
-Set up a temporary directory and hugging face and singularity cache directories on `/scratch` to get more space for temporary files. 
+Set up a temporary directory and hugging face and singularity cache directories on `/beegfs/scratch` to get more space for temporary files. 
 ```sh
 mkdir -p /beegfs/scratch/<TUB-username>/tmp
 mkdir -p /beegfs/scratch/<TUB-username>/.singularity
@@ -39,18 +37,13 @@ mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/hub
 mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/datasets
 ```
 
-Then add the `TMPDIR` environment variable to your `.bashrc` so that singularity and other applications use this directory for temporary files. These can get quite large as singularity uses them to extract the image and run the container. Then change the cache directory of singularity with the `SINGULARITY_CACHEDIR` environment variable as well as hugging face directories with 'HF_HOME', 'HF_HUB_CACHE' and 'HF_DATASETS_CACHE'. (replace <TUB-username> with your actual username!)
+Then add the `TMPDIR` environment variable to your `.bashrc` so that singularity and other applications use this directory for temporary files. These can get quite large as singularity uses them to extract the image and run the container. Then change the cache directory of singularity with the `SINGULARITY_CACHEDIR` environment variable. Hugging face directory environment variables are set from within the scripts with 'HF_HOME', 'HF_HUB_CACHE' and 'HF_DATASETS_CACHE' being defined in global.env. (replace <TUB-username> with your actual username!)
 ```sh
 cat >> ~/.bashrc << 'EOF'
 
 # HPC Cluster cache configuration
 export TMPDIR=/beegfs/scratch/<TUB-username>/tmp
 export SINGULARITY_CACHEDIR=/beegfs/scratch/<TUB-username>/.singularity
-
-# Hugging Face cache configuration
-export HF_HOME=/beegfs/scratch/<TUB-username>/.cache/huggingface
-export HF_HUB_CACHE=/beegfs/scratch/<TUB-username>/.cache/huggingface/hub
-export HF_DATASETS_CACHE=/beegfs/scratch/<TUB-username>/.cache/huggingface/datasets
 EOF
 ```
 
@@ -60,28 +53,16 @@ source ~/.bashrc
 
 echo "TMPDIR: $TMPDIR"
 echo "SINGULARITY_CACHEDIR: $SINGULARITY_CACHEDIR"
-echo "HF_HOME: $HF_HOME"
-echo "HF_HUB_CACHE: $HF_HUB_CACHE"
-echo "HF_DATASETS_CACHE: $HF_DATASETS_CACHE"
 ```
 
 Update hugging face cache paths in your global.env if necessary:
 ```env
-HF_HOME=/beegfs/scratch/.cache/huggingface
-HF_HUB_CACHE=/beegfs/scratch/.cache/huggingface/hub
-HF_DATASETS_CACHE=/beegfs/scratch/.cache/huggingface/datasets
+HF_HOME=/beegfs/scratch/<TUB-username>/.cache/huggingface
+HF_HUB_CACHE=/beegfs/scratch/<TUB-username>/.cache/huggingface/hub
+HF_DATASETS_CACHE=/beegfs/scratch/<TUB-username>/.cache/huggingface/datasets
 ```
-</details>
 
-### Configure Git
-
-<details>
-<summary>Show more...</summary>
-
-Navigate to your user directory 
-```sh
-cd ~
-```
+## 3. Configure Git
 
 Create .ssh dir and restrict and check permissions
 ```sh
@@ -113,10 +94,12 @@ Configure git to always use ssh
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 ```
 
+## 4. Clone repository
+
 Clone into your scratch directory
 ```sh
-cd /scratch/your_username/
-git clone --recurse-submodules https://github.com/mcht67/Polyphonic-Bird-Call-Dataset.git
+cd /beegfs/scratch/your_username/
+git clone https://github.com/mcht67/tape_v2.git
 ```
 
 Create directory for logs
@@ -124,49 +107,24 @@ Create directory for logs
 mkdir -p logs/slurm/
 ```
 
-</details>
+## 5. Set git config
 
-<!-- Assuming you have already configured Git on the HPC cluster, clone your Git repository to `/scratch/<username>`:
-
-```sh
-cd <username>
-git clone git@github.com:<github_user>/<repository_name>.git
+Set git config
+```bash
+git config --global user.name "$GIT_USERNAME"
+git config --global user.email "$GIT_EMAIL"
+git config --global safe.directory "$REPO_DIR"
 ```
 
-> **Info:** On the hpc cluster, the first time you log in a ssh key is generated for you (`~/.ssh/id_rsa`). You can use this key to access your git repository. -->
+## 5. Update global.env
 
-<!-- ### Install git lfs
-
-<details>
-<summary>Show more...</summary>
-
-Install latest [Linux-amd64 release](https://github.com/git-lfs/git-lfs/releases).
-```bash
-cd ~
-wget https://github.com/git-lfs/git-lfs/releases/download/v3.7.1/git-lfs-linux-amd64-v3.7.1.tar.gz  # pick a current version
-tar -xvzf git-lfs-linux-amd64-v3.7.1.tar.gz
-cd git-lfs-3.7.1
-sed -i 's|^prefix="/usr/local"$|prefix="$HOME/.local"|' install.sh
-mkdir -p ~/.local/bin
-./install.sh
+Update the project name in global.env:
+```file
+# Name of the project
+PROJECT_NAME=train-bird-models
 ```
 
-Export the path
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-</details>
-
-<!-- ### Pull changes files from git submodule "resources"
-```bash
-cd /scratch/username/Polyphonic-Bird-Call-Dataset/resources
-git lfs pull
-``` -->
-</details> -->
-
-
-## 4. Create local.env
+## 6. Create local.env
 Add the local.env to the repository. 
 You can use this bash command. Just replace placeholders with your information.
 ```bash
@@ -182,23 +140,46 @@ DOCKERHUB_USERNAME="your_dockerhub_username"
 EOF
 ```
 
-## Add config.local
+## 7. Setup dvc remote
+
+### Setup with google drive locally
+First
+[setup Google Drive Project for dvc remote](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive#using-a-custom-google-cloud-project-recommended).
+
+Then
+[connect dvc with Google drive](https://doc.dvc.org/user-guide/data-management/remote-storage/google-drive)
+like this:
+```sh
+mkdir secrets
+dvc remote add -d myremote gdrive://YOUR_FOLDER_ID
+dvc remote modify --local myremote gdrive_acknowledge_abuse true
+dvc remote modify --local myremote gdrive_client_id  "actual gdrive client id"
+dvc remote modify --local myremote gdrive_client_secret "actual gdrive client secret"
+dvc remote modify --local myremote gdrive_user_credentials_file ./secrets/dvc-token.json
+
+dvc pull
+``` 
+To reset authentication delete dvc-token.json. This will open authentication in the browser on the next dvc pull.
+
+### Move your local setup to the Cluster
+
+Move your local dvc config to the Cluster
 ```bash
-cat > config.local<< 'EOF'
-# Content of your local config.local
+cat > .dvc/config.local<< 'EOF'
+# Content of your .dvc/config.local
 EOF
 ```
 
-## Add secrets/dvc-token.json [GoogleDrive Authentication]
+Move your local dvc-token to the Cluster
 ```bash
 cat > secrets/dvc-token.json << 'EOF'
 # Content of your secrets/dvc-token.json
 EOF
 ```
 
-# Add python venv to run multi_submission.py
+# Make files executable
+Change permissions to be able to run files from bash
 ```bash
-python3 -m venv venv
-. venv/bin/activate
-pip install huggingface_hub dotenv omegaconf pathlib hydra
+chmod +x setup.sh
+chmod +x multi_submission.py
 ```
