@@ -2,15 +2,14 @@
 
 This repository provides a reproducible training pipeline for acoustic bird counting on a SLURM-based HPC cluster. It was developed as part of a thesis investigating deep learning–based methods for estimating vocal polyphony — the number of concurrently vocalizing birds in a given time window — as a proxy for population density in passive acoustic monitoring (PAM) scenarios.
 
-The pipeline includes numerous state-of-the-art deep learning models covering both implicit (detection-based counting) and explicit (direct regression) polyphony estimation strategies, scripts for pre-computing embeddings, multi-job submission for sweeping across datasets and hyperparameter configurations, and notebooks for model evaluation. Training runs and evaluation metrics are logged to TensorBoard. The synthetic mixture datasets used for training are generated separately and available at [GitHub: Polyphonic-Bird-Call-Dataset](https://github.com/mcht67/Polyphonic-Bird-Call-Dataset).
+The pipeline includes numerous state-of-the-art deep learning models covering both implicit (detection-based counting) and explicit (direct regression) polyphony estimation strategies, scripts for pre-computing embeddings, multi-job submission for sweeping across datasets and hyperparameter configurations, and notebooks for model evaluation. Training runs and evaluation metrics are logged to an archive that can be synced to local machine. The synthetic mixture datasets used for training are generated separately and available at [GitHub: Polyphonic-Bird-Call-Dataset](https://github.com/mcht67/Polyphonic-Bird-Call-Dataset).
 
 # Pipeline Flowchart
 ```mermaid
 flowchart TD
     
-    A["Multi submission script"] -- If training on embeddings --> C
-    A --runs--> D
-    A--runs-->J["Setup script"]
+    A["Multi submission script"] -- 1. runs --> C
+    A --2. runs--> D
 
     B[("☁️ HuggingFace Hub<br/>Audio Dataset")] -- Load dataset --> C
 
@@ -25,7 +24,7 @@ flowchart TD
         F -- dvc push --> I[("🗄️ DVC<br/>Remote")]
     end
     F -- save to --> G[("💾 HPC archive")]
-    H[("💾 Local archive")] -- manual rsync--> G
+    G -- manual rsync--> H[("💾 Local archive")]
 
     style A fill:#dbeafe,stroke:#2563eb,color:#1f2937
     style C fill:#fef3c7,stroke:#b45309,color:#1f2937
@@ -40,7 +39,6 @@ flowchart TD
     style B fill:#ede9fe,stroke:#6d28d9,color:#1f2937
     style D fill:#ede9fe,stroke:#6d28d9,color:#1f2937
     style G fill:#ede9fe,stroke:#6d28d9,color:#1f2937
-    style J fill:#fef3c7,stroke:#b45309,color:#1f2937
   ```
 
 # Setup
