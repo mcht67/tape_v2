@@ -193,7 +193,7 @@ export DEFAULT_DIR="$(realpath $PWD)"
 
 CONTAINER="${PROJECT_NAME}-image-latest${container_extension:-}"
 
-if [ ! -f "$CONTAINER" ]; then
+if [ ! -e "$CONTAINER" ]; then
     echo "ERROR: Container not found: $CONTAINER"
     exit 1
 fi
