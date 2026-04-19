@@ -19,9 +19,9 @@
 
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:tesla:2
-#SBATCH --mem=100GB
-#SBATCH --time=01:00:00
+#SBATCH --gres=gpu
+#SBATCH --mem=10GB
+#SBATCH --time=00:10:00
 #SBATCH --partition=gpu
 
 # Get email notifications for job status
@@ -186,6 +186,18 @@ fi
 # Define DEFAULT_DIR in the host environment
 export DEFAULT_DIR="$(realpath $PWD)"
 
+# Checks
+: "${PROJECT_NAME:?ERROR: PROJECT_NAME is not set}"
+: "${COMPLETE_PYTHON:?ERROR: COMPLETE_PYTHON is not set}"
+: "${DEFAULT_DIR:?ERROR: DEFAULT_DIR is not set}"
+
+CONTAINER="${PROJECT_NAME}-image-latest${container_extension:-}"
+
+if [ ! -f "$CONTAINER" ]; then
+    echo "ERROR: Container not found: $CONTAINER"
+    exit 1
+fi
+
 # # CPU
 # singularity exec \
 #     --bind $HF_HOME:$HF_HOME \
@@ -195,6 +207,7 @@ export DEFAULT_DIR="$(realpath $PWD)"
 #     $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
 
 # GPU
+set -x
 singularity exec \
     --nv \ 
     --bind $HF_HOME:$HF_HOME \
@@ -202,3 +215,4 @@ singularity exec \
     --pwd $DEFAULT_DIR \
     $PROJECT_NAME-image-latest${container_extension:-} \
     $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
+set +x
