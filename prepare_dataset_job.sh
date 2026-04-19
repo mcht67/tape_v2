@@ -209,7 +209,7 @@ fi
 # GPU
 set -x
 singularity exec \
-    --nv \ 
+    --nv \
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
