@@ -351,8 +351,8 @@ def main():
     dataset = load_dataset(huggingface_path, dataset_config)
 
     # Reduce dataset for testing purposes TODO: remove
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))
+    # for split in dataset.keys():
+    #     dataset[split] = dataset[split].select(range(10))
 
     #######################
     # Request GPU
