@@ -32,7 +32,7 @@ python3.12 -m venv $LOCAL_COMPLETE_VENV
 $LOCAL_COMPLETE_VENV/bin/pip install -r complete_requirements.txt
 ```
 
-or install the packages directly:
+or install the packages directly (in case requiremets are broken):
 ```bash
 source global.env
 python3.12 -m venv $LOCAL_COMPLETE_VENV
@@ -52,11 +52,14 @@ $LOCAL_COMPLETE_VENV/bin/pip install \
         hydra-core \
         torch \
         torchvision \
+        torchaudio \
+        transformers==4.44.2 \
         seaborn \
         scikit-learn \
         psutil \
         ruamel.yaml \
-        python-dotenv
+        python-dotenv \
+        git+https://github.com/google-research/perch-hoplite.git
 ```
 
 ## 4. Create local.env
