@@ -19,7 +19,7 @@
 
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --gres=gpu
+#SBATCH --gres=gpu:a100
 #SBATCH --mem=10GB
 #SBATCH --time=00:10:00
 #SBATCH --partition=gpu
@@ -103,6 +103,12 @@ fi
 #################################
 # Load modules
 #################################
+
+echo "=== GPU Info ==="
+nvidia-smi
+echo "=== CUDA Version ==="
+nvcc --version 2>/dev/null || echo "nvcc not available"
+echo "================"
 
 # Load necessary modules
 module load singularity/4.3.7
