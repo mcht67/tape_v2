@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # [local python paths, dataset download and upload paths]
     with initialize(config_path="conf", version_base=None):
         cfg = compose(config_name="config")
-        print(cfg)
+        #print(cfg)
     # OmegaConf.save(cfg, "params.yaml")
 
     # # # Get local python paths from default config if docker paths not defined
@@ -83,6 +83,7 @@ if __name__ == "__main__":
                 "--huggingface_path", huggingface_path,
                 "--dataset_config", dataset_config,
             ]
+    print(cmd)
     subprocess.run(cmd)
 
 
