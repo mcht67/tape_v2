@@ -3,7 +3,7 @@
 # See the LICENSE file in the root of this project for details.
 
 #FROM ubuntu:24.04
-FROM nvidia/cuda:13.0-cudnn-runtime-ubuntu24.04
+FROM nvidia/cuda:13.0.0-cudnn-runtime-ubuntu24.04
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive

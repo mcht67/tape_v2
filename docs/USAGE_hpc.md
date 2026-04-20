@@ -24,6 +24,16 @@ Submit experiment workflow job script to run experiment.
 sbatch exp_workflow_job.sh
 ```
 
+## Run only dataset preparation
+
+Submit dataset preparation job with arguments
+```bash
+sbatch prepare_dataset_job.sh -- \
+    --huggingface_path mcht67/polyphonic-bird-set-with-embeddings \
+    --dataset_config HSN \
+    --input_features '["audio"]' \
+    --embeddings '["birdnet_V2.3"]'
+
 ## Run multiple experiments on potentially multiple datasets and hyperparameter configurations
 
 Define parameters, datasets and hyperparameters to overwrite default hydra configuration in multi_submission.py.

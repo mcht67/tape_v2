@@ -18,10 +18,10 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
-    parser.add_argument("--labels", type=json.loads)
-    parser.add_argument('--objectives', type=json.loads)
+    # parser.add_argument("--labels", type=json.loads)
+    # parser.add_argument('--objectives', type=json.loads)
     parser.add_argument('--recompute_embeddings', action='store_true')
-    parser.add_argument('--recompute_labels', action='store_true')
+    # parser.add_argument('--recompute_labels', action='store_true')
     args = parser.parse_args()
 
      ##########################
