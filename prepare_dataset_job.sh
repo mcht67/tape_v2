@@ -21,7 +21,7 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100
 #SBATCH --mem=10GB
-#SBATCH --time=00:10:00
+#SBATCH --time=00:20:00
 #SBATCH --partition=gpu
 
 # Get email notifications for job status

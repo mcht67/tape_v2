@@ -13,9 +13,15 @@
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=100GB
-#SBATCH --time=01:00:00
-#SBATCH --partition=standard
+
+##SBATCH --mem=100GB
+##SBATCH --time=00:30:00
+##SBATCH --partition=standard
+
+#SBATCH --gres=gpu:a100
+#SBATCH --mem=10GB
+#SBATCH --time=00:10:00
+#SBATCH --partition=gpu
 
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
@@ -160,7 +166,19 @@ echo "Starting execution from singularity container..."
 # Run the singularity container
 # singularity exec --nv --bind $DEFAULT_DIR $PROJECT_NAME-image-latest$container_extension ./exp_workflow.sh # GPU
 # HF_DATASETS_OFFLINE=1 avoids locks on the Huggignface cache dir by forbidding fetches and updates
+
+# # CPU
+# singularity exec \
+#     --env HF_DATASETS_OFFLINE=1 \
+#     --bind $HF_HOME:$HF_HOME \
+#     --bind $DEFAULT_DIR \
+#     --pwd $DEFAULT_DIR \
+#     $PROJECT_NAME-image-latest$container_extension \
+#     ./exp_workflow.sh
+
+# GPU
 singularity exec \
+    --nv \
     --env HF_DATASETS_OFFLINE=1 \
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
