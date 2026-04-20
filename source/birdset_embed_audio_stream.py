@@ -181,6 +181,8 @@ def embed_example_batched(examples, model, model_name, input_feature, device=tor
     
     # Process entire batch at once
     with torch.no_grad():
+        print(f"audio dtype: {audio_batch.dtype}, device: {audio_batch.device}")
+        print(f"model device: {next(model.parameters()).device}")
         outputs = model(audio_batch)
     
     # Convert outputs back to CPU and to lists

@@ -125,8 +125,9 @@ class BirdSetEfficientNet(torch.nn.Module):
         - Normalize the melscale spectrogram with mean: -4.268, std: 4.569 (from AudioSet)
 
         """
+        audio = audio.to(torch.float32) 
         spectrogram = self.spectrogram_converter(audio)
-        spectrogram = spectrogram.to(torch.float32)
+        #spectrogram = spectrogram.to(torch.float32)
         melspec = self.mel_converter(spectrogram)
         dbscale = self.power_to_db(melspec)
         normalized_dbscale = transforms.Normalize((-4.268,), (4.569,))(dbscale)
