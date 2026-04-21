@@ -104,9 +104,6 @@ fi
 
 echo "=== GPU Info ==="
 nvidia-smi
-echo "=== CUDA Version ==="
-nvcc --version 2>/dev/null || echo "nvcc not available"
-echo "================"
 
 # Load necessary modules
 module load singularity/4.3.7
