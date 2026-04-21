@@ -319,10 +319,6 @@ def main():
 
     # Load Dataset 
     dataset = load_dataset(huggingface_path, dataset_config)
-
-    # Reduce dataset for testing purposes TODO: remove
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))
     
     # ===================
     # Embed
