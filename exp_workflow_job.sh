@@ -94,7 +94,7 @@ fi
 #################################
 
 # Load necessary modules
-module load singularity/4.3.7
+module load singularity/4.4.0
 
 #################################
 # Import environment variables

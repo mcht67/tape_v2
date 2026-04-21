@@ -70,8 +70,6 @@ fi
 # Check if necessary variables are set in local.env
 if [ -z "$DOCKERHUB_USERNAME" ]; then
     echo "[ERROR] Please create a local.env with the vars:";
-    echo "GIT_USERNAME=MY NAME";
-    echo "GIT_EMAIL=myemail@domain.com";
     echo HUGGINGFACE_TOKEN="your_hf_token";
     echo DOCKERHUB_USERNAME="your_dockerhub_username";
     exit 1;
@@ -89,7 +87,7 @@ fi
 #     # On SLURM cluster: build Singularity container
 
 # Load necessary modules
-module load singularity/4.3.7
+module load singularity/4.4.0
 
 # Perform the desired actions based on the provided flags and arguments
 if [ "$rebuild_container" = true ]; then
