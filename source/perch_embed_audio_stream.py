@@ -8,6 +8,8 @@ import os
 import tensorflow_hub as hub
 import tensorflow as tf
 tf.experimental.numpy.experimental_enable_numpy_behavior()
+from dotenv import load_dotenv
+import huggingface_hub
 
 from datasets import concatenate_datasets
 import json
@@ -347,12 +349,14 @@ def main():
     # Load data
     ########################
 
+     # Load environment variables from .env file
+    load_dotenv('local.env')
+
+    # Huggingface login
+    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+
     # Load Dataset 
     dataset = load_dataset(huggingface_path, dataset_config)
-
-    # Reduce dataset for testing purposes TODO: remove
-    # for split in dataset.keys():
-    #     dataset[split] = dataset[split].select(range(10))
 
     #######################
     # Request GPU

@@ -13,6 +13,8 @@ import sys
 import json
 import argparse
 from pathlib import Path
+from dotenv import load_dotenv
+import huggingface_hub
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -303,6 +305,12 @@ def main():
     ########################
     # Load data
     ########################
+
+    # Load environment variables from .env file
+    load_dotenv('local.env')
+
+    # Huggingface login
+    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
     model_configs = load_model_configs(embeddings, "conf/embeddings")
 
