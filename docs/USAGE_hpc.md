@@ -3,15 +3,15 @@
 
 Hydra automatically creates a params.yaml for every dvc experiment used by the different python scripts to extract the current experiments parameters, such as models, dataset, training parameters etc.
 
-The hydra config is defined in conf/config.yaml and composed from config-files in subfolders (eg. conf/dataset/PER.yaml).
+The hydra config is defined in [conf/config.yaml] and composed from config-files in subfolders (eg. [conf/dataset/PER.yaml]).
 
-To change the configuration you can add new config-files and add them as defaults in conf/config.yaml.
+To change the configuration you can add new config-files and add them as defaults in [conf/config.yaml].
 
 ## Run single experiment
 
-Run setup script to set environment variables and build singularity container.
+Run [build_singularity.sh] to build singularity container from docker image.
 ```bash
-./setup.sh
+./build_singularity.sh
 ```
 
 Submit dataset preparation job if using pre-computed embeddings.
@@ -36,8 +36,8 @@ sbatch prepare_dataset_job.sh -- \
 
 ## Run multiple experiments on potentially multiple datasets and hyperparameter configurations
 
-Define parameters, datasets and hyperparameters to overwrite default hydra configuration in multi_submission.py.
-All dvc experiments artifacts are stored in a folder corresponding to the study name.
+Define parameters, datasets and hyperparameters to overwrite default hydra configuration in [multi_submission.py].
+All dvc experiments artifacts are stored in a folder in ./archive/ corresponding to the study name.
 ```python
 # Study Name
 study_name = 'Embeddings-Comparison'
@@ -75,7 +75,7 @@ python3 multi_submission.py
 Rebuild the singularity container manually, if the docker image changed.
 Optionally use --sif-container flag to use .sif container instead of sandbox.
 ```bash
-./setup.sh --rebuild-container 
+./build_singularity.sh --rebuild-container 
 ```
 
 ## GoogleDrive reauthentication
@@ -94,18 +94,18 @@ cat > secrets/dvc-token.json << 'EOF'
 EOF
 ```
 
-# Checkpoints, Metrics & Logs
+## Checkpoints & Logs
 
-Checkpoints, metrics and logs are stored in an archive on the HPC Cluster.
+Checkpoints and logs are stored in ./archive/ on the HPC Cluster. All experiment logs with the same study name are stored in one folder.
 
-## Syncing artifacts from HPC to Local Machine
-
+### Syncing artifacts from HPC to Local Machine
+ To investigate the logs it is useful to sync them to the local machine.
 ```bash
-rsync -rv $HPC:${DEFAULT_DIR}/archive/ ~/archive/
+rsync -rv $HPC:${DEFAULT_DIR}/archive/ ./archive/
 ```
 
-## Folder structure
-archive/study-name/timecode_dvc-exp-name/
+### Folder structure
+archive/<study-name>/<timecode_dvc-exp-name>/
 ├─ checkpoints/
 │   ├── epoch_weights/  
 │   │   ├── epoch_05.weights.h5
@@ -123,9 +123,10 @@ archive/study-name/timecode_dvc-exp-name/
 │   └── params.yaml
 └── metrics/
 
-## Tensorboard
+### Tensorboard
 
+You can visualize logs with tensorboard:
 ```bash
-tensorboard --logdir=./logs/tensorboard/Embeddings-Comparison
+tensorboard --logdir=./archive/logs/tensorboard/<study name>
 ```
 

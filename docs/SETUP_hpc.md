@@ -12,24 +12,24 @@ ssh <TUB-Account>@sshgate.tu-berlin.de
 ssh gateway.hpc.tu-berlin.de
 ```
 
-## 2. Setup directories temporary data
+## 2. Setup directories for temporary data
 Create a personal subdirectory on /beegfs/scratch, since space is limited on the user home directory:
 ```sh
 cd /beegfs/scratch
 mkdir <username>
 ```
-Update the global environment file [global.env](./../global.env) with the path to your HPC scratch directory:
+<!-- Once automatic rsync is used -> Update the global environment file [global.env](./../global.env) with the path to your HPC scratch directory:
 
 ```env
 HPC_DIR=/scratch/<username>
-```
+``` -->
 
 Restrict permissions on your subdirectory (Optional):
 ```sh
 chmod 700 <username>/
 ```
 
-Set up a temporary directory and hugging face and singularity cache directories on `/beegfs/scratch` to get more space for temporary files. 
+Set up a temporary directory and hugging face and singularity cache directories on `/beegfs/scratch` to get more space for temporary files. (replace <TUB-username> with your actual username!)
 ```sh
 mkdir -p /beegfs/scratch/<TUB-username>/tmp
 mkdir -p /beegfs/scratch/<TUB-username>/.singularity
@@ -37,7 +37,7 @@ mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/hub
 mkdir -p /beegfs/scratch/<TUB-username>/.cache/huggingface/datasets
 ```
 
-Then add the `TMPDIR` environment variable to your `.bashrc` so that singularity and other applications use this directory for temporary files. These can get quite large as singularity uses them to extract the image and run the container. Then change the cache directory of singularity with the `SINGULARITY_CACHEDIR` environment variable. Hugging face directory environment variables are set from within the scripts with 'HF_HOME', 'HF_HUB_CACHE' and 'HF_DATASETS_CACHE' being defined in global.env. (replace <TUB-username> with your actual username!)
+Then add the `TMPDIR` environment variable to your `.bashrc` so that singularity and other applications use this directory for temporary files. These can get quite large as singularity uses them to extract the image and run the container. Then change the cache directory of singularity with the `SINGULARITY_CACHEDIR` environment variable.  
 ```sh
 cat >> ~/.bashrc << 'EOF'
 
@@ -54,6 +54,8 @@ source ~/.bashrc
 echo "TMPDIR: $TMPDIR"
 echo "SINGULARITY_CACHEDIR: $SINGULARITY_CACHEDIR"
 ```
+
+Hugging face directory environment variables are set from within the scripts with 'HF_HOME', 'HF_HUB_CACHE' and 'HF_DATASETS_CACHE' being defined in global.env. 
 
 Update hugging face cache paths in your global.env if necessary:
 ```env
@@ -132,9 +134,6 @@ cat > local.env << 'EOF'
 # Copy this to local.env and fill in your values
 # DO NOT commit local.env to git!
 
-GIT_REPO_URL=https://github.com/mcht67/Polyphonic-Bird-Call-Dataset.git
-GIT_USERNAME="Your Username"
-GIT_EMAIL="your.email@example.com"
 HUGGINGFACE_TOKEN="your_hf_token_here"
 DOCKERHUB_USERNAME="your_dockerhub_username"
 EOF
@@ -180,6 +179,6 @@ EOF
 # Make files executable
 Change permissions to be able to run files from bash
 ```bash
-chmod +x setup.sh
+chmod +x build_singularity.sh
 chmod +x multi_submission.py
 ```
