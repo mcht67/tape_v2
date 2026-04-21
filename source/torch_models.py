@@ -179,27 +179,34 @@ class BirdSetBirdMAE(torch.nn.Module):
         self.config = self.model.config
         self.sampling_rate = 32000
 
+    # def preprocess(self, audio):
+    #     mel_spectrogram = self.feature_extractor(audio)
+    #     return mel_spectrogram
+    
     def preprocess(self, audio):
-        mel_spectrogram = self.feature_extractor(audio)
+        device = next(self.parameters()).device
+        # Feature extractor returns a dict-like BatchFeature, extract the tensor
+        mel_spectrogram = self.feature_extractor(audio, return_tensors="pt")
+        # mel_spectrogram = inputs["input_values"]  # or "input_features" depending on the model
+        mel_spectrogram = mel_spectrogram.to(device)
         return mel_spectrogram
     
-    def forward(self, audio): 
+    def forward(self, audio):
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
-
-        mel_spectrogram = self.preprocess(audio)
+        device = next(self.parameters()).device
+        audio = audio.to(device)
+        mel_spectrogram = self.preprocess(audio)  # already on device
         outputs = self.model(mel_spectrogram)
         last_hidden_state = outputs.last_hidden_state
         x = last_hidden_state
-    
         if self.output_head:
             logits = self.output_head(x)
-
         return EmbeddingModelOutput(
-        pooled_embeddings=last_hidden_state,
-        spatial_embeddings=None,
-        logits=logits
-    )
+            pooled_embeddings=last_hidden_state,
+            spatial_embeddings=None,
+            logits=logits
+        )
     
     def freeze_encoder(self):
         for param in self.model.parameters():
