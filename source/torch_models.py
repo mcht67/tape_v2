@@ -196,7 +196,7 @@ class BirdSetBirdMAE(torch.nn.Module):
         logits = None
         device = next(self.parameters()).device
         audio = audio.to(device)
-        mel_spectrogram = self.preprocess(audio)  # already on device
+        mel_spectrogram = self.preprocess(audio)
         outputs = self.model(mel_spectrogram)
         last_hidden_state = outputs.last_hidden_state
         x = last_hidden_state
@@ -237,15 +237,18 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
         self.sampling_rate = 32000
         self.pooling = pooling
         self._head_input_size = None
+        self.mel_spectrogram = None
 
     def preprocess(self, audio):
-        mel_spectrogram = self.feature_extractor(audio)
+        mel_spectrogram = self.feature_extractor(audio).to(device=next(self.parameters()).device)
         return mel_spectrogram
     
     def forward(self, audio): 
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
         pooled_output = None
+        
+        audio = audio.to(device=next(self.parameters()).device)
 
         mel_spectrogram = self.preprocess(audio)
         outputs = self.model(mel_spectrogram)
@@ -342,10 +345,26 @@ class BirdSetAST(torch.nn.Module):
         # Init
         self.config = self.model.config
         self.sampling_rate = 16000
-        self.spectrogram_converter = None
-        self.mel_converter = None
-        self.amplitude_to_db = None
         self.pooling = pooling
+
+        # Init preprocessing signal converters
+        n_fft=int(0.025 * self.sampling_rate) # 25ms window
+        self.spectrogram_converter = torchaudio.transforms.Spectrogram(
+            n_fft=n_fft,           # 25ms window
+            hop_length=int(0.010 * self.sampling_rate),      # 10ms hop
+            win_length=int(0.025 * self.sampling_rate),      # 25ms window
+            window_fn=torch.hamming_window,
+            power=2.0,       
+            normalized=False # TODO: Does AST expect normalized input?
+        )
+
+        self.mel_converter = torchaudio.transforms.MelScale(
+            n_mels=128,   
+            n_stft= (n_fft // 2) + 1,   
+            sample_rate=int(self.sampling_rate)
+        )
+
+        self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(stype='power', top_db=80)
 
     def preprocess(self, audio):
         """
@@ -362,26 +381,26 @@ class BirdSetAST(torch.nn.Module):
         if not self.sampling_rate:
             raise ValueError(f"Sampling rate is not set and is needed for preprocessing.")
 
-        # Init preprocessing signal converters if not initialized
-        if not self.spectrogram_converter or not self.mel_converter or not self.amplitude_to_db:
+        # # Init preprocessing signal converters if not initialized
+        # if not self.spectrogram_converter or not self.mel_converter or not self.amplitude_to_db:
             
-            n_fft=int(0.025 * self.sampling_rate) # 25ms window
-            self.spectrogram_converter = torchaudio.transforms.Spectrogram(
-                n_fft=n_fft,           # 25ms window
-                hop_length=int(0.010 * self.sampling_rate),      # 10ms hop
-                win_length=int(0.025 * self.sampling_rate),      # 25ms window
-                window_fn=torch.hamming_window,
-                power=2.0,       
-                normalized=False # TODO: Does AST expect normalized input?
-            )
+        #     n_fft=int(0.025 * self.sampling_rate) # 25ms window
+        #     self.spectrogram_converter = torchaudio.transforms.Spectrogram(
+        #         n_fft=n_fft,           # 25ms window
+        #         hop_length=int(0.010 * self.sampling_rate),      # 10ms hop
+        #         win_length=int(0.025 * self.sampling_rate),      # 25ms window
+        #         window_fn=torch.hamming_window,
+        #         power=2.0,       
+        #         normalized=False # TODO: Does AST expect normalized input?
+        #     )
 
-            self.mel_converter = torchaudio.transforms.MelScale(
-                n_mels=128,   
-                n_stft= (n_fft // 2) + 1,   
-                sample_rate=int(self.sampling_rate)
-            )
+        #     self.mel_converter = torchaudio.transforms.MelScale(
+        #         n_mels=128,   
+        #         n_stft= (n_fft // 2) + 1,   
+        #         sample_rate=int(self.sampling_rate)
+        #     )
 
-            self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(stype='power', top_db=80)
+        #     self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(stype='power', top_db=80)
 
         # pad audio to 10s
         target_samples = 10 * self.sampling_rate  # 160,000 samples = 10s
@@ -401,7 +420,7 @@ class BirdSetAST(torch.nn.Module):
     def forward(self, audio): 
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
-
+        audio = audio.to(device=next(self.parameters()).device)
         log_mel_spectrogram = self.preprocess(audio)
 
         # Hack to match expected input size: pad spectrogram
@@ -443,7 +462,26 @@ class BirdSetAST(torch.nn.Module):
         return self.config.hidden_size
     
     def set_sampling_rate(self, new_sampling_rate):
-        self.sampling_rate = new_sampling_rate
+        # Reinitialize the spectrogram and mel converters if the sampling rate changes
+        if new_sampling_rate != self.sampling_rate:
+            self.sampling_rate = new_sampling_rate
+            n_fft = int(0.025 * self.sampling_rate)
+            self.spectrogram_converter = torchaudio.transforms.Spectrogram(
+                n_fft=n_fft,
+                hop_length=int(0.010 * self.sampling_rate),
+                win_length=int(0.025 * self.sampling_rate),
+                window_fn=torch.hamming_window,
+                power=2.0,
+                normalized=False
+            ).to(next(self.parameters()).device)
+            self.mel_converter = torchaudio.transforms.MelScale(
+                n_mels=128,
+                n_stft=(n_fft // 2) + 1,
+                sample_rate=int(self.sampling_rate)
+            ).to(next(self.parameters()).device)
+            self.amplitude_to_db = torchaudio.transforms.AmplitudeToDB(
+                stype='power', top_db=80
+            ).to(next(self.parameters()).device)
 
 class BirdSetWav2Vec2(torch.nn.Module):
     """
@@ -467,23 +505,21 @@ class BirdSetWav2Vec2(torch.nn.Module):
         self.sampling_rate = 32000
         self.pooling = pooling
         self.spatial_embeddings = spatial_embeddings
-
-    def preprocess(self, audio):
-        return self.model(audio)
     
     def forward(self, audio): 
         """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
         pooled_output = None
 
-        #mel_spectrogram = self.preprocess(audio)
+        audio = audio.to(device=next(self.parameters()).device)
+
         outputs = self.model(audio)
         if self.spatial_embeddings=="last_hidden_state":
             spatial_embeddings = outputs.last_hidden_state
         elif self.spatial_embeddings=="xvector":
             spatial_embeddings = outputs.extract_features
         else:
-            ValueError(f"Spatial embeddings key is not valid. Use 'last_hidden_state' or 'xvector'")
+            raise ValueError(f"Spatial embeddings key is not valid. Use 'last_hidden_state' or 'xvector'")
     
         if not self.pooling:
             x = spatial_embeddings

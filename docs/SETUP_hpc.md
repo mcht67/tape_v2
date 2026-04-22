@@ -182,3 +182,11 @@ Change permissions to be able to run files from bash
 chmod +x build_singularity.sh
 chmod +x multi_submission.py
 ```
+
+## 8. Setup Docker
+Sign Up for Docker Hub: If you do not have an account, register at Docker Hub.
+Configure GitHub Secrets: In your GitHub repository, go to Settings → Security → Secrets and variables → Actions → New repository secret, and add secrets for:
+DOCKER_USERNAME: Your Docker Hub username
+DOCKER_PASSWORD: Your Docker Hub password
+
+Your docker image will be buidl automatically by GitHub actions once you opush your changes in requirements, Dockerfile or global.env. The singularity container will also be build automatically.

@@ -57,7 +57,7 @@ fi
 
 # Check if necessary variables are set in local.env
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
-    if  || [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
+    if  [ -z "$HUGGINGFACE_TOKEN" ] || [ -z "$DOCKERHUB_USERNAME" ]; then
         echo "[ERROR] Please create a local.env with the vars:";
         echo HUGGINGFACE_TOKEN="your_hf_token";
         echo DOCKERHUB_USERNAME="your_dockerhub_username";
