@@ -29,7 +29,7 @@
 
 # Debugging options
 set -euo pipefail
-set -x
+#set -x
 
 echo "Running exp_workflow_job.sh"
 

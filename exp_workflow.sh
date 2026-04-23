@@ -97,27 +97,44 @@ UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
 EXP_TMP_DIR="$TMP_DIR/$UNIQUE_ID" &&
 mkdir -p $EXP_TMP_DIR &&
 
-# Copy the necessary files to the temporary directory
+# # Copy the necessary files to the temporary directory
+# echo "Copying files..." &&
+# {
+# # Add all git-tracked files
+# git ls-files;
+# if [ -f ".dvc/config.local" ]; then
+#     echo ".dvc/config.local";
+# fi;
+
+# if [ -f "secrets/dvc-token.json" ]; then
+#     echo "secrets/dvc-token.json"
+# else
+#   echo "WARNING: secrets/dvc-token.json not found" >&2
+#   ls -la secrets/ >&2   # show what's actually there
+# fi
+
+# echo ".git";
+# } | while read file; do
+#     # --chown flag is needed for docker to avoid permission issues
+#     rsync -aR --chown $(id -u):$(id -g) "$file" $EXP_TMP_DIR;
+# done &&
+
 echo "Copying files..." &&
 {
-# Add all git-tracked files
-git ls-files;
-if [ -f ".dvc/config.local" ]; then
-    echo ".dvc/config.local";
-fi;
-
-if [ -f "secrets/dvc-token.json" ]; then
+  git ls-files
+  [ -f ".dvc/config.local" ] && echo ".dvc/config.local"
+  if [ -f "secrets/dvc-token.json" ]; then
     echo "secrets/dvc-token.json"
-else
-  echo "WARNING: secrets/dvc-token.json not found" >&2
-  ls -la secrets/ >&2   # show what's actually there
-fi
-
-echo ".git";
-} | while read file; do
-    # --chown flag is needed for docker to avoid permission issues
-    rsync -aR --chown $(id -u):$(id -g) "$file" $EXP_TMP_DIR;
+  else
+    echo "WARNING: secrets/dvc-token.json not found" >&2
+    ls -la secrets/ >&2
+  fi
+  echo ".git"
+} | while IFS= read -r file; do
+  rsync -aR "$file" "$EXP_TMP_DIR/"
 done &&
+# Fix ownership after copying
+chown -R "$(id -u):$(id -g)" "$EXP_TMP_DIR"
 
 # Change the working directory to the temporary sub-directory
 cd $EXP_TMP_DIR &&
