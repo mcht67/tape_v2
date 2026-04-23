@@ -2,6 +2,7 @@ import argparse
 import os
 from datasets import load_dataset
 from dotenv import load_dotenv
+import shutil
 
 print("Running load dataset script...")
 
@@ -12,13 +13,15 @@ args = parser.parse_args()
 
 print(f"[INFO] Downloading {args.huggingface_path} / {args.dataset_config}")
 
-load_dotenv("global.env", override=True)
-cache_dir = os.environ.get("HF_DATASETS_CACHE")
-if not cache_dir:
-    raise ValueError("HF_DATASETS_CACHE is not set — check global.env or your environment")
-print(f"[INFO] HF_DATASETS_CACHE={os.environ.get('HF_DATASETS_CACHE', 'NOT SET')}")
-
-dataset = load_dataset(args.huggingface_path, args.dataset_config, cache_dir=cache_dir)
+if shutil.which('sbatch') is not None:
+    load_dotenv("global.env", override=True)
+    cache_dir = os.environ.get("HF_DATASETS_CACHE")
+    if not cache_dir:
+        raise ValueError("HF_DATASETS_CACHE is not set — check global.env or your environment")
+    print(f"[INFO] HF_DATASETS_CACHE={os.environ.get('HF_DATASETS_CACHE', 'NOT SET')}")
+    dataset = load_dataset(args.huggingface_path, args.dataset_config, cache_dir=cache_dir)
+else:
+    dataset = load_dataset(args.huggingface_path, args.dataset_config)
 
 print(f"[INFO] Done. Splits: {list(dataset.keys())}")
 print(f"[INFO] Sizes: { {k: len(v) for k, v in dataset.items()} }")

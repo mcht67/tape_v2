@@ -23,3 +23,13 @@ To ensure the dataset cache is valid, the dataset is loaded once in prepare_data
 ## DVC remote
 
 ## Docker | Singularity
+
+## Models
+
+### BirdSet Model Wrappers
+
+### Perch models
+
+### Polyphony Estimation Heads
+
+### Multi Task Heads

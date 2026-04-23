@@ -59,7 +59,7 @@ def load_perch2_model(model_key):
         model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1')
         sampling_rate = 32000
     else:
-         raise Exception("This is no perch_v2 model or loading this model is not supoorted yet!")
+         raise Exception(f"Model {model_key} is not a supported perch_v2 model or loading this model is not supported yet!")
     return model, sampling_rate
 
 # TODO: implement
@@ -81,20 +81,19 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     # Get embeddings
     if embedding_type == 'perch_v1':
         pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio, device=device)
-        if spatial_embeddings is not None:
-            example[spatial_embeddings_key]= spatial_embeddings
+        # if spatial_embeddings is not None:
+        example[spatial_embeddings_key]= spatial_embeddings
         example[embeddings_key] = pooled_embeddings
     elif embedding_type == 'perch_v2':
         example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio, device=device)
     # elif embedding_type == 'birdset':
     #     example[embeddings_key] = embed_with_birdset(model, audio, device=device)
     else:
-        raise Exception("Model family is not supported.")
+        raise Exception(f"Model family {embedding_type} is not supported. Can not compute embeddings for model {model_key}.")
 
     return example
 
 def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
-    spatial_embeddings = None
     with tf.device(device):
         if model_key == 'yamnet':
             scores, embeddings, log_mel_spectrogram = model(audio)
@@ -104,21 +103,59 @@ def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
             outputs = model.embed(audio)
             embeddings = outputs.embeddings
 
+        spatial_embeddings = None
+    #     if embeddings.ndim > 1:
+            
+    #         dim = embeddings.shape
+    #         num_dims = len(embeddings.shape)
+            
+    #         # Keep spatial embeddings if there are multiple segments, but not for models that already return pooled embeddings
+    #         if num_dims > 1 and any(dim[x] != 1 for x in range(num_dims - 1)):
+    #             spatial_embeddings = embeddings.copy()
+            
+    #         # Average pooling
+    #         axes_to_reduce = list(range(num_dims - 1))
+    #         pooled_embeddings = tf.reduce_mean(embeddings, axis=axes_to_reduce, keepdims=False)
+    #         pooled_embeddings = tf.reshape(pooled_embeddings, [-1])  # Flatten to 1D
+    #         # print(f'Embeddings include multiple segments. Calculate mean.')
+    #     else:
+    #         pooled_dim = pooled_embeddings.shape
+    #         pooled_embeddings = tf.reshape(embeddings, [-1])
+
+    #     if spatial_embeddings is not None:
+    #         spatial_dim = spatial_embeddings.shape
+    #         spatial_embeddings = tf.squeeze(spatial_embeddings)
+
+    # return pooled_embeddings.numpy(), spatial_embeddings.numpy() if spatial_embeddings is not None else None
+        print(type(embeddings))
+        embeddings =np.asarray(embeddings)
+              
         if embeddings.ndim > 1:
-            spatial_embeddings = embeddings
-            # Average pooling
+            #embeddings = embeddings.numpy()  # convert once here
+            
+            dim = embeddings.shape
             num_dims = len(embeddings.shape)
-            axes_to_reduce = list(range(num_dims - 1))
-            pooled_embeddings = tf.reduce_mean(embeddings, axis=axes_to_reduce, keepdims=False)
-            pooled_embeddings = tf.reshape(pooled_embeddings, [-1])  # Flatten to 1D
-            print(f'Embeddings include multiple segments. Calculate mean.')
+            
+            if num_dims > 1 and any(dim[x] != 1 for x in range(num_dims - 1)):
+                spatial_embeddings = embeddings.copy()
+
+            axes_to_reduce = tuple(range(num_dims - 1))
+            pooled_embeddings = np.mean(embeddings, axis=axes_to_reduce)
+            pooled_embeddings = pooled_embeddings.flatten()
+
         else:
-            pooled_embeddings = tf.reshape(embeddings, [-1])
+            pooled_embeddings = embeddings.flatten()
 
+        pooled_dim = pooled_embeddings.shape
+            
+        spatial_dim = None
         if spatial_embeddings is not None:
-            spatial_embeddings = tf.squeeze(spatial_embeddings)
+            spatial_dim = spatial_embeddings.shape
+            spatial_embeddings = np.squeeze(spatial_embeddings)
 
-    return pooled_embeddings.numpy(), spatial_embeddings.numpy() if spatial_embeddings is not None else None
+    print(f'Return pooled embeddings with dim {pooled_dim} and spatial embeddings with dim {spatial_dim} for model {model_key}.')
+            
+    return pooled_embeddings, spatial_embeddings if spatial_embeddings is not None else None
 
 def embed_with_perch2(model, audio, device='/CPU:0'):
     with tf.device(device):
@@ -200,16 +237,6 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
     return dataset, modified
 
 def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, force_recompute=False, batch_size=100, device='/CPU:0'):
-
-    # # Auto detect gpu
-    # gpus = tf.config.list_physical_devices('GPU')
-    # device = '/GPU:0' if gpus else '/CPU:0'
-    # print(f"Using device: {device}")
-
-    # # Prevent TF from grabbing all GPU memory at once
-    # if gpus:
-    #     for gpu in gpus:
-    #         tf.config.experimental.set_memory_growth(gpu, True)
         
     embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key =  model_key + "_" + input_feature + "_spatial_embeddings"
@@ -218,12 +245,10 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
         print("Embedding with model", model_key, "for", input_feature, "has already been calculated, skipping.")
         return dataset, None
     
-    # If embedding key is not in dataset compute
-    print(f"Processing {embeddings_key} in batches of {batch_size}...")
-
-    dataset = dataset.cast_column(input_feature, Audio())
+    # Get embedding type
     embedding_type = get_embedding_type(model_key)
 
+    # Load model
     if embedding_type == 'perch_v1':
         model, sampling_rate = load_perch1_model(model_key)
     elif embedding_type == 'perch_v2':
@@ -231,8 +256,13 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
     elif embedding_type == 'birdset':
         load_birdset_model = load_birdset_model(model_key)
     else:
-        print("Model family unknown. Can not load model.")
+        #print(f"Model family unknown. Can not load model {model_key}. Skipping.")
         return dataset, None
+    
+    # If embedding key is not in dataset compute
+    print(f"Processing {dataset} {dataset_split} split with {embeddings_key} in batches of {batch_size}...")
+
+    dataset = dataset.cast_column(input_feature, Audio())
     
     embedding_fn = partial(
         embed_example,
@@ -296,7 +326,7 @@ def get_embedding_type(model_key):
             elif model_key in birdset_models:
                 embedding_type = 'birdset'
             else:
-                print("Could not get embedding type. Embedding model is not supported, skipping!")
+                print(f"Could not get embedding type for model {model_key}. Embedding model is not supported, skipping!")
                 return None
             
             print(model_key, "is a ", embedding_type, "model.")

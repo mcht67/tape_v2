@@ -267,9 +267,9 @@ def embed_example_batched(examples, model, model_name, input_feature):
         pooled_emb = outputs.pooled_embeddings.cpu().numpy()
         examples[pooled_embeddings_key] = [emb for emb in pooled_emb]
     
-    # if outputs.spatial_embeddings is not None:
-    #     spatial_emb = outputs.spatial_embeddings.cpu().numpy()
-    #     examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
+    if outputs.spatial_embeddings is not None:
+        spatial_emb = outputs.spatial_embeddings.cpu().numpy()
+        examples[spatial_embeddings_key] = [emb for emb in spatial_emb]
     
     return examples
 
