@@ -94,7 +94,7 @@ echo "Creating temporary sub-directory..." &&
 # mkdir -p $EXP_TMP_DIR &&
 
 UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
-EXP_TMP_DIR="$TUSTU_TMP_DIR/$UNIQUE_ID" &&
+EXP_TMP_DIR="$TMP_DIR/$UNIQUE_ID" &&
 mkdir -p $EXP_TMP_DIR &&
 
 # Copy the necessary files to the temporary directory
@@ -167,6 +167,8 @@ if [ -n "$STUDY_NAME" ]; then
 else
     ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
 fi
+
+echo "Archiving results to $ARCHIVE_DIR..."
 
 mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints,metrics}
 
