@@ -5,7 +5,7 @@
 # See the LICENSE file in the root of this project for details.
 
 # Job name and logs
-#SBATCH -J tustu
+#SBATCH -J tape
 #SBATCH -D /beegfs/scratch/cohrt/tape_v2/ # Working Directory
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
@@ -14,14 +14,14 @@
 ##SBATCH --nodes=1
 ##SBATCH --cpus-per-task=16
 ##SBATCH --mem=100GB
-##SBATCH --time=01:00:00
+##SBATCH --time=10:00:00
 ##SBATCH --partition=standard
 
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100
-#SBATCH --mem=10GB
-#SBATCH --time=00:10:00
+#SBATCH --mem=50GB
+#SBATCH --time=01:00:00
 #SBATCH --partition=gpu
 
 # Get email notifications for job status
