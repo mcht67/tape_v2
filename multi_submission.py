@@ -32,12 +32,21 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
         "--embeddings", json.dumps(embeddings),
     ]
     if recompute_embeddings: args.append("--recompute_embeddings")
+
+    # For debugging and local runs
+    if shutil.which('sbatch') is None:
+        print("SLURM not available. Would submit dataset prep job with:", args)
+
+        # Run prepare_dataset.py directly
+        cmd = ["python3", "prepare_dataset.py"] + args
+        print("Run command", cmd)
+        result = subprocess.run(cmd, env=env, stderr=subprocess.PIPE, text=True)
+        print("Exit code:", result.returncode)
+        print("Stderr:", result.stderr)
+        
+        return
     
     try:
-        # subprocess.run(
-        #     ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
-        #     env=env)
-
         result = subprocess.run(
         ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
         env=env, capture_output=True, text=True
@@ -73,13 +82,6 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
         result = subprocess.run(cmd, shell=True, env=env, stderr=subprocess.PIPE, text=True)
         print("Exit code:", result.returncode)
         print("Stderr:", result.stderr)
-
-        # Copy logs dir to local_logs
-        # shutil.copytree('logs', 'local_logs', dirs_exist_ok=True)
-
-        # TODO: setup remote
-        # print("Push to remote...")
-        # subprocess.run("dvc exp push origin", shell=True)
         
         return
     
@@ -96,11 +98,11 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
                                 ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
-    print("Exit code:", result.returncode)
-    print("Stderr:", result.stderr)
-    
-    submitted_job_id = result.stdout.strip().split()[-1]
-    print("Experiment job submitted: ", submitted_job_id)
+    if not result.returncode==0:
+        print("Stderr:", result.stderr)
+    else:
+        submitted_job_id = result.stdout.strip().split()[-1]
+        print("Experiment job submitted: ", submitted_job_id)
 
     # #print("Submit clean up job")
 
@@ -193,16 +195,18 @@ if __name__ == "__main__":
 
     embedding_type = 'pooled' #'spatial'
     embeddings = [
-                    "birdnet_V2.3",
+                    "birdnet_V2.3", # ✅
                     "vggish",
                     "perch_8",
                     "yamnet",
                     "beans_baseline",
+                    "perch_v2_cpu",
+                    # "perch_v2",
                     "EfficientNet-B1-BirdSet-XCL",
                     "Bird-MAE-Huge",
                     "AudioProtoPNet-20-BirdSet-XCL",
                     "AST-Birdset-XCL",
-                    "Wav2Vec2-Base-BirdSet-XCL"      
+                    "Wav2Vec2-Base-BirdSet-XCL" 
                 ]
     
     objectives = [
@@ -218,7 +222,7 @@ if __name__ == "__main__":
                     "objectives": objectives                         
                 }
     
-    recompute_embeddings = True
+    recompute_embeddings = False
     
     for dataset_config in dataset_configs:
         prep_job_id = None
