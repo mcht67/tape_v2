@@ -7,33 +7,6 @@
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
 
-# #################################
-# # Retry function
-# #################################
-
-# retry() {
-#   local max_attempts=$1
-#   local interval=$2
-#   local description=$3
-#   local attempt=1
-#   shift 3
-
-#   echo "[$description] Starting..."
-#   while [ $attempt -le $max_attempts ]; do
-#     echo "[$description] Attempt $attempt/$max_attempts..."
-#     if "$@"; then
-#       echo "[$description] Success."
-#       return 0
-#     fi
-#     echo "[$description] Failed. Retrying in ${interval}s..."
-#     attempt=$((attempt + 1))
-#     [ $attempt -le $max_attempts ] && sleep "$interval"
-#   done
-
-#   echo "[$description] All $max_attempts attempts failed."
-#   return 1
-# }
-
 #################################
 # Import environment variables
 #################################
@@ -116,8 +89,12 @@ TMP_DIR=tmp
 # Create a new sub-directory in the temporary directory for the experiment
 echo "Creating temporary sub-directory..." &&
 # Generate a unique ID with the current timestamp, process ID, and hostname for the sub-directory
+# UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
+# EXP_TMP_DIR="$(realpath "$TMP_DIR/$UNIQUE_ID")" &&
+# mkdir -p $EXP_TMP_DIR &&
+
 UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
-EXP_TMP_DIR="$(realpath "$TMP_DIR/$UNIQUE_ID")" &&
+EXP_TMP_DIR="$TUSTU_TMP_DIR/$UNIQUE_ID" &&
 mkdir -p $EXP_TMP_DIR &&
 
 # Copy the necessary files to the temporary directory
@@ -128,6 +105,7 @@ git ls-files;
 if [ -f ".dvc/config.local" ]; then
     echo ".dvc/config.local";
 fi;
+
 if [ -f "secrets/dvc-token.json" ]; then
     echo "secrets/dvc-token.json"
 else

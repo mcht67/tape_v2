@@ -96,6 +96,9 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
                                 ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
+    print("Exit code:", result.returncode)
+    print("Stderr:", result.stderr)
+    
     submitted_job_id = result.stdout.strip().split()[-1]
     print("Experiment job submitted: ", submitted_job_id)
 
