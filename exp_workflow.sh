@@ -6,6 +6,7 @@
 
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
+set -x
 
 #################################
 # Import environment variables

@@ -106,9 +106,8 @@ source global.env
 set +o allexport
 
 # Print info
+[ -n "$PROJECT_NAME" ] && echo "[INFO] PROJECT_NAME=$PROJECT_NAME" || echo "[WARNING] PROJECT_NAME not set"
 [ -n "$HF_HOME" ] && echo "[INFO] HF_HOME=$HF_HOME" || echo "[WARNING] HF_HOME not set"
-[ -n "$HF_HUB_CACHE" ] && echo "[INFO] HF_HUB_CACHE=$HF_HUB_CACHE" || echo "[WARNING] HF_HUB_CACHE not set"
-[ -n "$HF_DATASETS_CACHE" ] && echo "[INFO] HF_DATASETS_CACHE=$HF_DATASETS_CACHE" || echo "[WARNING] HF_DATASETS_CACHE not set"
 
 # Import local environment variables and set those needed
 if [ -f local.env ]; then
