@@ -14,16 +14,16 @@
 #SBATCH --nodes=1
 
 # CPU
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=100GB
-#SBATCH --time=01:00:00
-#SBATCH --partition=standard
+##SBATCH --cpus-per-task=16
+##SBATCH --mem=100GB
+##SBATCH --time=01:00:00
+##SBATCH --partition=standard
 
 # GPU
-##SBATCH --gres=gpu:a100
-##SBATCH --mem=50GB
-##SBATCH --time=01:00:00
-##SBATCH --partition=gpu
+#SBATCH --gres=gpu:a100
+#SBATCH --mem=50GB
+#SBATCH --time=01:00:00
+#SBATCH --partition=gpu
 
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
@@ -103,8 +103,8 @@ fi
 # Load modules
 #################################
 
-# echo "=== GPU Info ==="
-# nvidia-smi
+echo "=== GPU Info ==="
+nvidia-smi
 
 # Load necessary modules
 module load singularity/4.4.0
@@ -198,21 +198,21 @@ if [ ! -e "$CONTAINER" ]; then
     exit 1
 fi
 
-# CPU
-singularity exec \
-    --bind $HF_HOME:$HF_HOME \
-    --bind $DEFAULT_DIR \
-    --pwd $DEFAULT_DIR \
-    $PROJECT_NAME-image-latest${container_extension:-} \
-    $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
-
-# # GPU
-# set -x
+# # CPU
 # singularity exec \
-#     --nv \
 #     --bind $HF_HOME:$HF_HOME \
 #     --bind $DEFAULT_DIR \
 #     --pwd $DEFAULT_DIR \
 #     $PROJECT_NAME-image-latest${container_extension:-} \
 #     $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
-# set +x
+
+# GPU
+set -x
+singularity exec \
+    --nv \
+    --bind $HF_HOME:$HF_HOME \
+    --bind $DEFAULT_DIR \
+    --pwd $DEFAULT_DIR \
+    $PROJECT_NAME-image-latest${container_extension:-} \
+    $COMPLETE_PYTHON ./prepare_dataset.py "${PY_ARGS[@]}"
+set +x
