@@ -6,21 +6,34 @@
 
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
-set -x
+#set -x
 
 #################################
 # Import environment variables
 #################################
 
 # Set environment variables defined in global.env
-set -o allexport
+# set -o allexport
 source global.env
-set +o allexport
+# set +o allexport
 
-# Print info
-[ -n "$HF_HOME" ] && echo "[INFO] HF_HOME=$HF_HOME" || echo "[WARNING] HF_HOME not set"
-[ -n "$HF_HUB_CACHE" ] && echo "[INFO] HF_HUB_CACHE=$HF_HUB_CACHE" || echo "[WARNING] HF_HUB_CACHE not set"
-[ -n "$HF_DATASETS_CACHE" ] && echo "[INFO] HF_DATASETS_CACHE=$HF_DATASETS_CACHE" || echo "[WARNING] HF_DATASETS_CACHE not set"
+export PROJECT_NAME
+[ -n "$PROJECT_NAME" ] && echo "[INFO] PROJECT_NAME=$PROJECT_NAME" || echo "[WARNING] PROJECT_NAME not set"
+
+if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
+    export HF_HOME
+    export HF_HUB_CACHE
+    export HF_DATASETS_CACHE
+    export DOCKER_COMPLETE_PYTHON
+    [ -n "$HF_HOME" ] && echo "[INFO] HF_HOME=$HF_HOME" || echo "[WARNING] HF_HOME not set"
+    [ -n "$HF_HUB_CACHE" ] && echo "[INFO] HF_HUB_CACHE=$HF_HUB_CACHE" || echo "[WARNING] HF_HUB_CACHE not set"
+    [ -n "$HF_DATASETS_CACHE" ] && echo "[INFO] HF_DATASETS_CACHE=$HF_DATASETS_CACHE" || echo "[WARNING] HF_DATASETS_CACHE not set"
+    [ -n "$DOCKER_COMPLETE_PYTHON" ] && echo "[INFO] DOCKER_COMPLETE_PYTHON=$DOCKER_COMPLETE_PYTHON" || echo "[WARNING] DOCKER_COMPLETE_PYTHON not set"
+else
+    export LOCAL_COMPLETE_PYTHON
+    [ -n "$LOCAL_COMPLETE_PYTHON" ] && echo "[INFO] LOCAL_COMPLETE_PYTHON=$LOCAL_COMPLETE_PYTHON" || echo "[WARNING] LOCAL_COMPLETE_PYTHON not set"
+fi
+
 
 # Import local environment variables and set those needed
 if [ -f local.env ]; then
@@ -28,6 +41,8 @@ if [ -f local.env ]; then
         export HUGGINGFACE_TOKEN;
         export DOCKERHUB_USERNAME;
 fi
+[ -n "$HUGGINGFACE_TOKEN" ] && echo "[INFO] Huggingface token set" || echo "[WARNING] Huggingface token not set"
+[ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
 # Check if necessary variables are set in local.env
 if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.dockerenv ]; then
@@ -38,10 +53,6 @@ if [ -n "$SINGULARITY_CONTAINER" ] || [ -n "$APPTAINER_CONTAINER" ] || [ -f /.do
         exit 1;
     fi
 fi
-
-# Print info about necessary variables
-[ -n "$HUGGINGFACE_TOKEN" ] && echo "[INFO] Huggingface token set" || echo "[WARNING] Huggingface token not set"
-[ -n "$DOCKERHUB_USERNAME" ] && echo "[INFO] Dockerhub Username set" || echo "[WARNING] Dockerhub Username not set"
 
 #################################
 # Study name
@@ -163,15 +174,10 @@ echo "Running experiment..." &&
 dvc exp run \
   --set-param python.complete="$COMPLETE_PYTHON" \
   $EXP_PARAMS
-#   --set-param python.base="$BASE_PYTHON" \
-#   --set-param python.perch="$PERCH_PYTHON" \
-#   --set-param python.train="$TRAIN_PYTHON" \
 
 #################################
 # Pushing results
 #################################
-
-dvc status
 
 # Push the results to the DVC remote repository
 echo "Pushing experiment..." &&
@@ -192,7 +198,7 @@ mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints,metrics}
 
 rsync -rv logs/        ${ARCHIVE_DIR}/logs/
 rsync -rv checkpoints/ ${ARCHIVE_DIR}/checkpoints/
-#rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
+rsync -rv metrics/     ${ARCHIVE_DIR}/metrics/
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&

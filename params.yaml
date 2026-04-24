@@ -37,12 +37,12 @@ train:
   num_batches_train: null
   num_batches_val: null
 log:
-  experiment_name: test-experiment
-  tensorboard_subfolder: ${log.experiment_name}
+  study_name: test-study
+  tensorboard_subfolder: test-study
   tensorboard_suffix: ''
   hyperparameters: null
 path:
-  dataset: data/${dataset.config}/
+  dataset: data/HSN/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json
