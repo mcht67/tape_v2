@@ -18,11 +18,12 @@ load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
 
 # Huggingface login
-huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+# huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
 huggingface_path = huggingface_user + "/" + huggingface_dataset_name
 
 polyphonic_dataset = load_from_disk(dataset_path)
 
 commit_message_polyphonic = f"updates polyphonic dataset [subset: {subset}]"
-polyphonic_dataset.push_to_hub(huggingface_path, config_name=subset, private=True, commit_message=commit_message_polyphonic)
+polyphonic_dataset.push_to_hub(huggingface_path, config_name=subset, private=True, commit_message=commit_message_polyphonic, token=huggingface_token)

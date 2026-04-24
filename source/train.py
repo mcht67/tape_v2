@@ -206,11 +206,12 @@ load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
 
 # Huggingface login
-huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+# huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
 # Load Dataset
 print(f"[INFO] HF_DATASETS_OFFLINE (ommits updating datasets to avoid data races between jobs)={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
-dataset = load_dataset(huggingface_path, dataset_config)
+dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token)
 
 # Get input dim
 embeddings = dataset['train'][0][input_feature_name]

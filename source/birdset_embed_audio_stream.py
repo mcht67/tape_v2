@@ -310,7 +310,8 @@ def main():
     load_dotenv('local.env')
 
     # Huggingface login
-    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+    # huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
     model_configs = load_model_configs(embeddings, "conf/embeddings")
 
@@ -326,7 +327,7 @@ def main():
         sys.exit(0)
 
     # Load Dataset 
-    dataset = load_dataset(huggingface_path, dataset_config)
+    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token)
     
     # ===================
     # Embed
@@ -363,7 +364,7 @@ def main():
     if embeddings_added:
         print("Upload embeddings...")
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message)
+        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message, token=huggingface_token)
         print("Upload done.")
     else:
         print("No embeddings added. Skip upload.")  

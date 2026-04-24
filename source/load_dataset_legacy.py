@@ -18,11 +18,11 @@ dataset_metadata_path = cfg.path.dataset_metadata
 
 # Huggingface login
 load_dotenv('local.env')
-token=os.getenv('HUGGINGFACE_TOKEN')
-huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+huggingface_token=os.getenv('HUGGINGFACE_TOKEN')
+#huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
 # Load polyphonic dataset
-dataset = load_dataset(huggingface_path, dataset_subset + '_polyphonic')
+dataset = load_dataset(huggingface_path, dataset_subset + '_polyphonic', token=huggingface_token)
 
 path = huggingface_hub.hf_hub_download(
     repo_id=huggingface_path,

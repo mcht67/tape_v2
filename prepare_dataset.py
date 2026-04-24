@@ -28,8 +28,9 @@ if __name__ == "__main__":
     # Huggingface login
     ##########################
    
-    load_dotenv('local.env')
-    huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+    # load_dotenv('local.env')
+    # #huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
+    # huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
     # ########################
     # # Python versions
