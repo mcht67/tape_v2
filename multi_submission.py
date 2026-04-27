@@ -48,7 +48,7 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
     
     try:
         result = subprocess.run(
-        ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job.sh {" ".join(shlex.quote(a) for a in args)}'],
+        ['/usr/bin/bash', '-c', f'sbatch prepare_dataset_job_cpu.sh {" ".join(shlex.quote(a) for a in args)}'],
         env=env, capture_output=True, text=True
         )
         # Output is "Submitted batch job 12345"
@@ -95,7 +95,7 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
     #     env=env)
 
     result = subprocess.run(
-                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job.sh {" ".join(arguments)}'],
+                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job_cpu.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
     if not result.returncode==0:
