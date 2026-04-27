@@ -102,7 +102,7 @@ if __name__ == "__main__":
                     "--embeddings", json.dumps(embeddings),
                 ]
         if recompute_embeddings: cmd.append("--force_recompute")
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=True)
 
     ###########################
     # Embed audio with birdset
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                     "--embeddings", json.dumps(embeddings),
                 ]
         if recompute_embeddings: cmd.append("--force_recompute")
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=True)
 
     # DO IN TRAIN 
     # #########################
@@ -134,5 +134,5 @@ if __name__ == "__main__":
     #                 "--objectives", json.dumps(objectives), 
     #             ]
     #     if recompute_labels: cmd.append("--force_recompute")
-    #     subprocess.run(cmd)
+    #     subprocess.run(cmd, check=True)
 

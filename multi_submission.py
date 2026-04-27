@@ -205,8 +205,8 @@ if __name__ == "__main__":
                     "AudioProtoPNet-20-BirdSet-XCL",
                     "AST-Birdset-XCL",
                     "Wav2Vec2-Base-BirdSet-XCL",
-                    "perch_v2",
-                    # "perch_v2_cpu"
+                    #"perch_v2",
+                    "perch_v2_cpu"
                 ]
     
     objectives = [
