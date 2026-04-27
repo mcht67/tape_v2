@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
     # Define Study name
     study_name = 'Embeddings-Comparison'
-    huggingface_path = 'mcht67/polyphonic-bird-set-with-embeddings'
+    huggingface_path = 'mcht67/Polyphonic-Bird-Set'
 
     # Define Base Config
     base_config = {
@@ -184,9 +184,8 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    
-    dataset_configs = ['HSN_polyphonic']
-    input_features = ['audio', 'no_noise_audio']
+    dataset_configs = ['HSN_polyphonic_6']
+    input_features = ['audio'] #, 'no_noise_audio']
 
     models = [
                 #'TemporalCNN',
