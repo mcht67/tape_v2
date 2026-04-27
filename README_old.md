@@ -31,7 +31,7 @@ flowchart TD
    
     B -- Load dataset --> E["Training"]
     subgraph dvc-experiment
-        E --> F[("📊 Logs, Metrics &<br/>Checkpoints")]
+        E --> F[("📊 Logs &<br/>Checkpoints")]
         F -- dvc push --> I[("🗄️ DVC<br/>Remote")]
     end
     F -- save to --> G[("💾 HPC archive")]

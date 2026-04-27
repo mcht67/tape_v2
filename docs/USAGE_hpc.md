@@ -116,12 +116,12 @@ archive/<study-name>/<timecode_dvc-exp-name>/
 │       ├── epoch_05.keras
 │       ├── epoch_10.keras
 │       └── history.json
-├─ logs/
-│   ├── dvclive/
-│   ├── train/
-│   ├── validation/
-│   └── params.yaml
-└── metrics/
+└── logs/
+    ├── dvclive/
+    ├── train/
+    ├── validation/
+    └── params.yaml
+
 
 ### Tensorboard
 
