@@ -13,7 +13,7 @@ import sys
 import json
 from datetime import datetime
 
-from utils.general import store_embeddings, overwrite_dataset
+from utils.general import store_embeddings, get_data_dir
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -408,7 +408,8 @@ def main():
                 huggingface_path = huggingface_user + "/" + huggingface_dataset_name
 
                 commit_message_polyphonic = f"updates polyphonic dataset with in {subset}"
-                dataset.push_to_hub(huggingface_path, config_name=subset, private=True, commit_message=commit_message_polyphonic)
+                data_dir = get_data_dir(cfg.dataset.config)
+                dataset.push_to_hub(huggingface_path, config_name=subset, data_dir=data_dir, commit_message=commit_message_polyphonic)
             
             
             # if embeddings_added:

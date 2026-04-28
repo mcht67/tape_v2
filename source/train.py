@@ -203,6 +203,8 @@ if not gpus:
 # Load dataset
 #################################
 
+
+
  # Load environment variables from .env file
 load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
@@ -210,6 +212,14 @@ token=os.getenv('HUGGINGFACE_TOKEN')
 # Huggingface login
 # huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+
+from huggingface_hub import HfApi
+api = HfApi()
+info = api.dataset_info("mcht67/Polyphonic-Bird-Set", token=huggingface_token)
+for config in info.card_data.get("configs", []):
+    if config.get("config_name") == dataset_config:
+        print(config.get("data_files"))
+        print(config.get("data_dir"))
 
 # Load Dataset
 print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")

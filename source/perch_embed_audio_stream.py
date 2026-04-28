@@ -14,7 +14,7 @@ import argparse
 import sys
 import tempfile
 
-from utils.dataset import load_dataset_with_retry
+from utils.dataset import load_dataset_with_retry, get_data_dir
 
 
 def initialize_model(model):
@@ -430,7 +430,8 @@ def main():
     if embeddings_added:
         print("Upload embeddings...")
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message, token=huggingface_token)
+        data_dir = get_data_dir(dataset_config)
+        dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
         print("Upload done.") 
     else:
         print("No embeddings added. Skip upload.") 

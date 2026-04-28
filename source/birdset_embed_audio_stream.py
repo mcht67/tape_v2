@@ -14,7 +14,8 @@ import json
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
-from utils.dataset import load_dataset_with_retry
+
+from utils.dataset import load_dataset_with_retry, get_data_dir
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -363,8 +364,9 @@ def main():
 
     if embeddings_added:
         print("Upload embeddings...")
+        data_dir = get_data_dir(dataset_config)
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(huggingface_path, config_name=dataset_config, private=True, commit_message=commit_message, token=huggingface_token)
+        dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
         print("Upload done.")
     else:
         print("No embeddings added. Skip upload.")  
