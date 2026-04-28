@@ -2,8 +2,7 @@ import argparse
 import os
 from dotenv import load_dotenv
 import shutil
-
-from utils.dataset import load_dataset_with_retry
+from datasets import load_dataset
 
 print("Running load dataset script...")
 
@@ -20,9 +19,9 @@ if shutil.which('sbatch') is not None:
     if not cache_dir:
         raise ValueError("HF_DATASETS_CACHE is not set — check global.env or your environment")
     print(f"[INFO] HF_DATASETS_CACHE={os.environ.get('HF_DATASETS_CACHE', 'NOT SET')}")
-    dataset = load_dataset_with_retry(args.huggingface_path, args.dataset_config, cache_dir=cache_dir)
+    dataset = load_dataset(args.huggingface_path, args.dataset_config, cache_dir=cache_dir, download_mode='force_redownload')
 else:
-    dataset = load_dataset_with_retry(args.huggingface_path, args.dataset_config)
+    dataset = load_dataset(args.huggingface_path, args.dataset_config, download_mode='force_redownload')
 
 print(f"[INFO] Done. Splits: {list(dataset.keys())}")
 print(f"[INFO] Sizes: { {k: len(v) for k, v in dataset.items()} }")
