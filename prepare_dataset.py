@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # Download/Update dataset
     ##########################
 
-    # Download/Update dataset to use hf dataset offline later on, avoiding locks on hf cache
+    # Download dataset to use hf dataset offline inside the jobs, avoiding hitting rate limit on hf cache
 
     cmd =   [
                 complete_python, #base_python, 
@@ -86,7 +86,6 @@ if __name__ == "__main__":
             ]
     print(cmd)
     subprocess.run(cmd)
-
 
     ##########################
     # Embed audio with perch
@@ -119,6 +118,21 @@ if __name__ == "__main__":
                 ]
         if recompute_embeddings: cmd.append("--force_recompute")
         subprocess.run(cmd, check=True)
+
+    ##########################
+    # Download/Update dataset
+    ##########################
+
+    # Download dataset for re-syncing cache after embeddings have been pushed to Hub
+
+    cmd =   [
+                complete_python, #base_python, 
+                "source/load_dataset.py",
+                "--huggingface_path", huggingface_path,
+                "--dataset_config", dataset_config,
+            ]
+    print(cmd)
+    subprocess.run(cmd)
 
     # DO IN TRAIN 
     # #########################

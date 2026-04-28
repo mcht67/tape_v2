@@ -210,7 +210,7 @@ token=os.getenv('HUGGINGFACE_TOKEN')
 huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
 # Load Dataset
-print(f"[INFO] HF_DATASETS_OFFLINE (ommits updating datasets to avoid data races between jobs)={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
+print(f"[INFO] HF_DATASETS_OFFLINE (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
 dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
 
 # Get input dim
