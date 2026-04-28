@@ -171,6 +171,7 @@ dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.
 echo "Running experiment..." &&
+echo "Experiment parameters: $EXP_PARAMS" &&
 dvc exp run \
   --set-param python.complete="$COMPLETE_PYTHON" \
   $EXP_PARAMS

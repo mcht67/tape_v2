@@ -178,6 +178,8 @@ model_cfg.objectives_cfg = objectives_cfg
 tensorboard_subfolder = cfg.log.tensorboard_subfolder
 tensorboard_suffix = cfg.log.tensorboard_suffix
 
+print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
+
 # Get tensorboard path based on path, dataset subset, features and datetime
 # Set DEFAULT_DIR if not set (usually when running without dvc)
 os.environ.setdefault('DEFAULT_DIR', os.getcwd())
@@ -210,10 +212,12 @@ token=os.getenv('HUGGINGFACE_TOKEN')
 huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
 # Load Dataset
-print(f"[INFO] HF_DATASETS_OFFLINE (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
-dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
+dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload') #TODO: change to 'reuse_cache_if_exists' after testing to avoid hitting rate limits on Huggingface Hub
 
 # Get input dim
+dataset_train = dataset['train']
+dataset_train_first = dataset_train[0]
 embeddings = dataset['train'][0][input_feature_name]
 input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
 
