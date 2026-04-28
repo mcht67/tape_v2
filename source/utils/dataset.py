@@ -1,6 +1,9 @@
 from datasets import Sequence, Value
 from functools import partial
 import numpy as np
+import time
+import random
+from datasets import load_dataset
 
 def build_event_logits(
     events,
@@ -151,3 +154,15 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
             print('Done!')
 
     return dataset, added_labels
+
+def load_dataset_with_retry(path, config, token=None, retries=5):
+    for attempt in range(retries):
+        try:
+            return load_dataset(path, config, token=token)
+        except FileNotFoundError as e:
+            if "fchmod" in str(e) and attempt < retries - 1:
+                wait = random.uniform(1, 5) * (attempt + 1)
+                print(f"Cache lock race, retrying in {wait:.1f}s (attempt {attempt+1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise

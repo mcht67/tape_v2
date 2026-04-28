@@ -4,7 +4,7 @@
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 import numpy as np
-from datasets import concatenate_datasets, load_dataset
+from datasets import concatenate_datasets
 from omegaconf import OmegaConf
 import os
 import model
@@ -17,7 +17,7 @@ import huggingface_hub
 from utils.logs import plot_spectrogram_with_metrics, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, get_dvc_exp_name
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels
+from utils.dataset import add_labels, load_dataset_with_retry
 from losses import create_losses_from_objectives, setup_loss_scheduler
 
 tf.keras.backend.clear_session()
@@ -211,7 +211,7 @@ huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
 # Load Dataset
 print(f"[INFO] HF_DATASETS_OFFLINE (ommits updating datasets to avoid data races between jobs)={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')}")
-dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token)
+dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
 
 # Get input dim
 embeddings = dataset['train'][0][input_feature_name]

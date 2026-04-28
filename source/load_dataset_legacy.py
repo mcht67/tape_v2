@@ -1,4 +1,3 @@
-from datasets import load_dataset
 from omegaconf import OmegaConf
 import os
 from datetime import datetime
@@ -7,6 +6,7 @@ import huggingface_hub
 from dotenv import load_dotenv
 
 from utils.general import overwrite_dataset
+from utils.dataset import load_dataset_with_retry
 
 # Configuration
 cfg = OmegaConf.load("params.yaml")
@@ -22,7 +22,7 @@ huggingface_token=os.getenv('HUGGINGFACE_TOKEN')
 #huggingface_hub.login(token=os.getenv('HUGGINGFACE_TOKEN'))
 
 # Load polyphonic dataset
-dataset = load_dataset(huggingface_path, dataset_subset + '_polyphonic', token=huggingface_token)
+dataset = load_dataset_with_retry(huggingface_path, dataset_subset + '_polyphonic', token=huggingface_token)
 
 path = huggingface_hub.hf_hub_download(
     repo_id=huggingface_path,

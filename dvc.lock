@@ -72,63 +72,40 @@ stages:
       md5: edea1e974dfc50eb749c562725624182
       size: 148
   train:
-    cmd: train-venv/bin/python source/train.py
+    cmd: complete-venv/bin/python source/train.py
     deps:
     - path: source/train.py
       hash: md5
-      md5: b417d7aec02ecd23380878cb45a047eb
-      size: 26006
+      md5: 3edaf20b5c1934d7a3cc70f67276dc05
+      size: 26343
     params:
       params.yaml:
         dataset:
           huggingface_path: mcht67/polyphonic-bird-set-with-embeddings
-          config: HSN_polyphonic
+          config: HSN
         general.random_seed: 42
         log:
-          experiment_name: Embeddings-Comparison
-          tensorboard_subfolder: Embeddings-Comparison
+          study_name: test-study
+          tensorboard_subfolder: test-study
           tensorboard_suffix: ''
           hyperparameters:
-          - model
-          - dataset.config
-          - train.input_feature
-          - embeddings
-          - objectives
         model:
-          _target_: model.TemporalCNN
+          _target_: model.SimpleMLP
+          hidden_units:
+          - 512
+          - 256
+          dropout_rate: 0.3
         objectives:
           polyphony_degree:
             loss:
               _target_: tensorflow.keras.losses.MeanSquaredError
-            weight: 1.0
             confusion_matrix:
               type: regression_round
               threshold: 0.5
             label: polyphony_degree
-          event_logits:
-            loss:
-              _target_: tensorflow.keras.losses.BinaryCrossentropy
-              from_logits: false
-              label_smoothing: 0.1
-            scheduler:
-              switch_epochs:
-              - 0
-              - 10
-              - 20
-              - 30
-              - 40
-              weights:
-              - 10.0
-              - 5.0
-              - 1.0
-              - 0.5
-              - 0.1
-            confusion_matrix:
-              type: binary
-            label: event_logits
         train:
-          input_feature: no_noise_audio
-          input_feature_name: perch_v2_cpu_no_noise_audio_spatial_embeddings
+          input_feature:
+          input_feature_name: perch_v2_cpu_audio_embeddings
           batch_size: 128
           learning_rate: 0.001
           epochs: 5
@@ -138,14 +115,14 @@ stages:
     outs:
     - path: checkpoints
       hash: md5
-      md5: f085be5320e013655d013fee019e9fab.dir
-      size: 346152315
-      nfiles: 12
+      md5: 4cb4709a449700bcc301d9f12fee9bed.dir
+      size: 77361122
+      nfiles: 8
     - path: logs
       hash: md5
-      md5: 42c964f3adcf7f05c951c287fa176e10.dir
-      size: 6880997
-      nfiles: 32
+      md5: 8b03cb171fed6eff9de9871055574793.dir
+      size: 430890
+      nfiles: 9
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:

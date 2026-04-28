@@ -1,6 +1,6 @@
 from perch_hoplite.zoo import model_configs
 from omegaconf import OmegaConf
-from datasets import Audio, load_dataset
+from datasets import Audio, concatenate_datasets
 import numpy as np
 from functools import partial
 from utils.dsp import resample_audio
@@ -9,13 +9,12 @@ import tensorflow_hub as hub
 import tensorflow as tf
 tf.experimental.numpy.experimental_enable_numpy_behavior()
 from dotenv import load_dotenv
-import huggingface_hub
-
-from datasets import concatenate_datasets
 import json
 import argparse
 import sys
 import tempfile
+
+from utils.dataset import load_dataset_with_retry
 
 
 def initialize_model(model):
@@ -127,7 +126,7 @@ def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
     #         spatial_embeddings = tf.squeeze(spatial_embeddings)
 
     # return pooled_embeddings.numpy(), spatial_embeddings.numpy() if spatial_embeddings is not None else None
-        print(type(embeddings))
+        #print(type(embeddings))
         embeddings =np.asarray(embeddings)
               
         if embeddings.ndim > 1:
@@ -153,7 +152,7 @@ def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
             spatial_dim = spatial_embeddings.shape
             spatial_embeddings = np.squeeze(spatial_embeddings)
 
-    print(f'Return pooled embeddings with dim {pooled_dim} and spatial embeddings with dim {spatial_dim} for model {model_key}.')
+    #print(f'Return pooled embeddings with dim {pooled_dim} and spatial embeddings with dim {spatial_dim} for model {model_key}.')
             
     return pooled_embeddings, spatial_embeddings if spatial_embeddings is not None else None
 
@@ -387,7 +386,7 @@ def main():
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
     # Load Dataset 
-    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token)
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
 
     #######################
     # Request GPU

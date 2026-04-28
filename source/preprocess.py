@@ -2,15 +2,16 @@
 import os
 os.environ["TF_METAL_DISABLE"] = "1"
 from omegaconf import OmegaConf
-from datasets import load_dataset, Audio, load_from_disk
+from datasets import Audio, load_from_disk
 import datasets
 import shutil
 import tempfile
 from preprocess.embeddings import add_embeddings_batchwise
 #from preprocess.denoising import add_denoising_batchwise
-
 import hashlib
 from pathlib import Path
+
+from utils.dataset import load_dataset_with_retry
 
 def get_file_hash(filepath):
     """Get SHA256 hash of a file"""
@@ -248,7 +249,7 @@ def main():
 
         # Load Dataset depending on state of preprocessing dataset
         if not os.path.exists(preprocessed_dataset_path):
-            dataset = load_dataset(polyphonic_dataset_path, dataset_subset, split='train')
+            dataset = load_dataset_with_retry(polyphonic_dataset_path, dataset_subset, split='train')
             os.makedirs(preprocessed_dataset_path, exist_ok=True)
         else:
           dataset = load_from_disk(preprocessed_dataset_path)

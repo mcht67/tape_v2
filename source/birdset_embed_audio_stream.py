@@ -3,7 +3,7 @@ import numpy as np
 import datasets
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
-from datasets import load_dataset, concatenate_datasets, Audio
+from datasets import concatenate_datasets, Audio
 from functools import partial
 import tempfile
 import torch
@@ -14,7 +14,7 @@ import json
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
-import huggingface_hub
+from utils.dataset import load_dataset_with_retry
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -327,7 +327,7 @@ def main():
         sys.exit(0)
 
     # Load Dataset 
-    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token)
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     
     # ===================
     # Embed
