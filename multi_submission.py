@@ -221,7 +221,7 @@ if __name__ == "__main__":
                     "objectives": objectives                         
                 }
     
-    recompute_embeddings = False
+    recompute_embeddings = True
     
     for dataset_config in dataset_configs:
         prep_job_id = None

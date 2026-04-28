@@ -85,7 +85,7 @@ if __name__ == "__main__":
                 "--dataset_config", dataset_config,
             ]
     print(cmd)
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=True)
 
     ##########################
     # Embed audio with perch
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                 "--dataset_config", dataset_config,
             ]
     print(cmd)
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=True)
 
     # DO IN TRAIN 
     # #########################
