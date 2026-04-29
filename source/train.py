@@ -223,7 +223,7 @@ for config in info.card_data.get("configs", []):
 
 # Load Dataset
 print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload') #TODO: change to 'reuse_cache_if_exists' after testing to avoid hitting rate limits on Huggingface Hub
+dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='reuse_cache_if_exists') #TODO: change to 'reuse_cache_if_exists' after testing to avoid hitting rate limits on Huggingface Hub
 
 # Get input dim
 dataset_train = dataset['train']
