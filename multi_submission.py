@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ##########################
 
     # Define Study name
-    study_name = 'Embeddings-Comparison'
+    study_name = 'Pooled-Embeddings-Comparison'
     huggingface_path = 'mcht67/Polyphonic-Bird-Set'
 
     # Define Base Config
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         "log.study_name": study_name,
         "dataset.huggingface_path": huggingface_path,
         
-        "train.epochs": 5,
+        "train.epochs": 1,
         #"train.initial_epoch": 20,
         #"train.num_batches_train": 20,
         #"train.num_batches_val": 5
@@ -195,16 +195,16 @@ if __name__ == "__main__":
     embedding_type = 'pooled' #'spatial'
     embeddings = [
                     "birdnet_V2.3", 
-                    # "vggish", 
-                    # "perch_8",
-                    # "yamnet",
-                    # "beans_baseline",
-                    # "EfficientNet-B1-BirdSet-XCL",
-                    # "Bird-MAE-Huge",
-                    # "AudioProtoPNet-20-BirdSet-XCL",
-                    # "AST-Birdset-XCL",
-                    # "Wav2Vec2-Base-BirdSet-XCL",
-                    # "perch_v2_cpu",
+                    "vggish", 
+                    "perch_8",
+                    "yamnet",
+                    "beans_baseline",
+                    "EfficientNet-B1-BirdSet-XCL",
+                    "Bird-MAE-Huge",
+                    "AudioProtoPNet-20-BirdSet-XCL",
+                    "AST-Birdset-XCL",
+                    "Wav2Vec2-Base-BirdSet-XCL",
+                    "perch_v2_cpu",
                     # #"perch_v2",    
                 ]
     
