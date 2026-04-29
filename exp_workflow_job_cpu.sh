@@ -166,6 +166,7 @@ echo "Starting execution from singularity container..."
 
 # CPU
 singularity exec \
+    --env HF_DATASETS_OFFLINE=1 \
     --bind $HF_HOME:$HF_HOME \
     --bind $DEFAULT_DIR \
     --pwd $DEFAULT_DIR \
