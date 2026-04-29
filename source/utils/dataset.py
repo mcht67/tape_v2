@@ -164,6 +164,9 @@ def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='
                 wait = random.uniform(1, 5) * (attempt + 1)
                 print(f"Cache lock race, retrying in {wait:.1f}s (attempt {attempt+1}/{retries})")
                 time.sleep(wait)
+            elif '.incomplete' in str(e) or 'dataset_info.json' in str(e):
+                print(f"Incomplete cache detected, forcing re-download (attempt {attempt + 1})")
+                download_mode = 'force_redownload'          
             else:
                 raise
 
