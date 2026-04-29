@@ -72,20 +72,20 @@ if __name__ == "__main__":
     recompute_embeddings = args.recompute_embeddings 
     # recompute_labels = args.recompute_labels
 
-    ##########################
-    # Download/Update dataset
-    ##########################
+    # ##########################
+    # # Download/Update dataset
+    # ##########################
 
-    # Download dataset to use hf dataset offline inside the jobs, avoiding hitting rate limit on hf cache
+    # # Download dataset to use hf dataset offline inside the jobs, avoiding hitting rate limit on hf cache
 
-    cmd =   [
-                complete_python, #base_python, 
-                "source/load_dataset.py",
-                "--huggingface_path", huggingface_path,
-                "--dataset_config", dataset_config,
-            ]
-    print(cmd)
-    subprocess.run(cmd, check=True)
+    # cmd =   [
+    #             complete_python, #base_python, 
+    #             "source/load_dataset.py",
+    #             "--huggingface_path", huggingface_path,
+    #             "--dataset_config", dataset_config,
+    #         ]
+    # print(cmd)
+    # subprocess.run(cmd, check=True)
 
    ##########################
     # Embed audio with perch
@@ -105,6 +105,7 @@ if __name__ == "__main__":
             cmd.append("--force_recompute")
 
         result = subprocess.run(cmd)
+        print("Perch embedding script exit code:", result.returncode)
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode != 2:
@@ -126,6 +127,7 @@ if __name__ == "__main__":
             cmd.append("--force_recompute")
 
         result = subprocess.run(cmd)
+        print("Birdset embedding script finished with exit code", result.returncode)
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode != 2:
