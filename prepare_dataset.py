@@ -105,10 +105,11 @@ if __name__ == "__main__":
             cmd.append("--force_recompute")
 
         result = subprocess.run(cmd)
-        print("Perch embedding script exit code:", result.returncode)
-        print(f"DEBUG perch returncode: {result.returncode}", flush=True)
+     
         if result.returncode == 0:
             embeddings_uploaded = True
+        if result.returncode == 2:
+            print("Embeddings already exist. Perch embedding script skipped did not add embeddings.")
         elif result.returncode != 2:
             raise RuntimeError(f"perch_embed_audio_stream.py failed with exit code {result.returncode}")
 
@@ -128,10 +129,11 @@ if __name__ == "__main__":
             cmd.append("--force_recompute")
 
         result = subprocess.run(cmd)
-        print("Birdset embedding script finished with exit code", result.returncode)
-        print(f"DEBUG birdset returncode: {result.returncode}", flush=True)
+
         if result.returncode == 0:
             embeddings_uploaded = True
+        if result.returncode == 2:
+            print("Embeddings already exist. Birdset embedding script skipped did not add embeddings.")
         elif result.returncode != 2:
             raise RuntimeError(f"birdset_embed_audio_stream.py failed with exit code {result.returncode}")
 
