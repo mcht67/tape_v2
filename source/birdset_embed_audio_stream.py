@@ -368,10 +368,13 @@ def main():
         commit_message = f"adds {embeddings_names} to {dataset_config}"
         dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
         print("Upload done.")
+        print("Finished birdset embedding script.")
     else:
-        print("No embeddings added. Skip upload.")  
+        print("No embeddings added. Skip upload.")
+        print("Finished birdset embedding script.")  
+        sys.exit(2)
 
-    print("Finished birdset embedding script.")
+    
 
 if __name__=="__main__":
      main()

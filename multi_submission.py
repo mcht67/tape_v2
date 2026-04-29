@@ -89,13 +89,13 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
 
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found) 
     # Run only if dataset preparation succeded otherwise abandone
-    dependency_flag = f"--dependency=afterok:{dependency_job_id} " if dependency_job_id else ""
+    dependency_flag = f"--dependency=afterok:{dependency_job_id} --kill-on-invalid-dep=yes" if dependency_job_id else ""
     # subprocess.run(
     #     ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
     #     env=env)
 
     result = subprocess.run(
-                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} --kill-on-invalid-dep=yes exp_workflow_job_cpu.sh {" ".join(arguments)}'],
+                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} exp_workflow_job_cpu.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
     if not result.returncode==0:
@@ -222,11 +222,13 @@ if __name__ == "__main__":
                 }
     
     recompute_embeddings = False
+    run_dataset_preparation = True
     
     for dataset_config in dataset_configs:
         prep_job_id = None
         if embeddings:
-            prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
+            if run_dataset_preparation:
+                prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
         
         submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
 

@@ -87,52 +87,64 @@ if __name__ == "__main__":
     print(cmd)
     subprocess.run(cmd, check=True)
 
-    ##########################
+   ##########################
     # Embed audio with perch
     ##########################
+    embeddings_uploaded = False
 
     if input_features and embeddings:
-        cmd =   [
-                    complete_python, #perch_python, 
-                    "source/perch_embed_audio_stream.py",
-                    "--huggingface_path", huggingface_path,
-                    "--dataset_config", dataset_config,
-                    "--input_features", json.dumps(input_features), 
-                    "--embeddings", json.dumps(embeddings),
-                ]
-        if recompute_embeddings: cmd.append("--force_recompute")
-        subprocess.run(cmd, check=True)
+        cmd = [
+            complete_python,
+            "source/perch_embed_audio_stream.py",
+            "--huggingface_path", huggingface_path,
+            "--dataset_config", dataset_config,
+            "--input_features", json.dumps(input_features),
+            "--embeddings", json.dumps(embeddings),
+        ]
+        if recompute_embeddings:
+            cmd.append("--force_recompute")
+
+        result = subprocess.run(cmd)
+        if result.returncode == 0:
+            embeddings_uploaded = True
+        elif result.returncode != 2:
+            raise RuntimeError(f"perch_embed_audio_stream.py failed with exit code {result.returncode}")
 
     ###########################
     # Embed audio with birdset
     ###########################
-
     if input_features and embeddings:
-        cmd =   [
-                    complete_python, #train_python,
-                    "source/birdset_embed_audio_stream.py",
-                    "--huggingface_path", huggingface_path,
-                    "--dataset_config", dataset_config,
-                    "--input_features", json.dumps(input_features), 
-                    "--embeddings", json.dumps(embeddings),
-                ]
-        if recompute_embeddings: cmd.append("--force_recompute")
+        cmd = [
+            complete_python,
+            "source/birdset_embed_audio_stream.py",
+            "--huggingface_path", huggingface_path,
+            "--dataset_config", dataset_config,
+            "--input_features", json.dumps(input_features),
+            "--embeddings", json.dumps(embeddings),
+        ]
+        if recompute_embeddings:
+            cmd.append("--force_recompute")
+
+        result = subprocess.run(cmd)
+        if result.returncode == 0:
+            embeddings_uploaded = True
+        elif result.returncode != 2:
+            raise RuntimeError(f"birdset_embed_audio_stream.py failed with exit code {result.returncode}")
+
+    ###########################
+    # Load dataset
+    ###########################
+    if embeddings_uploaded:
+        cmd = [
+            complete_python,
+            "source/load_dataset.py",
+            "--huggingface_path", huggingface_path,
+            "--dataset_config", dataset_config,
+            "--download_mode", "force_redownload"
+        ]
         subprocess.run(cmd, check=True)
-
-    ##########################
-    # Download/Update dataset
-    ##########################
-
-    # Download dataset for re-syncing cache after embeddings have been pushed to Hub
-
-    cmd =   [
-                complete_python, #base_python, 
-                "source/load_dataset.py",
-                "--huggingface_path", huggingface_path,
-                "--dataset_config", dataset_config,
-            ]
-    print(cmd)
-    subprocess.run(cmd, check=True)
+    else:
+        print("No embeddings uploaded in any script. Skipping forced dataset download.")
 
     # DO IN TRAIN 
     # #########################

@@ -432,11 +432,14 @@ def main():
         commit_message = f"adds {embeddings_names} to {dataset_config}"
         data_dir = get_data_dir(dataset_config)
         dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
-        print("Upload done.") 
+        print("Upload done.")
+        print("Finished embedding with perch.") 
     else:
-        print("No embeddings added. Skip upload.") 
+        print("No embeddings added. Skip upload.")
+        print("Finished embedding with perch.")
+        sys.exit(2) 
 
-    print("Finished embedding with perch.") 
+     
 
 if __name__ == "__main__":
     main()
