@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # print(cmd)
     # subprocess.run(cmd, check=True)
 
-   ##########################
+    ##########################
     # Embed audio with perch
     ##########################
     embeddings_uploaded = False
@@ -106,6 +106,7 @@ if __name__ == "__main__":
 
         result = subprocess.run(cmd)
         print("Perch embedding script exit code:", result.returncode)
+        print(f"DEBUG perch returncode: {result.returncode}", flush=True)
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode != 2:
@@ -128,6 +129,7 @@ if __name__ == "__main__":
 
         result = subprocess.run(cmd)
         print("Birdset embedding script finished with exit code", result.returncode)
+        print(f"DEBUG birdset returncode: {result.returncode}", flush=True)
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode != 2:

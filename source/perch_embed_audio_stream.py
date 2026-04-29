@@ -434,6 +434,7 @@ def main():
         dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
         print("Upload done.")
         print("Finished embedding with perch.") 
+        sys.exit(0)
     else:
         print("No embeddings added. Skip upload.")
         print("Finished embedding with perch.")
