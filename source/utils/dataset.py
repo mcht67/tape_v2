@@ -158,6 +158,7 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
 def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='reuse_dataset_if_exists'):
     for attempt in range(retries):
         try:
+            print("Loading dataset with download_mode:", download_mode)
             return load_dataset(path, config, token=token, download_mode=download_mode)
         except FileNotFoundError as e:
             if "fchmod" in str(e) and attempt < retries - 1:
