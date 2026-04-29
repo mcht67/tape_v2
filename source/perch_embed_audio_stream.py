@@ -360,7 +360,7 @@ def main():
     # Exit script if no features or embeddings are passed
     if not embedding_models or not input_features:
         print("No input features or no embeddings passed. Skipping.")
-        sys.exit(0)
+        sys.exit(2)
     
     # # Get default config
     # cfg = OmegaConf.load("params.yaml")
@@ -372,7 +372,7 @@ def main():
 
     if not perch_embeddings_models:
         print("No perch model keys found. Skipping.")
-        sys.exit(0)
+        sys.exit(2)
 
     ########################
     # Load data

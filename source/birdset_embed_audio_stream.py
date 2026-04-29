@@ -289,7 +289,7 @@ def main():
     # Exit script if no features or embeddings are passed
     if not embeddings or not input_features:
         print("No input features or no embeddings passed. Skipping.")
-        sys.exit(0)
+        sys.exit(2)
 
     #  # Get default config
     # cfg = OmegaConf.load("params.yaml")
@@ -325,7 +325,7 @@ def main():
     
     if not birdset_model_configs:
         print("No birdset model configs found. Skipping.")
-        sys.exit(0)
+        sys.exit(2)
 
     # Load Dataset 
     dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
