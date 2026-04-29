@@ -195,17 +195,17 @@ if __name__ == "__main__":
     embedding_type = 'pooled' #'spatial'
     embeddings = [
                     "birdnet_V2.3", 
-                    "vggish", 
-                    "perch_8",
-                    "yamnet",
-                    "beans_baseline",
-                    "EfficientNet-B1-BirdSet-XCL",
-                    "Bird-MAE-Huge",
-                    "AudioProtoPNet-20-BirdSet-XCL",
-                    "AST-Birdset-XCL",
-                    "Wav2Vec2-Base-BirdSet-XCL",
-                    # #"perch_v2",
-                    "perch_v2_cpu"
+                    # "vggish", 
+                    # "perch_8",
+                    # "yamnet",
+                    # "beans_baseline",
+                    # "EfficientNet-B1-BirdSet-XCL",
+                    # "Bird-MAE-Huge",
+                    # "AudioProtoPNet-20-BirdSet-XCL",
+                    # "AST-Birdset-XCL",
+                    # "Wav2Vec2-Base-BirdSet-XCL",
+                    # "perch_v2_cpu",
+                    # #"perch_v2",    
                 ]
     
     objectives = [
@@ -221,7 +221,7 @@ if __name__ == "__main__":
                     "objectives": objectives                         
                 }
     
-    recompute_embeddings = True
+    recompute_embeddings = False
     
     for dataset_config in dataset_configs:
         prep_job_id = None
