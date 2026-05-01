@@ -168,14 +168,14 @@ if __name__ == "__main__":
 
     # Define Study name
     study_name = 'Pooled-Embeddings-Comparison'
-    huggingface_path = 'mcht67/Polyphonic-Bird-Set'
+    huggingface_path = 'mcht67/Polyphonic-BirdSet-train'
 
     # Define Base Config
     base_config = {
         "log.study_name": study_name,
         "dataset.huggingface_path": huggingface_path,
         
-        "train.epochs": 50,
+        "train.epochs": 1,
         #"train.initial_epoch": 20,
         #"train.num_batches_train": 20,
         #"train.num_batches_val": 5

@@ -1,8 +1,8 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/polyphonic-bird-set-with-embeddings
-  config: HSN
+  huggingface_path: mcht67/Polyphonic-BirdSet-train
+  config: HSN_polyphonic_6
 embeddings:
   input_features:
   - audio
@@ -29,7 +29,7 @@ objectives:
     label: polyphony_degree
 train:
   input_feature: null
-  input_feature_name: perch_v2_cpu_audio_embeddings
+  input_feature_name: birdnet_V2.3_audio_pooled_embeddings
   batch_size: 128
   learning_rate: 0.001
   epochs: 5

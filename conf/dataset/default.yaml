@@ -1,2 +1,2 @@
-huggingface_path: 'mcht67/Polyphonic-Bird-Set'
-config: HSN
+huggingface_path: 'mcht67/Polyphonic-BirdSet-train'
+config: HSN_polyphonic_6
