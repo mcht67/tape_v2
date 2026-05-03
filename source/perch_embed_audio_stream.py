@@ -386,7 +386,7 @@ def main():
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
     # Load Dataset 
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload')
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
 
     #######################
     # Request GPU
