@@ -184,7 +184,7 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    dataset_configs = ['HSN_polyphonic_6']
+    dataset_configs = ['UHH_polyphonic_6']
     input_features = ['audio'] #, 'no_noise_audio']
 
     models = [
