@@ -11,6 +11,7 @@ import shutil
 import json
 import subprocess
 import shlex
+import yaml
 # import huggingface_hub
 
 # from dotenv import load_dotenv
@@ -19,7 +20,12 @@ import shlex
 # from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
-def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=False, force_redownload=False):
+def submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=False, force_redownload=False):
+
+    huggingface_path = study_config['base_config']['dataset.huggingface_path']
+    input_features = study_config['hyperparams']['train.input_feature']
+    embeddings = study_config['hyperparams']['embeddings']
+
     env = {
         **os.environ,
         "DEFAULT_DIR": os.getcwd(),
@@ -36,6 +42,7 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
 
     # For debugging and local runs
     if shutil.which('sbatch') is None:
+        return
         print("SLURM not available. Would submit dataset prep job with:", args)
 
         # Run prepare_dataset.py directly
@@ -133,7 +140,13 @@ def create_exp_params_str(config_dict):
 #             exp_params_str += f"+{key}={str(value)} "
 #     return exp_params_str
 
-def submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id):                                                                                                           
+def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):      
+
+    base_config = study_config['base_config']
+    hyperparams = study_config['hyperparams']
+    study_name = base_config['log.study_name']
+    embedding_type = study_config['embedding_type']
+
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
     for hyperparams_config in all_hyper_parameter_combinations:
 
@@ -156,7 +169,7 @@ def submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
-        # print("Exp params: ", exp_params)
+        print("Exp params: ", exp_params)
         submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":
@@ -167,60 +180,69 @@ if __name__ == "__main__":
     # Configuration
     ##########################
 
-    # Define Study name
-    study_name = 'Pooled-Embeddings-Comparison'
-    huggingface_path = 'mcht67/Polyphonic-BirdSet-train'
+    # # Define Study name
+    # study_name = 'Pooled-Embeddings-Comparison'
+    # huggingface_path = 'mcht67/Polyphonic-BirdSet-train'
 
-    # Define Base Config
-    base_config = {
-        "log.study_name": study_name,
-        "dataset.huggingface_path": huggingface_path,
+    # # Define Base Config
+    # base_config = {
+    #     "log.study_name": study_name,
+    #     "dataset.huggingface_path": huggingface_path,
         
-        "train.epochs": 50,
-        #"train.initial_epoch": 20,
-        #"train.num_batches_train": 20,
-        #"train.num_batches_val": 5
-        "train.learning_rate": 0.001,
-        #"train.load_model_path": "model_path"
-    }
+    #     "train.epochs": 50,
+    #     #"train.initial_epoch": 20,
+    #     #"train.num_batches_train": 20,
+    #     #"train.num_batches_val": 5
+    #     "train.learning_rate": 0.001,
+    #     #"train.load_model_path": "model_path"
+    # }
 
-    # Define all lists of parameters or config files [Hyperparameters]
-    dataset_configs = ['HSN_polyphonic_6']
-    input_features = ['audio'] #, 'no_noise_audio']
+    # # Define all lists of parameters or config files [Hyperparameters]
+    # dataset_configs = ['HSN_polyphonic_6']
+    # input_features = ['audio'] #, 'no_noise_audio']
 
-    models = [
-                #'TemporalCNN',
-                'SimpleMLP'
-            ]
+    # models = [
+    #             #'TemporalCNN',
+    #             'SimpleMLP'
+    #         ]
 
-    embedding_type = 'pooled' #'spatial'
-    embeddings = [
-                    "birdnet_V2.3", 
-                    "vggish", 
-                    "perch_8",
-                    "yamnet",
-                    "beans_baseline",
-                    "EfficientNet-B1-BirdSet-XCL",
-                    "Bird-MAE-Huge",
-                    "AudioProtoPNet-20-BirdSet-XCL",
-                    "AST-Birdset-XCL",
-                    "Wav2Vec2-Base-BirdSet-XCL",
-                    "perch_v2_cpu",
-                    # #"perch_v2",    
-                ]
+    # embedding_type = 'pooled' #'spatial'
+    # embeddings = [
+    #                 "birdnet_V2.3", 
+    #                 "vggish", 
+    #                 "perch_8",
+    #                 "yamnet",
+    #                 "beans_baseline",
+    #                 "EfficientNet-B1-BirdSet-XCL",
+    #                 "Bird-MAE-Huge",
+    #                 "AudioProtoPNet-20-BirdSet-XCL",
+    #                 "AST-Birdset-XCL",
+    #                 "Wav2Vec2-Base-BirdSet-XCL",
+    #                 "perch_v2_cpu",
+    #                 # #"perch_v2",    
+    #             ]
     
-    objectives = [
-                    #'multi_task_v1_add_event_logits',
-                    'only_polyphony_degree'
-                ]
+    # objectives = [
+    #                 #'multi_task_v1_add_event_logits',
+    #                 'only_polyphony_degree'
+    #             ]
 
-    hyperparams = {
-                    "model": models,
-                    #"dataset.config": dataset_configs,
-                    "train.input_feature": input_features,
-                    "embeddings": embeddings,   
-                    "objectives": objectives                         
-                }
+    # hyperparams = {
+    #                 "model": models,
+    #                 #"dataset.config": dataset_configs,
+    #                 "train.input_feature": input_features,
+    #                 "embeddings": embeddings,   
+    #                 "objectives": objectives                         
+    #             }
+    
+    # Load study configuration
+    study_config_path = 'study_conf/pooled_embeddings_comparison.yaml'
+
+    with open(study_config_path) as f:
+        study_config = yaml.safe_load(f)
+
+    dataset_configs = study_config['dataset_configs']
+    embeddings = study_config['hyperparams']['embeddings']
     
     # Dataset preparation options
     run_dataset_preparation = True
@@ -231,8 +253,8 @@ if __name__ == "__main__":
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
-                prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        
-        submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
-
+                # prep_job_id = submit_dataset_prep_job(study_config['base_config']['dataset.huggingface_path'], dataset_config, study_config['hyperparams']['train.input_feature'], embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
+                prep_job_id = submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
+        # submit_experiment_jobs(study_config['base_config'], study_config['hyperparams'], dataset_config, dependency_job_id=prep_job_id)
+        submit_experiment_jobs(study_config, dataset_config, dependency_job_id=prep_job_id)
   
