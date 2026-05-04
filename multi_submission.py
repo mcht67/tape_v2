@@ -176,7 +176,7 @@ if __name__ == "__main__":
         "log.study_name": study_name,
         "dataset.huggingface_path": huggingface_path,
         
-        "train.epochs": 1,
+        "train.epochs": 50,
         #"train.initial_epoch": 20,
         #"train.num_batches_train": 20,
         #"train.num_batches_val": 5
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     }
 
     # Define all lists of parameters or config files [Hyperparameters]
-    dataset_configs = ['UHH_polyphonic_6']
+    dataset_configs = ['HSN_polyphonic_6']
     input_features = ['audio'] #, 'no_noise_audio']
 
     models = [
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     # Dataset preparation options
     run_dataset_preparation = True
     recompute_embeddings = False
-    force_redownload = True
+    force_redownload = False
     
     for dataset_config in dataset_configs:
         prep_job_id = None
