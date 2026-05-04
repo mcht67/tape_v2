@@ -70,7 +70,8 @@ if __name__ == "__main__":
     embeddings = args.embeddings
     # labels = args.labels
     # objectives = args.objectives
-    recompute_embeddings = args.recompute_embeddings 
+    recompute_embeddings = args.recompute_embeddings
+    froce_redownload = args.force_redownload 
     # recompute_labels = args.recompute_labels
 
     # ##########################
