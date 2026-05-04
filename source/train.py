@@ -203,8 +203,6 @@ if not gpus:
 # Load dataset
 #################################
 
-
-
  # Load environment variables from .env file
 load_dotenv('local.env')
 token=os.getenv('HUGGINGFACE_TOKEN')
@@ -223,7 +221,10 @@ for config in info.card_data.get("configs", []):
 
 # Load Dataset
 print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token) #TODO: change to 'reuse_cache_if_exists' after testing to avoid hitting rate limits on Huggingface Hub
+dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+
+if dataset is None:
+    raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
 # Get input dim
 dataset_train = dataset['train']

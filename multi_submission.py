@@ -19,7 +19,7 @@ import shlex
 # from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
-def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=False):
+def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=False, force_redownload=False):
     env = {
         **os.environ,
         "DEFAULT_DIR": os.getcwd(),
@@ -32,6 +32,7 @@ def submit_dataset_prep_job(huggingface_path, dataset_config, input_features, em
         "--embeddings", json.dumps(embeddings),
     ]
     if recompute_embeddings: args.append("--recompute_embeddings")
+    if force_redownload: args.append("--force_redownload")
 
     # For debugging and local runs
     if shutil.which('sbatch') is None:
@@ -221,14 +222,16 @@ if __name__ == "__main__":
                     "objectives": objectives                         
                 }
     
-    recompute_embeddings = False
+    # Dataset preparation options
     run_dataset_preparation = True
+    recompute_embeddings = False
+    force_redownload = True
     
     for dataset_config in dataset_configs:
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
-                prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings)
+                prep_job_id = submit_dataset_prep_job(huggingface_path, dataset_config, input_features, embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
         
         submit_experiment_jobs(base_config, hyperparams, dataset_config, dependency_job_id=prep_job_id)
 

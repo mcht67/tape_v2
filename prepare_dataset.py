@@ -21,6 +21,7 @@ if __name__ == "__main__":
     # parser.add_argument("--labels", type=json.loads)
     # parser.add_argument('--objectives', type=json.loads)
     parser.add_argument('--recompute_embeddings', action='store_true')
+    parser.add_argument('--force_redownload', action='store_true')
     # parser.add_argument('--recompute_labels', action='store_true')
     args = parser.parse_args()
 
@@ -137,20 +138,20 @@ if __name__ == "__main__":
         else:
             raise RuntimeError(f"birdset_embed_audio_stream.py failed with exit code {result.returncode}")
 
-    # ###########################
-    # # Load dataset
-    # ###########################
-    # if embeddings_uploaded:
-    #     cmd = [
-    #         complete_python,
-    #         "source/load_dataset.py",
-    #         "--huggingface_path", huggingface_path,
-    #         "--dataset_config", dataset_config,
-    #         "--download_mode", "force_redownload"
-    #     ]
-    #     subprocess.run(cmd, check=True)
-    # else:
-    #     print("No embeddings uploaded in any script. Skipping forced dataset download.")
+    ###########################
+    # Load dataset
+    ###########################
+    if embeddings_uploaded or force_redownload:
+        cmd = [
+            complete_python,
+            "source/load_dataset.py",
+            "--huggingface_path", huggingface_path,
+            "--dataset_config", dataset_config,
+            "--download_mode", "force_redownload"
+        ]
+        subprocess.run(cmd, check=True)
+    else:
+        print("No embeddings uploaded in any script. Skipping forced dataset download.")
 
     # DO IN TRAIN 
     # #########################
