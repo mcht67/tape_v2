@@ -106,6 +106,13 @@ def main():
     # dataset_path =  cfg.path.dataset
     huggingface_path = cfg.dataset.huggingface_path
     dataset_config = cfg.dataset.config
+    val_dataset_path = cfg.path.val_dataset
+    log_dir = cfg.path.log_dir
+    checkpoint_dir = cfg.path.checkpoint_dir
+
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(val_dataset_path, exist_ok=True)
 
     study_name = cfg.log.study_name
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
@@ -185,6 +192,9 @@ def main():
     train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
     val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 
+    # Save validiation dataset for later evaluation
+    val_dataset.save(val_dataset_path)
+
     #################################
     # Model
     #################################
@@ -256,16 +266,16 @@ def main():
     # Logging setup
     #################################
 
-    dvc_exp_name = get_dvc_exp_name()
-    current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+    # dvc_exp_name = get_dvc_exp_name()
+    # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
 
-    # Get tensorboard path based on path, dataset subset, features and datetime
-    # Set DEFAULT_DIR if not set (usually when running without dvc)
-    os.environ.setdefault('DEFAULT_DIR', os.getcwd())
-    os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
+    # # Get tensorboard path based on path, dataset subset, features and datetime
+    # # Set DEFAULT_DIR if not set (usually when running without dvc)
+    # os.environ.setdefault('DEFAULT_DIR', os.getcwd())
+    # os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
 
-    checkpoint_dir = f'{study_name}/{current_datetime}_{dvc_exp_name}/checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else
-    log_dir = f'{study_name}/{current_datetime}_{dvc_exp_name}/logs'
+    # # checkpoint_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else
+    # # log_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/logs'
 
     metrics = {}
     for key in objectives_cfg.keys():

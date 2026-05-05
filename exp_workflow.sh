@@ -197,10 +197,10 @@ ARCHIVE_DIR=${DEFAULT_DIR}/archive/
 
 echo "Archiving results to $ARCHIVE_DIR..."
 
-mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints}
+# mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints}
 
-rsync -rv logs/        ${ARCHIVE_DIR} #${ARCHIVE_DIR}/logs/
-rsync -rv checkpoints/ ${ARCHIVE_DIR} #${ARCHIVE_DIR}/checkpoints/
+rsync -rv train_output/ ${ARCHIVE_DIR}
+rsync -rv eval_output/ ${ARCHIVE_DIR}
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&

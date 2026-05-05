@@ -69,5 +69,19 @@ stages:
       - train
       - log
     outs:
-      - logs
-      - checkpoints
+      - ${path.val_dataset}:
+          push: false        # cached locally, never pushed to remote
+      - ${path.train_log_dir}:
+          persist: true      # pushed to remote
+      - ${path.checkpoint_dir}:
+          persist: true      # pushed to remote
+
+  
+  evaluate:
+    cmd: ${python.complete} source/evaluate.py
+    deps: 
+      - source/evaluate.py
+      - dataset
+    outs:
+      - ${path.eval_output}:
+          persist: true      # pushed to remote
