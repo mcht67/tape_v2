@@ -1,6 +1,6 @@
 dataset_configs: # iterated over in multi_submission.py, therefore not added to hyperparams
   - "HSN_polyphonic_6"
-  - "PER_polyphonic_6"
+  # - "PER_polyphonic_6"
   # - "UHH_polyphonic_6"
   # - "NES_polyphonic_6"
   # - "SSW_polyphonic_6"
@@ -12,7 +12,7 @@ embedding_type: "pooled"  # "pooled" or "spatial" # only used to define train.in
 base_config:
   log.study_name: "Pooled-Embeddings-Comparison"
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
-  train.epochs: 50
+  train.epochs: 30
   train.learning_rate: 0.001
 
 hyperparams:
@@ -23,18 +23,18 @@ hyperparams:
     # - "no_noise_audio"
   embeddings:
     - "birdnet_V2.3"
-    - "vggish"
-    - "perch_8"
-    - "yamnet"
-    - "beans_baseline"
-    - "EfficientNet-B1-BirdSet-XCL"
-    - "Bird-MAE-Huge"
-    - "AudioProtoPNet-20-BirdSet-XCL"
-    - "AST-Birdset-XCL"
-    - "Wav2Vec2-Base-BirdSet-XCL"
-    - "perch_v2_cpu"
+    # - "vggish"
+    # - "perch_8"
+    # - "yamnet"
+    # - "beans_baseline"
+    # - "EfficientNet-B1-BirdSet-XCL"
+    # - "Bird-MAE-Huge"
+    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "AST-Birdset-XCL"
+    # - "Wav2Vec2-Base-BirdSet-XCL"
+    # - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
     - "only_polyphony_degree"
-    - "only_polyphony_degree_class"
+    # - "only_polyphony_degree_class"
   # dataset.config is added automatically per dataset_config iteration
