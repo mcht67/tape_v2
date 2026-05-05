@@ -1,6 +1,3 @@
-# import matplotlib
-# matplotlib.use("Agg")
-
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
@@ -138,9 +135,6 @@ def main():
 
     # Load environment variables from .env file
     load_dotenv('local.env')
-    token=os.getenv('HUGGINGFACE_TOKEN')
-
-    # Huggingface login
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
     from huggingface_hub import HfApi
@@ -196,6 +190,9 @@ def main():
     #################################
     tf.keras.backend.clear_session()
 
+    # Create loss objects based on objectives config
+    losses = create_losses_from_objectives(objectives_cfg) 
+
     # Get model and history
     previous_history = None
     if load_model_path and os.path.isfile(load_model_path): 
@@ -243,8 +240,6 @@ def main():
         initial_epoch = 0
 
     model.summary()
-
-    losses = create_losses_from_objectives(objectives_cfg) 
 
     #################################
     # Handle GPU
@@ -318,165 +313,6 @@ def main():
                         epochs=total_epochs,
                         initial_epoch=initial_epoch, 
                         callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
-
-    #################################
-    # Evaluation
-    #################################
-
-    # Store config in file/logs
-    print(OmegaConf.to_yaml(cfg))
-    OmegaConf.save(cfg, os.path.join(log_dir, "params.yaml"))
-
-    # Add some examples to tensorboard
-    import matplotlib.pyplot as plt
-
-    # Get some examples
-    for idx, (split_name, example_idx) in enumerate([
-        ('train', 2), 
-        #('train', 23), 
-        ('validation', 0), 
-        #('validation', 23), 
-        ('test', 0),
-        #('test', 23)
-    ]):
-        example = dataset[split_name][example_idx]
-        embedding = example[input_feature_name]
-        
-        # Make prediction
-        single_input = np.expand_dims(embedding, axis=0)
-        single_input = tf.constant(single_input, dtype=tf.float32)
-        predictions = model.predict(single_input)
-
-        # Extract data
-        objectives_list = list(objectives_cfg.keys())
-        if 'polyphony_degree' in objectives_list:
-            gt_polyphony = example['polyphony_degree']
-            pred_polyphony = predictions['polyphony_degree'][0][0]
-        else:
-            gt_polyphony = pred_polyphony = None
-            
-        if 'event_logits' in objectives_list:
-            gt_event_logits = example['event_logits']
-            pred_event_logits = predictions['event_logits'][0]
-        else:
-            gt_event_logits = pred_event_logits = None
-
-        if 'framewise_polyphony' in objectives_list:
-            gt_framewise_polyphony = example['framewise_polyphony']
-            pred_framewise_polyphony = predictions['framewise_polyphony'][0]
-        else:
-            gt_framewise_polyphony = pred_framewise_polyphony = None
-
-        # Get audio and events
-        audio_array = example['audio']['array']
-        sampling_rate = example['audio']['sampling_rate']
-
-        # Get all events
-        all_events = []
-        for events in example['sources_time_freq_bounds']:
-            for event in events:
-                all_events.append(event)
-        
-        # Create combined figure
-        fig = plot_spectrogram_with_metrics(
-            audio_array=audio_array,
-            sampling_rate=sampling_rate,
-            split_name=split_name,
-            example_idx=example_idx,
-            gt_polyphony=gt_polyphony,
-            pred_polyphony=pred_polyphony,
-            gt_event_logits=gt_event_logits,
-            pred_event_logits=pred_event_logits,
-            events=None,#all_events,
-            filename=example.get('filename', None)
-        )
-        
-        writer.add_figure('test_examples_{idx}', fig, global_step=idx)
-        plt.close(fig)
-
-    # # Flush to ensure all figures are written
-    # writer.flush()
-
-    # # Create new model
-    # # Define model
-    # new_model = instantiate(cfg.model)
-    # #new_model.build(input_dim)
-    # new_model.compile(optimizer=Adam(learning_rate), loss=losses)
-    # # new_model.compile(
-    # #     optimizer=Adam(learning_rate),
-    # #     loss={
-    # #         "perch2_event_logits": weighted_event_loss,
-    # #         "framewise_polyphony": weighted_frame_loss,
-    # #         "polyphony_degree": weighted_count_loss, 
-    # #     },
-    # # )
-    # new_model.summary()
-
-    # print("New model objectives config:")
-    # print(new_model.objectives_cfg)
-
-    # # Test model without weights
-    # example = dataset['train'][example_idx]
-    # embedding = example[input_feature_name]
-
-    # # Make prediction
-    # print("Untrained Model:")
-    # single_input = np.expand_dims(embedding, axis=0)
-    # single_input = tf.constant(single_input, dtype=tf.float32)
-    # predictions = new_model.predict(single_input)
-    # print(predictions['polyphony_degree'][0][0])
-    # print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
-
-    # # Load best weights and test model again
-    # # try:
-    # print("Trained Model with best checkpoints:")
-    # # Get files in best weights folder
-    # from os import listdir
-    # from os.path import isfile, join
-    # best_weights_paths = [f for f in listdir(checkpoint_path) if isfile(join(checkpoint_path, f))]
-
-    # new_model.load_weights(best_weights_paths[0]) #save_model_path.replace('.keras', '_best.weights.h5'))
-    # predictions = new_model.predict(single_input)
-    # print(predictions['polyphony_degree'][0][0])
-    # print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
-    # best_model_path = save_model_path.replace('.keras', '_best.keras')
-    # new_model.save(best_model_path)
-
-    # Get best epoch from history
-    # with open(save_model_path.replace('.keras', '_history.json')) as f:
-    #     saved_history = json.load(f)
-    # best_epoch = np.argmin(saved_history['val_loss']) + 1
-    # print(f"✓ Saved model with best weights from epoch {best_epoch} [val_loss: {saved_history['val_loss'][best_epoch - 1]}] to {best_model_path}.")
-    # except:
-    #     pass
-
-    # # TODO: needs register_keras_serializable() for losses
-    # try:
-    #     print("Trained saved full model")
-    #     full_model = tf.keras.models.load_model(save_model_path)
-    #     predictions = full_model.predict(single_input)
-    #     print("Full model objectives config:")
-    #     print(full_model.objectives_cfg)
-
-    #     print("Full model predicitions")
-    #     print(predictions['polyphony_degree'][0][0])
-    #     print("Ground truth: polyphony degree", example['polyphony_degree'])#, ", event logits", example['perch2_event_logits'])
-
-    #     print("Model history:")
-    #     history_path = save_model_path.replace('.keras', '_history.json')
-
-    #     with open(history_path, 'r') as f:
-    #         history = json.load(f)
-
-    #     for metric, values in history.items():
-    #         for epoch, value in enumerate(values, start=1):
-    #             print(f"Epoch {epoch:03d} | {metric}: {value:.4f}")
-        
-        
-    # except:
-    #     pass
-
-    dataset.cleanup_cache_files()
 
 if __name__=="__main__":
      main()
