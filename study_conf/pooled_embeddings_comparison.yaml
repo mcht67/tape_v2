@@ -12,7 +12,7 @@ embedding_type: "pooled"  # "pooled" or "spatial" # only used to define train.in
 base_config:
   log.study_name: "Pooled-Embeddings-Comparison"
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
-  train.epochs: 
+  train.epochs: 1
   train.learning_rate: 0.001
 
 hyperparams:
