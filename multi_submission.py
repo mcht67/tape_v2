@@ -42,7 +42,6 @@ def submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=F
 
     # For debugging and local runs
     if shutil.which('sbatch') is None:
-        return
         print("SLURM not available. Would submit dataset prep job with:", args)
 
         # Run prepare_dataset.py directly
@@ -61,7 +60,7 @@ def submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=F
         )
         # Output is "Submitted batch job 12345"
         job_id = result.stdout.strip().split()[-1]
-        print(f"Dataset prep job submitted: {job_id}")
+        print(f"Dataset prep job for {dataset_config} submitted: {job_id}")
         return job_id
     except subprocess.CalledProcessError:
             print(f"Dataset preparation failed for {dataset_config}. Aborting experiment submission.")
@@ -112,33 +111,11 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
         submitted_job_id = result.stdout.strip().split()[-1]
         print("Experiment job submitted: ", submitted_job_id)
 
-    # #print("Submit clean up job")
-
-    # # Submit a cleanup job that cancels the pending job if the dependency fails
-    # dependency_fail_flag = f"--dependency=afternotok:{dependency_job_id} " if dependency_job_id else ""
-    # result = subprocess.run([
-    #                     '/usr/bin/bash', '-c',
-    #                     f'sbatch {dependency_fail_flag} --wrap="scancel {submitted_job_id}"'
-    #                 ], env=env, capture_output=True, text=True)
-    # submitted_clean_job_id = result.stdout.strip().split()[-1]
-    # print("Clean up job submitted: ", submitted_clean_job_id)
-    
-   # subprocess.run(['/usr/bin/bash', '-c', f'sbatch exp_workflow_job.sh {" ".join(arguments)}'], env=env)
-
 def create_exp_params_str(config_dict):
     exp_params_str = ''
     for key, value in config_dict.items():
         exp_params_str += f"-S  {key}={str(value)} "
     return exp_params_str
-
-# def create_exp_params_str(config_overwrite, config_append=None):
-#     exp_params_str = ''
-#     for key, value in config_overwrite.items():
-#         exp_params_str += f"-S {key}={str(value)} "
-#     if config_append:
-#         for key, value in config_append.items():
-#             exp_params_str += f"+{key}={str(value)} "
-#     return exp_params_str
 
 def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):      
 
@@ -169,7 +146,8 @@ def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):
         
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
-        print("Exp params: ", exp_params)
+        # print("Exp params: ", exp_params)
+        print("Submitting experiment for dataset ", dataset_config, " with hyperparameters: ", hyperparams_config)
         submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":

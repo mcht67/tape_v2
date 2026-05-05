@@ -3,6 +3,7 @@
 
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 from datasets import concatenate_datasets
 from omegaconf import OmegaConf
@@ -467,8 +468,13 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             if os.path.exists(path):
                 os.remove(path)
 
-model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history)
+early_stopping = EarlyStopping(
+    monitor='val_loss',  
+    patience=5,            
+    restore_best_weights=False
+)             
 
+model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history)
 
 writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=metrics, sync_interval=0)
 tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
@@ -482,7 +488,7 @@ tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standa
 #                                                 )
 #history_saver= HistorySaver(history_path, initial_history=old_history)
 
-callbacks = [tensorboard_callback, model_and_history_saver] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
+callbacks = [tensorboard_callback, model_and_history_saver, early_stopping] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
 if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
     callbacks.append(loss_weight_callback)
 
