@@ -37,7 +37,7 @@ defaults:
   - general: default
   - dataset: default #empty # should be defined in multi_submission
   #- labels: all
-  - embeddings: default # # should be defined in multi_submission
+  - embeddings: birdnet_V2.3.yaml # # should be defined in multi_submission
   #- preprocess: default
   - model: default #empty
   - objectives: default #empty # should be defined in multi_submission

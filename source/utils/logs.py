@@ -10,8 +10,9 @@ This module handles the logging and summary writing for the project.
 import os
 from pathlib import Path, PosixPath
 from typing import Any, Dict, Optional, Union
-from omegaconf import DictConfig
 import datetime
+import json
+import shutil
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
@@ -21,6 +22,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.patches as patches
+from matplotlib.patches import Rectangle
 from matplotlib import gridspec
 import librosa
 from dvclive import Live
@@ -154,7 +156,6 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
     plt.title(title)
     plt.tight_layout()
     return fig
-
 
 class CustomSummaryWriter(SummaryWriter):
     """
@@ -1445,8 +1446,6 @@ def plot_spectrogram_with_metrics(
     plt.tight_layout()
     return fig
 
-from matplotlib.patches import Rectangle
-
 def plot_event_bounding_boxes(
     ax,
     events,
@@ -1499,11 +1498,77 @@ def plot_event_bounding_boxes(
 def get_dvc_exp_name():
     return config.get_env_variable("DVC_EXP_NAME")
 
+class ModelAndHistorySaver(tf.keras.callbacks.Callback):
+        def __init__(self, checkpoint_dir, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=None):
+            super().__init__()
+            self.checkpoint_path = checkpoint_dir
+            self.combined_history = {k: list(v) for k, v in previous_history.items()} \
+                                    if previous_history else {}
+            self.save_model_every_n_epochs = save_full_model_every_n_epochs
+            self.keep_last_n = keep_last_n
+            self.best_val_loss = float('inf')
+            self.loss_objects = loss_objects
+
+            self.epoch_weights_dir = checkpoint_dir + '/epoch_weights/'
+            self.best_weights_dir = checkpoint_dir + '/best_weights/'
+            self.resumable_dir = checkpoint_dir + '/resumable_checkpoints/'
+
+            os.makedirs(self.epoch_weights_dir, exist_ok=True)
+            os.makedirs(self.best_weights_dir, exist_ok=True)
+            os.makedirs(self.resumable_dir, exist_ok=True)
+
+        def on_epoch_end(self, epoch, logs=None):
+            
+            # Update regular metrics
+            for key, value in logs.items():
+                self.combined_history.setdefault(key, []).append(float(value))
+            
+            # Update loss weights
+            for obj_name, loss_obj in self.loss_objects.items():
+                weight_key = f'loss_weight/{obj_name}'
+                current_weight = float(loss_obj.weight.numpy())
+                self.combined_history.setdefault(weight_key, []).append(current_weight)
+
+            # # Update history
+            for key, value in logs.items():
+                self.combined_history.setdefault(key, []).append(float(value))
+
+            # Save history
+            history_path = self.resumable_dir + 'train_history.json'
+            with open(history_path, 'w') as f:
+                json.dump(self.combined_history, f, indent=2)
+            print(f"✓ Saved history at epoch {epoch + 1}")
+
+            # Save current checkpoint
+            val_loss = logs.get('val_loss')
+            self.model.save_weights(self.epoch_weights_dir + f'epoch_{epoch+1:03d}.weights.h5')
+            print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
+
+            # Save best checkpoint
+            if val_loss and val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.model.save_weights(self.best_weights_dir + f'best.weights.h5')
+                print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
+
+            # Save rolling last-N checkpoints
+            if self.keep_last_n:
+                self._cleanup_old_checkpoints(epoch)
+
+            # Save model
+            if (epoch + 1) % self.save_model_every_n_epochs == 0:
+                self.model.save(self.resumable_dir + f'epoch_{epoch+1:03d}.keras')
+                print(f"✓ Saved model at epoch {epoch + 1}")
+                
+        def _cleanup_old_checkpoints(self, current_epoch):
+            for old_epoch in range(current_epoch - self.keep_last_n):
+                path = self.epoch_weights_dir + f'epoch_{old_epoch+1:03d}.weights.h5'
+                if os.path.exists(path):
+                    os.remove(path)
+
 def main():
     """Main function to copy SLURM and TensorBoard logs."""
     dir_name = copy_tensorboard_logs()
     copy_slurm_logs(dir_name=dir_name)
-
 
 if __name__ == "__main__":
     main()

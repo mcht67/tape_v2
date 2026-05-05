@@ -4,15 +4,7 @@ dataset:
   huggingface_path: mcht67/Polyphonic-BirdSet-train
   config: HSN_polyphonic_6
 embeddings:
-  input_features:
-  - audio
-  perch_models:
-  - perch_v2_cpu
-  birdset_models:
-    birdset_efficient_net:
-      _target_: torch_models.BirdSetEfficientNet
-      pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
-  force_recompute: true
+  type: perch_v1
 model:
   _target_: model.SimpleMLP
   hidden_units:
@@ -29,20 +21,18 @@ objectives:
     label: polyphony_degree
 train:
   input_feature: null
-  input_feature_name: birdnet_V2.3_audio_pooled_embeddings
+  input_feature_name: birdnet_V2.3_audio_embeddings
   batch_size: 128
   learning_rate: 0.001
-  epochs: 5
+  epochs: 1
   initial_epoch: null
-  num_batches_train: null
-  num_batches_val: null
+  num_batches_train: 1
+  num_batches_val: 1
 log:
   study_name: test-study
-  tensorboard_subfolder: test-study
-  tensorboard_suffix: ''
   hyperparameters: null
 path:
-  dataset: data/HSN/
+  dataset: data/HSN_polyphonic_6/
   dataset_metadata: stage_results/dataset_metadata.json
   perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json

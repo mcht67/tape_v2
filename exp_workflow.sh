@@ -186,19 +186,21 @@ dvc exp push origin && \
 echo "✅ Push successful!" || echo "❌ Push failed!"
 
 # Moving everythin to archive
-DATETIME=$(date +%Y%m%d_%H%M%S)
-if [ -n "$STUDY_NAME" ]; then
-    ARCHIVE_DIR=${DEFAULT_DIR}/archive/$STUDY_NAME/${DATETIME}_$DVC_EXP_NAME
-else
-    ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
-fi
+# DATETIME=$(date +%Y%m%d_%H%M%S)
+# if [ -n "$STUDY_NAME" ]; then
+#     ARCHIVE_DIR=${DEFAULT_DIR}/archive/$STUDY_NAME/${DATETIME}_$DVC_EXP_NAME
+# else
+#     ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
+# fi
+
+ARCHIVE_DIR=${DEFAULT_DIR}/archive/
 
 echo "Archiving results to $ARCHIVE_DIR..."
 
 mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints}
 
-rsync -rv logs/        ${ARCHIVE_DIR}/logs/
-rsync -rv checkpoints/ ${ARCHIVE_DIR}/checkpoints/
+rsync -rv logs/        ${ARCHIVE_DIR} #${ARCHIVE_DIR}/logs/
+rsync -rv checkpoints/ ${ARCHIVE_DIR} #${ARCHIVE_DIR}/checkpoints/
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&

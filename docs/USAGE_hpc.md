@@ -99,9 +99,9 @@ EOF
 Checkpoints and logs are stored in ./archive/ on the HPC Cluster. All experiment logs with the same study name are stored in one folder.
 
 ### Syncing artifacts from HPC to Local Machine
- To investigate the logs it is useful to sync them to the local machine.
+ To investigate the logs it is useful to sync them to the local machine. First login to the TU network via VPN then run:
 ```bash
-rsync -rv $HPC:${DEFAULT_DIR}/archive/ ./archive/
+rsync -avz -e "ssh -J <username>@gateway.hpc.tu-berlin.de" <username>@frontend02:/beegfs/scratch/cohrt/tape_v2/archive/ ./archive/
 ```
 
 ### Folder structure

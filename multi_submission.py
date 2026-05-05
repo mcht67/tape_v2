@@ -91,8 +91,6 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
         print("Stderr:", result.stderr)
         
         return
-    
-    #print("Submit experiment slurm job")
 
     # Run sbatch command with the environment variables as bash! subprocess! command (otherwise module not found) 
     # Run only if dataset preparation succeded otherwise abandone

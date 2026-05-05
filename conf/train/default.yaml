@@ -1,8 +1,8 @@
 input_feature: 
-input_feature_name: perch_v2_cpu_audio_embeddings
+input_feature_name: birdnet_V2.3_audio_embeddings
 batch_size: 128
 learning_rate: 0.001
-epochs: 5
+epochs: 1
 initial_epoch:
-num_batches_train: 
-num_batches_val:
+num_batches_train: 1
+num_batches_val: 1

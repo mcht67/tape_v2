@@ -1,4 +1,2 @@
 study_name: 'test-study'
-tensorboard_subfolder: ${log.study_name}
-tensorboard_suffix: ''
 hyperparameters:

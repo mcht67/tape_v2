@@ -24,7 +24,7 @@ logs/local_rsync_output.log
 debug_tensorboard
 stage_results/
 data
-archive
+archive/
 
 # Ignore tmp copies for experiments
 /tmp
