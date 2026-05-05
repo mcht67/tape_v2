@@ -107,7 +107,7 @@ def main():
     huggingface_path = cfg.dataset.huggingface_path
     dataset_config = cfg.dataset.config
     val_dataset_path = cfg.path.val_dataset
-    log_dir = cfg.path.log_dir
+    log_dir = cfg.path.train_log_dir
     checkpoint_dir = cfg.path.checkpoint_dir
 
     os.makedirs(log_dir, exist_ok=True)
