@@ -275,7 +275,7 @@ def main():
 
     parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
-    parser.add_arguement("--data_dir", type=str)
+    parser.add_argument("--data_dir", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument('--force_recompute', action='store_true')
