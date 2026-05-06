@@ -4,6 +4,7 @@ dataset:
   huggingface_path: mcht67/Polyphonic-BirdSet-train
   config: HSN_polyphonic_6
 embeddings:
+  name: Birdnet_V2.3
   type: perch_v1
 model:
   _target_: model.SimpleMLP
@@ -31,12 +32,14 @@ train:
 log:
   study_name: test-study
   hyperparameters: null
+datetime: '20260506_112448'
 path:
-  dataset: data/HSN_polyphonic_6/
-  dataset_metadata: stage_results/dataset_metadata.json
-  perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
-  birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json
-  added_labels_metadata: stage_results/added_labels_metadata.json
+  train_output: train_output/
+  eval_output: eval_output/
+  val_dataset: data/val_data/
+  train_log_dir: train_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/logs/
+  eval_log_dir: eval_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/logs/
+  checkpoint_dir: train_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/checkpoints/
 python:
   base: venv/bin/python
   perch: perch-venv/bin/python

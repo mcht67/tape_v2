@@ -1,3 +1,4 @@
+name: Wav2Vec2-Base-BirdSet-XCL
 type: birdset
 model_cfg:
   _target_: torch_models.BirdSetWav2Vec2

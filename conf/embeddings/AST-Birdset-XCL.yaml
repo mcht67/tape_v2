@@ -1,3 +1,4 @@
+name: AST-Birdset-XCL
 type: birdset
 model_cfg:
   _target_: torch_models.BirdSetAST
