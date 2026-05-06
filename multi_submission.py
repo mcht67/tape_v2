@@ -14,7 +14,7 @@ import shlex
 import yaml
 # import huggingface_hub
 
-from source.utils.dataset import get_data_dir
+# from source.utils.dataset import get_data_dir
 
 # from dotenv import load_dotenv
 # from hydra import compose, initialize
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     
     for subset in dataset_subsets:
         train_config = subset + '_' + study_config['base_config']['dataset.train_suffix']
-        data_dir = get_data_dir(train_config, subset=subset)
+        data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
