@@ -103,10 +103,8 @@ def main():
     random_seed = cfg.general.random_seed
     set_random_seeds(random_seed)
 
-    # dataset_path =  cfg.path.dataset
     huggingface_path = cfg.dataset.huggingface_path
     dataset_config = cfg.dataset.train_config
-    val_dataset_path = cfg.path.val_dataset
     log_dir = cfg.path.train_log_dir
     checkpoint_dir = cfg.path.checkpoint_dir
 
@@ -115,7 +113,6 @@ def main():
 
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
-    # os.makedirs(val_dataset_path, exist_ok=True)
 
     study_name = cfg.log.study_name
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
