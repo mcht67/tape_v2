@@ -170,8 +170,6 @@ def main():
         missing_labels = {objective['label'] for objective in all_objectives if objective['label'] not in dataset[split].features}
         if missing_labels: #any(label not in dataset[split].features for label in all_labels):
 
-            
-
             added_labels = []
 
             # Add event logits
