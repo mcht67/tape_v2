@@ -275,6 +275,7 @@ def main():
 
     parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
+    parser.add_arguement("--data_dir", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument('--force_recompute', action='store_true')
@@ -282,6 +283,7 @@ def main():
 
     huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
+    data_dir = args.data_dir
     input_features = args.input_features
     embeddings = args.embeddings
     force_recompute = args.force_recompute  
@@ -364,7 +366,7 @@ def main():
 
     if embeddings_added:
         print("Upload embeddings...")
-        data_dir = get_data_dir(dataset_config)
+        # data_dir = get_data_dir(dataset_config)
         commit_message = f"adds {embeddings_names} to {dataset_config}"
         dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
         print("Upload done.")

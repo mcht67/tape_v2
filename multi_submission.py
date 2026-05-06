@@ -14,13 +14,15 @@ import shlex
 import yaml
 # import huggingface_hub
 
+from source.utils.dataset import get_data_dir
+
 # from dotenv import load_dotenv
 # from hydra import compose, initialize
 # from omegaconf import OmegaConf
 # from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
-def submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=False, force_redownload=False):
+def submit_dataset_prep_job(study_config, data_dir, dataset_config, recompute_embeddings=False, force_redownload=False):
 
     huggingface_path = study_config['base_config']['dataset.huggingface_path']
     input_features = study_config['hyperparams']['train.input_feature']
@@ -33,6 +35,7 @@ def submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=F
 
     args = [
         "--huggingface_path", huggingface_path,
+        "--data_dir", data_dir,
         "--dataset_config", dataset_config,
         "--input_features", json.dumps(input_features),
         "--embeddings", json.dumps(embeddings),
@@ -115,7 +118,7 @@ def create_exp_params_str(config_dict):
         exp_params_str += f"-S  {key}={str(value)} "
     return exp_params_str
 
-def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):      
+def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id):      
 
     base_config = study_config['base_config']
     hyperparams = study_config['hyperparams']
@@ -125,8 +128,9 @@ def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
     for hyperparams_config in all_hyper_parameter_combinations:
 
-        # Add dataset_config to hyperparams
-        hyperparams_config['dataset.config'] = dataset_config
+        # Add train_config and subset to hyperparams
+        hyperparams_config['dataset.subset'] = subset
+        hyperparams_config['dataset.train_config'] = train_config
 
         # Get hyperparams keys for logging purposes
         hyperparams_keys_str = ",".join(hyperparams_config.keys())
@@ -145,7 +149,7 @@ def submit_experiment_jobs(study_config, dataset_config, dependency_job_id):
         # Submit job for every hyperparameter configuration
         exp_params = create_exp_params_str(config_overwrites)
         # print("Exp params: ", exp_params)
-        print("Submitting experiment for dataset ", dataset_config, " with hyperparameters: ", hyperparams_config)
+        print("Submitting experiment for dataset ", train_config, " with hyperparameters: ", hyperparams_config)
         submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id)
 
 if __name__ == "__main__":
@@ -217,7 +221,7 @@ if __name__ == "__main__":
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
 
-    dataset_configs = study_config['dataset_configs']
+    dataset_subsets = study_config['dataset_subsets']
     embeddings = study_config['hyperparams']['embeddings']
     
     # Dataset preparation options
@@ -225,12 +229,14 @@ if __name__ == "__main__":
     recompute_embeddings = False
     force_redownload = False
     
-    for dataset_config in dataset_configs:
+    for subset in dataset_subsets:
+        train_config = subset + '_' + study_config['base_config']['dataset.train_suffix']
+        data_dir = get_data_dir(train_config, subset=subset)
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
                 # prep_job_id = submit_dataset_prep_job(study_config['base_config']['dataset.huggingface_path'], dataset_config, study_config['hyperparams']['train.input_feature'], embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-                prep_job_id = submit_dataset_prep_job(study_config, dataset_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
+                prep_job_id = submit_dataset_prep_job(study_config, data_dir, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
         # submit_experiment_jobs(study_config['base_config'], study_config['hyperparams'], dataset_config, dependency_job_id=prep_job_id)
-        submit_experiment_jobs(study_config, dataset_config, dependency_job_id=prep_job_id)
+        submit_experiment_jobs(study_config, data_dir, train_config, dependency_job_id=prep_job_id)
   

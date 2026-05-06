@@ -172,6 +172,7 @@ def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='
             else:
                 raise
 
-def get_data_dir(dataset_config):
-    subset = dataset_config.split('_')[0]  # "HSN" from "HSN_polyphonic_6"
-    return f"{subset}/{dataset_config}"    # "HSN/HSN_polyphonic_6"
+def get_data_dir(dataset_config, subset=None):
+    if subset is None:
+        subset = dataset_config.split('_')[0]
+    return f"{subset}/{dataset_config}"
