@@ -9,7 +9,7 @@ path:
   eval_output: eval_output/ # CHANGING THIS WOULD BREAK SYNCING TO ARCHIVE, BE CAREFUL!
   # val_dataset: data/val_data/
 
-  output_subfolder: ${embeddings.name}/
+  output_subfolder: 
 
   train_log_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${oc.env:DVC_EXP_NAME,test-experiment}/logs/
   eval_log_dir: ${path.eval_output}${log.study_name}/${path.output_subfolder}${datetime}_${oc.env:DVC_EXP_NAME,test-experiment}/logs/
@@ -23,7 +23,6 @@ path:
   # resumable_checkpoint_path: checkpoints/resumable_checkpoint/
 # ==============================================
 
-
 # ==============================================  
 python:
   base: venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
@@ -31,7 +30,6 @@ python:
   train: train-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
   complete: complete-venv/bin/python # Default for local runs without docker, overridden by exp_workflow.sh
 # ============================================== 
-
 
 hydra:
   run:

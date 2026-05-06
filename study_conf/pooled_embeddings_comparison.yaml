@@ -24,7 +24,7 @@ base_config:
   dataset.train_suffix: polyphonic_6
   train.epochs: 1
   train.learning_rate: 0.001
-  path.output_subfolder: ${embeddings.name}/
+  path.output_subfolder: test-subfolder #${embeddings.name}/
 
 hyperparams:
   model:
