@@ -110,6 +110,9 @@ def main():
     log_dir = cfg.path.train_log_dir
     checkpoint_dir = cfg.path.checkpoint_dir
 
+    print("Log dir:", log_dir)
+    print("Checkpoint dir:", checkpoint_dir)
+
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(val_dataset_path, exist_ok=True)
