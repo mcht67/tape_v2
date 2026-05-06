@@ -115,7 +115,7 @@ def main():
 
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
-    os.makedirs(val_dataset_path, exist_ok=True)
+    # os.makedirs(val_dataset_path, exist_ok=True)
 
     study_name = cfg.log.study_name
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
@@ -196,7 +196,7 @@ def main():
     val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 
     # Save validiation dataset for later evaluation
-    val_dataset.save(val_dataset_path)
+    # val_dataset.save(val_dataset_path)
 
     #################################
     # Model
