@@ -197,10 +197,19 @@ ARCHIVE_DIR=${DEFAULT_DIR}/archive/
 
 echo "Archiving results to $ARCHIVE_DIR..."
 
-# mkdir -p ${ARCHIVE_DIR}/{logs,checkpoints}
+# Check if train_output exists and rsync if it does
+if [ -d "train_output" ]; then
+  rsync -rv train_output/ ${ARCHIVE_DIR}
+else
+  echo "train_output directory not found, skipping..."
+fi
 
-rsync -rv train_output/ ${ARCHIVE_DIR}
-rsync -rv eval_output/ ${ARCHIVE_DIR}
+# Check if eval_output exists and rsync if it does
+if [ -d "eval_output" ]; then
+  rsync -rv eval_output/ ${ARCHIVE_DIR}
+else
+  echo "eval_output directory not found, skipping..."
+fi
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&
