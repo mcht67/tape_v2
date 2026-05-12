@@ -14,6 +14,7 @@ import json
 from datetime import datetime
 
 from utils.general import store_embeddings, get_data_dir
+from utils.dsp import normalize_audio_array
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -200,7 +201,7 @@ def embed_example(example, model, model_name, input_feature):
     spatial_embeddings_key = embeddings_keys['spatial_embeddings']
 
     # Normalize
-    # audio_resampled = audio / (np.max(np.abs(audio)) + 1e-9)
+    audio_array = normalize_audio_array(audio_array)
 
     # Embed
     outputs = model(audio_resampled)

@@ -10,6 +10,8 @@ from tensorflow.math import reduce_mean
 import tensorflow_hub as hub
 from datasets import concatenate_datasets
 
+from utils.dsp import normalize_audio_array
+
 # Available models
 # BIRDNET_V2_1 = 'birdnet_V2.1'
 # BIRDNET_V2_2 = 'birdnet_V2.2'
@@ -64,13 +66,13 @@ def load_model_by_key(model_key):
 def embed_example(example, model, feature_key, new_feature_key, sampling_rate):
 
     audio = example[feature_key]
-    audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
+    audio_array = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
     # Normalize
-    audio = audio / (np.max(np.abs(audio)) + 1e-9)
+    audio_array = normalize_audio_array(audio_array)
 
     # Get embedding
-    outputs = model.embed(audio)
+    outputs = model.embed(audio_array)
     embeddings = squeeze(outputs.embeddings)
     if embeddings.ndim > 1:
         embeddings = reduce_mean(embeddings, axis=0)

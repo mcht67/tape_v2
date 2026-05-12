@@ -16,6 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from utils.dataset import load_dataset_with_retry, get_data_dir
+from utils.dsp import normalize_audio_array
 
 def get_embedding_keys(model_name, input_feature):
     return {
@@ -156,6 +157,7 @@ def embed_example_batched(examples, model, model_name, input_feature, device=tor
     for audio in examples[input_feature]:
         audio_array = audio['array']
         sampling_rate = int(audio['sampling_rate'])
+        audio_array = normalize_audio_array(audio_array)
         audio_tensor = torch.tensor(audio_array, dtype=torch.float32)
 
         if sampling_rate != model_sampling_rate:
@@ -238,7 +240,7 @@ def embed_example(example, model, model_name, input_feature, device=torch.device
     spatial_embeddings_key = embeddings_keys['spatial_embeddings']
 
     # Normalize
-    # audio_resampled = audio / (np.max(np.abs(audio)) + 1e-9)
+    audio_resampled = audio / (np.max(np.abs(audio)) + 1e-9)
 
     # Embed
     with torch.no_grad():

@@ -18,6 +18,7 @@ from datetime import datetime
 import json
 
 from utils.general import store_embeddings
+from utils.dsp import normalize_audio_array
 
 def initialize_model(model):
     """Initialize a perch_hoplite model by running a dummy inference."""
@@ -71,24 +72,24 @@ def load_birdset_model(model_key):
 def embed_example(example, model, model_key, embedding_type, input_feature, sampling_rate):
 
     audio = example[input_feature]
-    audio = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
+    audio_array = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
     embeddings_key = model_key + "_" + input_feature + "_embeddings"
     spatial_embeddings_key = model_key + "_" + input_feature + "_spatial_embeddings"
 
     # Normalize
-    audio = audio / (np.max(np.abs(audio)) + 1e-9)
+    audio_array = normalize_audio_array(audio_array)
 
     # Get embeddings
     if embedding_type == 'perch_v1':
-        pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio)
+        pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio_array)
         if spatial_embeddings is not None:
             example[spatial_embeddings_key]= spatial_embeddings
         example[embeddings_key] = pooled_embeddings
     elif embedding_type == 'perch_v2':
-        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio)
+        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio_array)
     elif embedding_type == 'birdset':
-        example[embeddings_key] = embed_with_birdset(model, audio)
+        example[embeddings_key] = embed_with_birdset(model, audio_array)
     else:
         raise Exception("Model family is not supported.")
 
