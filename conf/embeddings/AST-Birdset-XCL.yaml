@@ -1,5 +1,6 @@
 name: AST-Birdset-XCL
 type: birdset
+dimension_type:
 model_cfg:
   _target_: torch_models.BirdSetAST
   pretrained_model_path: DBD-research-group/AST-Birdset-XCL

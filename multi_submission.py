@@ -123,7 +123,7 @@ def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id
     base_config = study_config['base_config']
     hyperparams = study_config['hyperparams']
     study_name = base_config['log.study_name']
-    embedding_type = study_config['embedding_type']
+    # embedding_type = study_config['embedding_type']
 
     all_hyper_parameter_combinations = (dict(zip(hyperparams.keys(), values)) for values in itertools.product(*hyperparams.values()))
     for hyperparams_config in all_hyper_parameter_combinations:
@@ -139,7 +139,7 @@ def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id
 
         # Update input feature name
         if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
-            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + embedding_type + "_embeddings"
+            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + study_config['embeddings.dimension_type'] + "_embeddings"
 
         # Create config
         config_overwrites = base_config | hyperparams_config | hyperparams_keys

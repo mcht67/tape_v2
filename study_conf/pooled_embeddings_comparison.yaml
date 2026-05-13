@@ -16,15 +16,17 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "POW"
   # - "SNE"
 
-embedding_type: "pooled"  # "pooled" or "spatial" # only used to define train.input_feature_name, no dvc parameter
+#embedding_type: "pooled"  # "pooled" or "spatial" # only used to define train.input_feature_name, no dvc parameter
 
 base_config:
   log.study_name: "Pooled-Embeddings-Comparison"
+  embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
   dataset.train_suffix: polyphonic_6
   train.epochs: 1
   train.learning_rate: 0.001
-  path.output_subfolder: test-subfolder #${embeddings.name}/
+  path.output_subfolder: ${embeddings.name}/
+  
 
 hyperparams:
   model:
