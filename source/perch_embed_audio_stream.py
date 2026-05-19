@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import json
 import argparse
 import sys
-import tempfile
+import time
+from requests.exceptions import ConnectionError
 
 from utils.dataset import load_dataset_with_retry, get_data_dir
 from utils.dsp import normalize_audio_array
@@ -435,7 +436,16 @@ def main():
         print("Upload embeddings...")
         commit_message = f"adds {embeddings_names} to {dataset_config}"
         # data_dir = get_data_dir(dataset_config)
-        dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
+        for attempt in range(5):
+            try:
+                dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
+                break
+            except ConnectionError as e:
+                print(f"Attempt {attempt+1} failed: {e}")
+                if attempt < 4:
+                    time.sleep(30 * (attempt + 1))  # back-off
+                else:
+                    raise
         print("Upload done.")
         print("Finished embedding with perch.") 
         sys.exit(0)

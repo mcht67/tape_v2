@@ -6,6 +6,8 @@ import sys
 import json
 import argparse
 from dotenv import load_dotenv
+import time
+from requests.exceptions import ConnectionError
 
 from integrations.birdset import load_model_configs, add_embeddings_batchwise
 
@@ -360,9 +362,19 @@ def main():
 
     if embeddings_added:
         print("Upload embeddings...")
+
         # data_dir = get_data_dir(dataset_config)
         commit_message = f"adds {embeddings_names} to {dataset_config}"
-        dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
+        for attempt in range(5):
+            try:
+                dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
+                break
+            except ConnectionError as e:
+                print(f"Attempt {attempt+1} failed: {e}")
+                if attempt < 4:
+                    time.sleep(30 * (attempt + 1))  # back-off
+                else:
+                    raise
         print("Upload done.")
         print("Finished birdset embedding script.")
         sys.exit(0)
