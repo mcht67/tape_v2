@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import plot_spectrogram_with_metrics, return_tensorboard_dir, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_dvc_exp_name
+from utils.logs import RoundedAccuracy, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry
@@ -210,6 +210,73 @@ def main():
     # Save validiation dataset for later evaluation
     # val_dataset.save(val_dataset_path)
 
+     #################################
+    # Logging setup
+    #################################
+
+    # dvc_exp_name = get_dvc_exp_name()
+    # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
+
+    # # Get tensorboard path based on path, dataset subset, features and datetime
+    # # Set DEFAULT_DIR if not set (usually when running without dvc)
+    # os.environ.setdefault('DEFAULT_DIR', os.getcwd())
+    # os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
+
+    # # checkpoint_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else
+    # # log_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/logs'
+
+    # Build per-output accuracy metrics depending on objective type
+    compile_metrics = []
+
+    for key, obj_cfg in objectives_cfg.items():
+        objective = obj_cfg.get("label")  # "regression_round", "binary", "classification"
+
+        # if cm_type == "binary":
+        #     compile_metrics.append(
+        #         tf.keras.metrics.BinaryAccuracy(name=f"{key}_accuracy", threshold=0.5)
+        #     )
+        # elif cm_type == "classification":
+        #     compile_metrics.append(
+        #         tf.keras.metrics.CategoricalAccuracy(name=f"{key}_accuracy")
+        #         # or CategoricalAccuracy if your labels are one-hot
+        #     )
+        if objective == "polyphony_degree":
+            compile_metrics.append(
+                RoundedAccuracy(name=f"{key}_accuracy")
+            )
+        elif objective == 'polyphony_degree_class':
+            compile_metrics.append(
+                tf.keras.metrics.CategoricalAccuracy(name=f"{key}_accuracy")
+            )
+            
+    # # Metrics tracked by dvclive for live plotting in dvc
+    # dvc_live_tracked_val_metrices = [
+    #     "val_loss",
+    #     "polyphony_degree_val_loss",
+    #     "polyphony_degree_class_val_loss",
+    #     "val_polyphony_degree_accuracy",
+    #     "val_polyphony_degree_class_accuracy",
+    #     "val_event_detection_accuracy"
+    # ]
+
+    # Metrics dict
+    metrics = {}
+    for key in objectives_cfg.keys():
+        metrics[f"{key}_loss"] = None
+        metrics[f"val_{key}_loss"] = None
+        metrics[f"{key}_accuracy"] = None
+        metrics[f"val_{key}_accuracy"] = None 
+
+    print("Metrics:", metrics)
+
+    params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
+    params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
+    params['dataset']['test_size'] = str(len(dataset['test']))
+    params['train']['objectives'] = list(cfg.objectives.keys())
+    print(params)
+
+    confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
+
     #################################
     # Model
     #################################
@@ -241,7 +308,7 @@ def main():
 
         print(f"Loading weights from {load_checkpoint_path}")
         model = instantiate(cfg.model)
-        model.compile(optimizer=Adam(learning_rate), loss=losses)
+        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
         
         # Initialize variables with forward pass
         sample_batch = next(iter(train_dataset))
@@ -259,7 +326,7 @@ def main():
         _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")
 
-        model.compile(optimizer=Adam(learning_rate), loss=losses)
+        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
         
         previous_history = None
         initial_epoch = 0
@@ -277,35 +344,6 @@ def main():
     if not gpus:
         print("WARNING: No GPU found, training on CPU")
 
-    #################################
-    # Logging setup
-    #################################
-
-    # dvc_exp_name = get_dvc_exp_name()
-    # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
-
-    # # Get tensorboard path based on path, dataset subset, features and datetime
-    # # Set DEFAULT_DIR if not set (usually when running without dvc)
-    # os.environ.setdefault('DEFAULT_DIR', os.getcwd())
-    # os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
-
-    # # checkpoint_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else
-    # # log_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/logs'
-
-    metrics = {}
-    for key in objectives_cfg.keys():
-        metrics[f"{key}_loss"] = None
-        metrics[f"val_{key}_loss"] = None
-
-    print("Metrics:", metrics)
-
-    params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
-    params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
-    params['dataset']['test_size'] = str(len(dataset['test']))
-    params['train']['objectives'] = list(cfg.objectives.keys())
-    print(params)
-
-    confusion_matrix_specs = build_confusion_matrix_specs(objectives_cfg)
 
     #################################
     # Callbacks
@@ -323,7 +361,7 @@ def main():
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
                 log_confusion_matrix=True, confusion_matrix_frequency=1, 
                 confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
-                previous_history=previous_history, tracked_val_metrices=["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"])
+                previous_history=previous_history, dvclive_tracked_val_metrices=list(metrics.keys())) 
 
     callbacks = [tensorboard_callback, model_and_history_saver, early_stopping] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
     if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):

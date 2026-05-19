@@ -157,6 +157,27 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
     plt.tight_layout()
     return fig
 
+class RoundedAccuracy(tf.keras.metrics.Metric):
+    """Accuracy after rounding predictions to nearest integer (for regression polyphony)."""
+    def __init__(self, name="rounded_accuracy", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.correct = self.add_weight(name="correct", initializer="zeros")
+        self.total   = self.add_weight(name="total",   initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.round(tf.reshape(y_pred, [-1]))
+        y_true_flat = tf.cast(tf.reshape(y_true, [-1]), y_pred_rounded.dtype)
+        matches = tf.cast(tf.equal(y_pred_rounded, y_true_flat), tf.float32)
+        self.correct.assign_add(tf.reduce_sum(matches))
+        self.total.assign_add(tf.cast(tf.size(matches), tf.float32))
+        
+    def result(self):
+        return tf.math.divide_no_nan(self.correct, self.total)
+
+    def reset_state(self):
+        self.correct.assign(0.0)
+        self.total.assign(0.0)
+
 class CustomSummaryWriter(SummaryWriter):
     """
     A custom subclass of the TensorBoard SummaryWriter that allows for logging hyperparameters,
@@ -318,7 +339,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 log_confusion_matrix=True, confusion_matrix_frequency=5,
                 confusion_matrix_specs=None, input_shape=None, cfg=None,
                 loss_objects={}, previous_history=None, use_dvclive = True,
-                tracked_val_metrices=["val_loss"]):
+                dvclive_tracked_val_metrices=["val_loss"]):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
@@ -333,7 +354,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.previous_history = previous_history
 
         self.live = Live(dir=self.writer.log_dir + "/dvclive", dvcyaml=False) if use_dvclive else None
-        self.tracked_val_metrices = tracked_val_metrices
+        self.dvclive_tracked_val_metrices = dvclive_tracked_val_metrices
 
         self._best_val = {}
         self._best_step = {}
@@ -540,14 +561,32 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
             self.live.next_step()
         
         # Manual best tracking
-        for val_metric_key in self.tracked_val_metrices: #["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"]:
+        # Metrics where higher is better
+        HIGHER_IS_BETTER = {"accuracy", "f1", "auc"}
+
+        for val_metric_key in self.dvclive_tracked_val_metrices:
             val_metric = logs.get(val_metric_key)
             if val_metric is not None:
-                if self._best_val.get(val_metric_key) is None or val_metric < self._best_val[val_metric_key]:
+                higher_is_better = any(m in val_metric_key for m in HIGHER_IS_BETTER)
+                is_best = (
+                    self._best_val.get(val_metric_key) is None or
+                    (higher_is_better and val_metric > self._best_val[val_metric_key]) or
+                    (not higher_is_better and val_metric < self._best_val[val_metric_key])
+                )
+                if is_best:
                     self._best_val[val_metric_key] = val_metric
                     self._best_step[val_metric_key] = epoch
                     self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
-                    self.live.summary[f"{val_metric_key}_best_step"] = epoch
+            self.live.summary[f"{val_metric_key}_best_step"] = epoch
+
+        # for val_metric_key in self.dvclive_tracked_val_metrices: #["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"]:
+        #     val_metric = logs.get(val_metric_key)
+        #     if val_metric is not None:
+        #         if self._best_val.get(val_metric_key) is None or val_metric < self._best_val[val_metric_key]:
+        #             self._best_val[val_metric_key] = val_metric
+        #             self._best_step[val_metric_key] = epoch
+        #             self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
+        #             self.live.summary[f"{val_metric_key}_best_step"] = epoch
 
         self.live.make_summary()  # once after the loop
 
@@ -557,6 +596,8 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         # Flush all writers
         self.train_writer.flush()
         self.val_writer.flush()
+
+        self._last_logs = logs
 
     def _log_losses(self, epoch, logs):
         num_objectives = len(self.loss_objects)
@@ -835,7 +876,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         # # Now write the hparams summary with final metrics
         # self._add_hparams(hparam_dict, metrics)
 
-        logs = logs or {}
+        logs = logs or self._last_logs or {}
         print(logs)
 
         print(f"Final logs keys: {list(logs.keys())}")
@@ -859,6 +900,11 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 val_base = self._calculate_base_loss(val_weighted, current_weight)
                 self.metrics[f"val_{obj_name}_loss"] = float(val_base)
                 print(f"Added val_{obj_name}_loss = {val_base}")
+
+            for log_prefix in ['', 'val_']:
+                acc_key = f"{log_prefix}{obj_name}_accuracy"
+                if acc_key in logs:
+                    self.metrics[acc_key] = float(logs[acc_key])
         
         print(f"Final metrics for hParams: {self.metrics}")
 
