@@ -174,6 +174,21 @@ def main():
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
+
+    from collections import defaultdict
+
+    none_counts = defaultdict(int)
+    none_indices = defaultdict(list)
+
+    for i, sample in enumerate(dataset['train']):
+        for key, value in sample.items():
+            if value is None:
+                none_counts[key] += 1
+                none_indices[key].append(i)
+
+    for key, count in none_counts.items():
+        print(f"'{key}': {count} None values, first few indices: {none_indices[key][:5]}")
+
     #################################
     # Add labels
     #################################
@@ -204,8 +219,8 @@ def main():
     train_size = num_batches_train * batch_size if num_batches_train else len(dataset['train'])
     val_size = num_batches_val * batch_size if num_batches_val else len(dataset['validation'])
 
-    train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
-    val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
+    # train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
+    # val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
 
     # Save validiation dataset for later evaluation
     # val_dataset.save(val_dataset_path)

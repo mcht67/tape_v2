@@ -23,7 +23,7 @@ base_config:
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
   dataset.train_suffix: polyphonic_6
-  train.epochs: 20
+  train.epochs: 2
   train.learning_rate: 0.001
   path.output_subfolder: ${embeddings.name}/
   
