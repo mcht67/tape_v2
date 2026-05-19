@@ -18,42 +18,57 @@ from losses import create_losses_from_objectives, setup_loss_scheduler
 
 tf.keras.backend.clear_session()
 
-def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
-    X = np.stack(hf_dataset[features]).astype(np.float32)
-    y = np.array(hf_dataset[labels]).astype(np.float32)
+# def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
+#     X = np.stack(hf_dataset[features]).astype(np.float32)
+#     y = np.array(hf_dataset[labels]).astype(np.float32)
 
-    ds = tf.data.Dataset.from_tensor_slices((X, y))
-    if shuffle:
-        ds = ds.shuffle(buffer_size=len(X))
-    ds = ds.batch(batch_size)
-    return ds
+#     ds = tf.data.Dataset.from_tensor_slices((X, y))
+#     if shuffle:
+#         ds = ds.shuffle(buffer_size=len(X))
+#     ds = ds.batch(batch_size)
+#     return ds
 
 def get_tf_datasets(dataset, features, labels, batch_size):
-    train_dataset = dataset['train'].to_tf_dataset(
-        columns=features,
-        label_cols=labels, 
-        batch_size=batch_size,
-        shuffle=True,
-        prefetch=False
-    )
+    # train_dataset = dataset['train'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels, 
+    #     batch_size=batch_size,
+    #     shuffle=True,
+    #     prefetch=False
+    # )
 
-    test_dataset = dataset['test'].to_tf_dataset(
-        columns=features,
-        label_cols=labels,
-        batch_size=batch_size,
-        shuffle=False,
-        prefetch=False
-    )
+    # test_dataset = dataset['test'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels,
+    #     batch_size=batch_size,
+    #     shuffle=False,
+    #     prefetch=False
+    # )
 
-    val_dataset = dataset['validation'].to_tf_dataset(
-        columns=features,
-        label_cols=labels,
-        batch_size=batch_size,
-        shuffle=False,
-        prefetch=False
-    )
+    # val_dataset = dataset['validation'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels,
+    #     batch_size=batch_size,
+    #     shuffle=False,
+    #     prefetch=False
+    # )
+    train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
+    val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
+    test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
 
     return train_dataset, test_dataset, val_dataset
+
+def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
+    if split_name not in dataset:
+        raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
+    
+    return dataset[split_name].to_tf_dataset(
+        columns=features,
+        label_cols=labels,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        prefetch=False
+    )
 
 def apply_batched_reshape(dataset, features, input_dim, pooling_strategy, suffix, batch_size=100):
     """Apply reshape_tensor_data in batches to avoid PyArrow offset overflow"""
@@ -144,13 +159,13 @@ def main():
     load_dotenv('local.env')
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
-    from huggingface_hub import HfApi
-    api = HfApi()
-    info = api.dataset_info("mcht67/Polyphonic-Bird-Set", token=huggingface_token)
-    for config in info.card_data.get("configs", []):
-        if config.get("config_name") == dataset_config:
-            print(config.get("data_files"))
-            print(config.get("data_dir"))
+    # from huggingface_hub import HfApi
+    # api = HfApi()
+    # info = api.dataset_info("mcht67/Polyphonic-Bird-Set", token=huggingface_token)
+    # for config in info.card_data.get("configs", []):
+    #     if config.get("config_name") == dataset_config:
+    #         print(config.get("data_files"))
+    #         print(config.get("data_dir"))
 
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
