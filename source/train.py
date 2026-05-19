@@ -29,32 +29,32 @@ tf.keras.backend.clear_session()
 #     return ds
 
 def get_tf_datasets(dataset, features, labels, batch_size):
-    # train_dataset = dataset['train'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels, 
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     prefetch=False
-    # )
+    train_dataset = dataset['train'].to_tf_dataset(
+        columns=features,
+        label_cols=labels, 
+        batch_size=batch_size,
+        shuffle=True,
+        prefetch=False
+    )
 
-    # test_dataset = dataset['test'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     prefetch=False
-    # )
+    test_dataset = dataset['test'].to_tf_dataset(
+        columns=features,
+        label_cols=labels,
+        batch_size=batch_size,
+        shuffle=False,
+        prefetch=False
+    )
 
-    # val_dataset = dataset['validation'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     prefetch=False
-    # )
-    train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
-    val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
-    test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
+    val_dataset = dataset['validation'].to_tf_dataset(
+        columns=features,
+        label_cols=labels,
+        batch_size=batch_size,
+        shuffle=False,
+        prefetch=False
+    )
+    # train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
+    # val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
+    # test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
 
     return train_dataset, test_dataset, val_dataset
 
@@ -174,21 +174,6 @@ def main():
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
-
-    from collections import defaultdict
-
-    none_counts = defaultdict(int)
-    none_indices = defaultdict(list)
-
-    for i, sample in enumerate(dataset['train']):
-        for key, value in sample.items():
-            if value is None:
-                none_counts[key] += 1
-                none_indices[key].append(i)
-
-    for key, count in none_counts.items():
-        print(f"'{key}': {count} None values, first few indices: {none_indices[key][:5]}")
-
     #################################
     # Add labels
     #################################
@@ -224,6 +209,21 @@ def main():
 
     # Save validiation dataset for later evaluation
     # val_dataset.save(val_dataset_path)
+
+     # DEBUG: Check for None values in dataset and print counts and indices #TODO: remove after testing
+    from collections import defaultdict
+
+    none_counts = defaultdict(int)
+    none_indices = defaultdict(list)
+
+    for i, sample in enumerate(dataset['train']):
+        for key, value in sample.items():
+            if value is None:
+                none_counts[key] += 1
+                none_indices[key].append(i)
+
+    for key, count in none_counts.items():
+        print(f"'{key}': {count} None values, first few indices: {none_indices[key][:5]}")
 
      #################################
     # Logging setup
