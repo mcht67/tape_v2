@@ -138,8 +138,9 @@ def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id
         hyperparams_keys = {"log.hyperparameters": f"[{hyperparams_keys_str}]"}
 
         # Update input feature name
+        # TODO: make more robust for missing keys and different combinations of input features and embeddings
         if 'train.input_feature' in hyperparams_config and 'embeddings' in hyperparams_config:
-            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + study_config['embeddings.dimension_type'] + "_embeddings"
+            hyperparams_config['train.input_feature_name'] = hyperparams_config['embeddings'] + "_" + hyperparams_config['train.input_feature'] + "_" + study_config['base_config']['embeddings.dimension_type'] + "_embeddings"
 
         # Create config
         config_overwrites = base_config | hyperparams_config | hyperparams_keys
