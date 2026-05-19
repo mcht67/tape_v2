@@ -64,10 +64,10 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
     
     # Keep only the columns actually needed
     cols_to_keep = set(features if isinstance(features, list) else [features]) | set(labels)
-    cols_to_remove = [c for c in split.column_names if c not in cols_to_keep]
-    split = split.remove_columns(cols_to_remove)
+    cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
+    split = dataset[split_name].remove_columns(cols_to_remove)
     
-    return dataset[split_name].to_tf_dataset(
+    return split.to_tf_dataset(
         columns=features,
         label_cols=labels,
         batch_size=batch_size,
