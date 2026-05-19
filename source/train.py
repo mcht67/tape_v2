@@ -29,38 +29,43 @@ tf.keras.backend.clear_session()
 #     return ds
 
 def get_tf_datasets(dataset, features, labels, batch_size):
-    train_dataset = dataset['train'].to_tf_dataset(
-        columns=features,
-        label_cols=labels, 
-        batch_size=batch_size,
-        shuffle=True,
-        prefetch=False
-    )
+    # train_dataset = dataset['train'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels, 
+    #     batch_size=batch_size,
+    #     shuffle=True,
+    #     prefetch=False
+    # )
 
-    test_dataset = dataset['test'].to_tf_dataset(
-        columns=features,
-        label_cols=labels,
-        batch_size=batch_size,
-        shuffle=False,
-        prefetch=False
-    )
+    # test_dataset = dataset['test'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels,
+    #     batch_size=batch_size,
+    #     shuffle=False,
+    #     prefetch=False
+    # )
 
-    val_dataset = dataset['validation'].to_tf_dataset(
-        columns=features,
-        label_cols=labels,
-        batch_size=batch_size,
-        shuffle=False,
-        prefetch=False
-    )
-    # train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
-    # val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
-    # test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
+    # val_dataset = dataset['validation'].to_tf_dataset(
+    #     columns=features,
+    #     label_cols=labels,
+    #     batch_size=batch_size,
+    #     shuffle=False,
+    #     prefetch=False
+    # )
+    train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
+    val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
+    test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
 
     return train_dataset, test_dataset, val_dataset
 
 def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
     if split_name not in dataset:
         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
+    
+    # Keep only the columns actually needed
+    cols_to_keep = set(features if isinstance(features, list) else [features]) | set(labels)
+    cols_to_remove = [c for c in split.column_names if c not in cols_to_keep]
+    split = split.remove_columns(cols_to_remove)
     
     return dataset[split_name].to_tf_dataset(
         columns=features,
