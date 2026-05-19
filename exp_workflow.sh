@@ -177,13 +177,8 @@ dvc exp run \
   $EXP_PARAMS
 
 #################################
-# Pushing results
+# Archive
 #################################
-
-# Push the results to the DVC remote repository
-echo "Pushing experiment..." &&
-dvc exp push origin && \
-echo "✅ Push successful!" || echo "❌ Push failed!"
 
 # Moving everythin to archive
 # DATETIME=$(date +%Y%m%d_%H%M%S)
@@ -210,6 +205,18 @@ if [ -d "eval_output" ]; then
 else
   echo "eval_output directory not found, skipping..."
 fi
+
+#################################
+# Pushing results
+#################################
+
+# Push the results to the DVC remote repository
+echo "Pushing experiment..."
+if ! dvc exp push origin; then
+    echo "❌ Push failed!"
+    exit 1
+fi
+echo "✅ Push successful!"
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&
