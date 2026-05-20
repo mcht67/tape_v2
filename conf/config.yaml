@@ -5,15 +5,17 @@ datetime: ${now:%Y%m%d_%H%M%S}
 # CHANGING THESE COULD BREAK DVC TRACKING OR SYNCING TO ARCHIVE, BE CAREFUL!
 path:
   # dataset: data/${dataset.config}/
-  train_output: train_output/ # CHANGING THIS WOULD BREAK SYNCING TO ARCHIVE, BE CAREFUL!
-  eval_output: eval_output/ # CHANGING THIS WOULD BREAK SYNCING TO ARCHIVE, BE CAREFUL!
+  # train_output: train_output/ # CHANGING THIS WOULD BREAK SYNCING TO ARCHIVE, BE CAREFUL!
+  # eval_output: eval_output/ # CHANGING THIS WOULD BREAK SYNCING TO ARCHIVE, BE CAREFUL!
   # val_dataset: data/val_data/
 
-  output_subfolder: 
+  study_subfolder:
+  train_output: ${log.study_name}/${path.study_subfolder}/train_output/
+  eval_output: ${log.study_name}/${path.study_subfolder}/eval_output/
 
-  train_log_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/logs/
-  eval_log_dir: ${path.eval_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/logs/
-  checkpoint_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/checkpoints/
+  # train_log_dir: ${path.train_output}${log.study_name}/${path.study_subfolder}${datetime}_${log.exp_name}/logs/
+  # eval_log_dir: ${path.eval_output}${log.study_name}/${path.study_subfolder}${datetime}_${log.exp_name}/logs/
+  # checkpoint_dir: ${path.train_output}${log.study_name}/${path.study_subfolder}${datetime}_${log.exp_name}/checkpoints/
   # dataset_metadata: stage_results/dataset_metadata.json
   # perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   # birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json

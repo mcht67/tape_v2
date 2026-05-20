@@ -57,7 +57,7 @@ stages:
   #     - dataset.config
 
   train:
-    cmd: ${python.complete} source/train.py log.exp_name=${DVC_EXP_NAME} #${python.train} source/train.py
+    cmd: ${python.complete} source/train.py #${python.train} source/train.py
     deps:
       - source/train.py
       #- ${path.dataset}
@@ -71,10 +71,12 @@ stages:
     outs:
       # - ${path.val_dataset}:
       #     push: false        # cached locally, never pushed to remote
-      - ${path.train_log_dir}:
+      - ${path.train_output}:
           persist: true      # pushed to remote
-      - ${path.checkpoint_dir}:
-          persist: true      # pushed to remote
+      # - ${path.train_log_dir}:
+      #     persist: true      # pushed to remote
+      # - ${path.checkpoint_dir}:
+      #     persist: true      # pushed to remote
 
   
   # evaluate:

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RoundedAccuracy, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver
+from utils.logs import RoundedAccuracy, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry
@@ -125,9 +125,12 @@ def main():
 
     huggingface_path = cfg.dataset.huggingface_path
     dataset_config = cfg.dataset.train_config
-    log_dir = cfg.path.train_log_dir
-    checkpoint_dir = cfg.path.checkpoint_dir
+    train_output_dir = cfg.path.train_output
     keep_last_n_checkpoints = cfg.log.keep_last_n_checkpoints if 'keep_last_n_checkpoints' in cfg.log else 5
+
+    log_paths = get_log_paths(cfg)
+    log_dir = log_paths['train_log_dir']
+    checkpoint_dir = log_paths['checkpoint_dir']
 
     print("Log dir:", log_dir)
     print("Checkpoint dir:", checkpoint_dir)
