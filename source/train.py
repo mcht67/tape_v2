@@ -152,6 +152,12 @@ def main():
 
     model_cfg.objectives_cfg = objectives_cfg
 
+    # Set number of classes for polyphony degree classification based on dataset config
+    if cfg.objectives.polyphony_degree_class:
+        num_classes = cfg.dataset.max_polyphony + 1
+        cfg.model.objectives.polyphony_degree_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for polyphony degree classification based on config.")
+
     labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
 
     print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
@@ -300,6 +306,7 @@ def main():
     #################################
     # Model
     #################################
+
     tf.keras.backend.clear_session()
 
     # Create loss objects based on objectives config
