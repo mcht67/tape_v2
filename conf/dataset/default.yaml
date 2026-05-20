@@ -2,6 +2,6 @@ huggingface_path: 'mcht67/Polyphonic-BirdSet-train' # mcht67/polyphonic-bird-set
 # config: HSN_polyphonic_6
 
 subset: HSN
-train_suffix: polyphonic_6
-train_config: ${dataset.subset}_${dataset.train_suffix}
+max_polyphony: 6
+train_config: ${dataset.subset}_polyphonic_${dataset.max_polyphony}
 soundscape_config: ${dataset.subset}_soundscape_test

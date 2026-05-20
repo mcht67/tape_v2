@@ -160,61 +160,6 @@ if __name__ == "__main__":
     ##########################
     # Configuration
     ##########################
-
-    # # Define Study name
-    # study_name = 'Pooled-Embeddings-Comparison'
-    # huggingface_path = 'mcht67/Polyphonic-BirdSet-train'
-
-    # # Define Base Config
-    # base_config = {
-    #     "log.study_name": study_name,
-    #     "dataset.huggingface_path": huggingface_path,
-        
-    #     "train.epochs": 50,
-    #     #"train.initial_epoch": 20,
-    #     #"train.num_batches_train": 20,
-    #     #"train.num_batches_val": 5
-    #     "train.learning_rate": 0.001,
-    #     #"train.load_model_path": "model_path"
-    # }
-
-    # # Define all lists of parameters or config files [Hyperparameters]
-    # dataset_configs = ['HSN_polyphonic_6']
-    # input_features = ['audio'] #, 'no_noise_audio']
-
-    # models = [
-    #             #'TemporalCNN',
-    #             'SimpleMLP'
-    #         ]
-
-    # embedding_type = 'pooled' #'spatial'
-    # embeddings = [
-    #                 "birdnet_V2.3", 
-    #                 "vggish", 
-    #                 "perch_8",
-    #                 "yamnet",
-    #                 "beans_baseline",
-    #                 "EfficientNet-B1-BirdSet-XCL",
-    #                 "Bird-MAE-Huge",
-    #                 "AudioProtoPNet-20-BirdSet-XCL",
-    #                 "AST-Birdset-XCL",
-    #                 "Wav2Vec2-Base-BirdSet-XCL",
-    #                 "perch_v2_cpu",
-    #                 # #"perch_v2",    
-    #             ]
-    
-    # objectives = [
-    #                 #'multi_task_v1_add_event_logits',
-    #                 'only_polyphony_degree'
-    #             ]
-
-    # hyperparams = {
-    #                 "model": models,
-    #                 #"dataset.config": dataset_configs,
-    #                 "train.input_feature": input_features,
-    #                 "embeddings": embeddings,   
-    #                 "objectives": objectives                         
-    #             }
     
     # Load study configuration
     study_config_path = 'study_conf/pooled_embeddings_comparison.yaml'
@@ -229,6 +174,10 @@ if __name__ == "__main__":
     run_dataset_preparation = True
     recompute_embeddings = False
     force_redownload = False
+
+    ##########################
+    # Submit jobs
+    ##########################
     
     for subset in dataset_subsets:
         train_config = subset + '_' + study_config['base_config']['dataset.train_suffix']
