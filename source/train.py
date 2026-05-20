@@ -155,7 +155,7 @@ def main():
     # Set number of classes for polyphony degree classification based on dataset config
     if 'polyphony_degree_class' in objectives_cfg:
         num_classes = cfg.dataset.max_polyphony + 1
-        objectives_cfg.polyphony_degree_class.num_classes = num_classes
+        model_cfg.objectives_cfg.polyphony_degree_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
 
     labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
@@ -176,7 +176,7 @@ def main():
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
-
+    
     #################################
     # Add labels
     #################################
@@ -207,27 +207,6 @@ def main():
     train_size = num_batches_train * batch_size if num_batches_train else len(dataset['train'])
     val_size = num_batches_val * batch_size if num_batches_val else len(dataset['validation'])
 
-    # train_dataset = train_dataset #.cache().prefetch(tf.data.AUTOTUNE)
-    # val_dataset = val_dataset #.cache().prefetch(tf.data.AUTOTUNE)
-
-    # Save validiation dataset for later evaluation
-    # val_dataset.save(val_dataset_path)
-
-     # DEBUG: Check for None values in dataset and print counts and indices #TODO: remove after testing
-    from collections import defaultdict
-
-    none_counts = defaultdict(int)
-    none_indices = defaultdict(list)
-
-    for i, sample in enumerate(dataset['train']):
-        for key, value in sample.items():
-            if value is None:
-                none_counts[key] += 1
-                none_indices[key].append(i)
-
-    for key, count in none_counts.items():
-        print(f"'{key}': {count} None values, first few indices: {none_indices[key][:5]}")
-
      #################################
     # Logging setup
     #################################
@@ -237,11 +216,11 @@ def main():
 
     for objective, obj_cfg in objectives_cfg.items():
         if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name=f"{key}_accuracy")
+            compile_metrics[objective] = RoundedAccuracy(name=f"{objective}_accuracy")
         elif objective == "polyphony_degree_class":
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=f"{key}_accuracy")
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=f"{objective}_accuracy")
         elif objective == "binary":
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=f"{key}_accuracy")
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=f"{objective}_accuracy")
 
     # Metrics dict
     metrics = {}
@@ -304,8 +283,8 @@ def main():
     else:
         print("Creating new model")
         model = instantiate(model_cfg)
-        print("Model objectives config:")
-        print(model_cfg)
+        # print("Model config:")
+        # print(model_cfg)
         # Initialize new model with forward pass
         sample_batch = next(iter(train_dataset))
         _ = model(sample_batch[0], training=False)
