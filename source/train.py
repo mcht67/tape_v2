@@ -170,20 +170,9 @@ def main():
     load_dotenv('local.env')
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
-    # from huggingface_hub import HfApi
-    # api = HfApi()
-    # info = api.dataset_info("mcht67/Polyphonic-Bird-Set", token=huggingface_token)
-    # for config in info.card_data.get("configs", []):
-    #     if config.get("config_name") == dataset_config:
-    #         print(config.get("data_files"))
-    #         print(config.get("data_dir"))
-
     # Load Dataset
-    # print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-
-    from datasets import load_from_disk
-    dataset = load_from_disk('data/HSN')
+    print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
