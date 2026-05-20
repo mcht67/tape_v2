@@ -179,8 +179,11 @@ def main():
     #         print(config.get("data_dir"))
 
     # Load Dataset
-    print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
+    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+
+    from datasets import load_from_disk
+    dataset = load_from_disk('data/HSN')
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
@@ -240,50 +243,16 @@ def main():
     # Logging setup
     #################################
 
-    # dvc_exp_name = get_dvc_exp_name()
-    # current_datetime = datetime.now().strftime("%Y%m%d-%H%M")
-
-    # # Get tensorboard path based on path, dataset subset, features and datetime
-    # # Set DEFAULT_DIR if not set (usually when running without dvc)
-    # os.environ.setdefault('DEFAULT_DIR', os.getcwd())
-    # os.environ.setdefault('DVC_EXP_NAME', 'test-experiment')
-
-    # # checkpoint_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/checkpoints' #f'checkpoints/{study_name}/{current_datetime}_{dvc_exp_name}_{path_suffix}' if path_suffix else
-    # # log_dir = f'train_output/{study_name}/{current_datetime}_{dvc_exp_name}/logs'
-
     # Build per-output accuracy metrics depending on objective type
-    compile_metrics = []
+    compile_metrics = {}
 
-    for key, obj_cfg in objectives_cfg.items():
-        objective = obj_cfg.get("label")  # "regression_round", "binary", "classification"
-
-        # if cm_type == "binary":
-        #     compile_metrics.append(
-        #         tf.keras.metrics.BinaryAccuracy(name=f"{key}_accuracy", threshold=0.5)
-        #     )
-        # elif cm_type == "classification":
-        #     compile_metrics.append(
-        #         tf.keras.metrics.CategoricalAccuracy(name=f"{key}_accuracy")
-        #         # or CategoricalAccuracy if your labels are one-hot
-        #     )
+    for objective, obj_cfg in objectives_cfg.items():
         if objective == "polyphony_degree":
-            compile_metrics.append(
-                RoundedAccuracy(name=f"{key}_accuracy")
-            )
-        elif objective == 'polyphony_degree_class':
-            compile_metrics.append(
-                tf.keras.metrics.SparseCategoricalAccuracy(name=f"{key}_accuracy")
-            )
-            
-    # # Metrics tracked by dvclive for live plotting in dvc
-    # dvc_live_tracked_val_metrices = [
-    #     "val_loss",
-    #     "polyphony_degree_val_loss",
-    #     "polyphony_degree_class_val_loss",
-    #     "val_polyphony_degree_accuracy",
-    #     "val_polyphony_degree_class_accuracy",
-    #     "val_event_detection_accuracy"
-    # ]
+            compile_metrics[objective] = RoundedAccuracy(name=f"{key}_accuracy")
+        elif objective == "polyphony_degree_class":
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=f"{key}_accuracy")
+        elif objective == "binary":
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=f"{key}_accuracy")
 
     # Metrics dict
     metrics = {}
@@ -334,7 +303,7 @@ def main():
     elif load_checkpoint_path and os.path.isfile(load_checkpoint_path):
 
         print(f"Loading weights from {load_checkpoint_path}")
-        model = instantiate(cfg.model)
+        model = instantiate(model_cfg)
         model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
         
         # Initialize variables with forward pass
@@ -347,11 +316,13 @@ def main():
         print("Creating new model")
         model = instantiate(model_cfg)
         print("Model objectives config:")
-        print(model.objectives_cfg)
+        print(model_cfg)
         # Initialize new model with forward pass
         sample_batch = next(iter(train_dataset))
         _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")
+        print(f"Compiling model with losses: {losses}")
+        print(f"Compile metrics: {compile_metrics}")
 
         model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
         
