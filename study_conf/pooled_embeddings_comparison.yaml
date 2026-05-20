@@ -37,5 +37,5 @@ hyperparams:
     # - "perch_v2"
   objectives:
     - "only_polyphony_degree"
-    # - "only_polyphony_degree_class"
+    - "only_polyphony_degree_class"
   # dataset.config is added automatically per dataset_config iteration
