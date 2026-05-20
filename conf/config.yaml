@@ -11,9 +11,9 @@ path:
 
   output_subfolder: 
 
-  train_log_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${oc.env:DVC_EXP_NAME,test-experiment}/logs/
-  eval_log_dir: ${path.eval_output}${log.study_name}/${path.output_subfolder}${datetime}_${oc.env:DVC_EXP_NAME,test-experiment}/logs/
-  checkpoint_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${oc.env:DVC_EXP_NAME,test-experiment}/checkpoints/
+  train_log_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/logs/
+  eval_log_dir: ${path.eval_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/logs/
+  checkpoint_dir: ${path.train_output}${log.study_name}/${path.output_subfolder}${datetime}_${log.exp_name}/checkpoints/
   # dataset_metadata: stage_results/dataset_metadata.json
   # perch_embeddings_metadata: stage_results/perch_embeddings_metadata.json
   # birdset_embeddings_metadata: stage_results/birdset_embeddings_metadata.json
@@ -53,6 +53,7 @@ defaults:
   - objectives: default #empty # should be defined in multi_submission
   - train: 'default'
   - log: 'default'
+  - evaluation: 'default'
   - _self_
 
   

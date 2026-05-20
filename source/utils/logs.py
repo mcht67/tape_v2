@@ -1545,7 +1545,7 @@ def get_dvc_exp_name():
     return config.get_env_variable("DVC_EXP_NAME")
 
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):
-        def __init__(self, checkpoint_dir, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=None):
+        def __init__(self, checkpoint_dir, loss_objects, previous_history=None, save_full_model_every_n_epochs=5, keep_last_n=5):
             super().__init__()
             self.checkpoint_path = checkpoint_dir
             self.combined_history = {k: list(v) for k, v in previous_history.items()} \
