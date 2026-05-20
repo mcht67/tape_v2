@@ -125,7 +125,6 @@ def main():
 
     huggingface_path = cfg.dataset.huggingface_path
     dataset_config = cfg.dataset.train_config
-    train_output_dir = cfg.path.train_output
     keep_last_n_checkpoints = cfg.log.keep_last_n_checkpoints if 'keep_last_n_checkpoints' in cfg.log else 5
 
     log_paths = get_log_paths(cfg)
@@ -180,7 +179,7 @@ def main():
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
-    
+
     #################################
     # Add labels
     #################################

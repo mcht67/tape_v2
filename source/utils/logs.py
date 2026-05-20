@@ -353,7 +353,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.loss_objects = loss_objects
         self.previous_history = previous_history
 
-        self.live = Live(dir=self.writer.log_dir + "/dvclive", dvcyaml=False) if use_dvclive else None
+        self.live = Live(dir=self.writer.log_dir / "dvclive", dvcyaml=False) if use_dvclive else None
         self.dvclive_tracked_val_metrices = dvclive_tracked_val_metrices
 
         self._best_val = {}
@@ -1542,7 +1542,10 @@ def plot_event_bounding_boxes(
         ax.add_patch(rect)
 
 def get_dvc_exp_name():
-    return config.get_env_variable("DVC_EXP_NAME")
+    try:
+        return config.get_env_variable("DVC_EXP_NAME")
+    except OSError:
+        return "test-experiment"
 
 def get_log_paths(cfg) -> dict[str, Path]:
     exp_name = get_dvc_exp_name()
@@ -1565,9 +1568,9 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
             self.best_val_loss = float('inf')
             self.loss_objects = loss_objects
 
-            self.epoch_weights_dir = checkpoint_dir #+ '/epoch_weights/'
-            self.best_weights_dir = checkpoint_dir #+ '/best_weights/'
-            self.resumable_dir = checkpoint_dir #+ '/resumable_checkpoints/'
+            self.epoch_weights_dir = Path(checkpoint_dir) #+ '/epoch_weights/'
+            self.best_weights_dir = Path(checkpoint_dir) #+ '/best_weights/'
+            self.resumable_dir = Path(checkpoint_dir) #+ '/resumable_checkpoints/'
 
             os.makedirs(self.epoch_weights_dir, exist_ok=True)
             os.makedirs(self.best_weights_dir, exist_ok=True)
@@ -1590,20 +1593,20 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
                 self.combined_history.setdefault(key, []).append(float(value))
 
             # Save history
-            history_path = self.resumable_dir + 'train_history.json'
+            history_path = self.resumable_dir / 'train_history.json'
             with open(history_path, 'w') as f:
                 json.dump(self.combined_history, f, indent=2)
             print(f"✓ Saved history at epoch {epoch + 1}")
 
             # Save current checkpoint
             val_loss = logs.get('val_loss')
-            self.model.save_weights(self.epoch_weights_dir + f'epoch_{epoch+1:03d}.weights.h5')
+            self.model.save_weights(self.epoch_weights_dir / f'epoch_{epoch+1:03d}.weights.h5')
             print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
 
             # Save best checkpoint
             if val_loss and val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
-                self.model.save_weights(self.best_weights_dir + f'best.weights.h5')
+                self.model.save_weights(self.best_weights_dir / f'best.weights.h5')
                 print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
             # Save rolling last-N checkpoints
@@ -1612,12 +1615,12 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
 
             # Save model
             if (epoch + 1) % self.save_model_every_n_epochs == 0:
-                self.model.save(self.resumable_dir + f'epoch_{epoch+1:03d}.keras')
+                self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
                 print(f"✓ Saved model at epoch {epoch + 1}")
                 
         def _cleanup_old_checkpoints(self, current_epoch):
             for old_epoch in range(current_epoch - self.keep_last_n):
-                path = self.epoch_weights_dir + f'epoch_{old_epoch+1:03d}.weights.h5'
+                path = self.epoch_weights_dir / f'epoch_{old_epoch+1:03d}.weights.h5'
                 if os.path.exists(path):
                     os.remove(path)
 
