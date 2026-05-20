@@ -153,9 +153,9 @@ def main():
     model_cfg.objectives_cfg = objectives_cfg
 
     # Set number of classes for polyphony degree classification based on dataset config
-    if cfg.objectives.polyphony_degree_class:
+    if 'polyphony_degree_class' in objectives_cfg:
         num_classes = cfg.dataset.max_polyphony + 1
-        cfg.model.objectives.polyphony_degree_class.num_classes = num_classes
+        objectives_cfg.polyphony_degree_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
 
     labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
