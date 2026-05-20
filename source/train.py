@@ -127,6 +127,7 @@ def main():
     dataset_config = cfg.dataset.train_config
     log_dir = cfg.path.train_log_dir
     checkpoint_dir = cfg.path.checkpoint_dir
+    keep_last_n_checkpoints = cfg.log.keep_last_n_checkpoints if 'keep_last_n_checkpoints' in cfg.log else 5
 
     print("Log dir:", log_dir)
     print("Checkpoint dir:", checkpoint_dir)
@@ -321,7 +322,7 @@ def main():
         restore_best_weights=False
     )             
 
-    model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history)
+    model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history, keep_last_n=keep_last_n_checkpoints)
 
     writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=metrics, sync_interval=0)
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
