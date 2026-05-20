@@ -11,7 +11,6 @@ base_config:
   log.study_name: "Pooled-Embeddings-Comparison"
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
-  dataset.train_suffix: polyphonic_8
   dataset.max_polyphony: 8
   train.epochs: 50
   train.learning_rate: 0.001
