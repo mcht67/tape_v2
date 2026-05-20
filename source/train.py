@@ -266,7 +266,7 @@ def main():
             )
         elif objective == 'polyphony_degree_class':
             compile_metrics.append(
-                tf.keras.metrics.CategoricalAccuracy(name=f"{key}_accuracy")
+                tf.keras.metrics.SparseCategoricalAccuracy(name=f"{key}_accuracy")
             )
             
     # # Metrics tracked by dvclive for live plotting in dvc
