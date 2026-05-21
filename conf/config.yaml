@@ -10,8 +10,8 @@ path:
   # val_dataset: data/val_data/
 
   study_subfolder:
-  train_output: ${log.study_name}/${path.study_subfolder}/train_output/
-  eval_output: ${log.study_name}/${path.study_subfolder}/eval_output/
+  train_output: ${log.study_name}/${path.study_subfolder}train_output/
+  eval_output: ${log.study_name}/${path.study_subfolder}eval_output/
 
   # train_log_dir: ${path.train_output}${log.study_name}/${path.study_subfolder}${datetime}_${log.exp_name}/logs/
   # eval_log_dir: ${path.eval_output}${log.study_name}/${path.study_subfolder}${datetime}_${log.exp_name}/logs/
