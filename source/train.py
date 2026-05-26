@@ -221,25 +221,25 @@ def main():
 
     for objective, obj_cfg in objectives_cfg.items():
         if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name=f"{objective}_accuracy")
+            compile_metrics[objective] = RoundedAccuracy(name='accuracy') #name=f"{objective}_accuracy")
         elif objective == "polyphony_degree_class":
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=f"{objective}_accuracy")
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') #(name=f"{objective}_accuracy")
         elif objective == "binary":
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=f"{objective}_accuracy")
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy') #(name=f"{objective}_accuracy")
 
     # Metrics dict
-    metrics = {}
-    for key in objectives_cfg.keys():
-        metrics[f"{key}_loss"] = None
-        metrics[f"{key}_val_loss"] = None
-        metrics[f"{key}_accuracy"] = None
-        metrics[f"{key}_val_accuracy"] = None 
+    metrics = {'val_loss': None, 'val_accuracy': None}
+    # for key in objectives_cfg.keys():
+        # metrics[f"{key}_loss"] = None
+        # metrics[f"{key}_val_loss"] = None
+        # metrics[f"{key}_accuracy"] = None
+        # metrics[f"{key}_val_accuracy"] = None 
 
     #     metrics[f"val_{key}_loss_best"] = None
     #     metrics[f"val_{key}_accuracy_best"] = None
 
-    for key in study_metrics:
-        metrics[key] = None
+    # for key in study_metrics:
+    #     metrics[key] = None
 
     print("Metrics:", metrics)
 
