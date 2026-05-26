@@ -2,7 +2,7 @@ input_feature:
 input_feature_name: birdnet_V2.3_audio_embeddings
 batch_size: 128
 learning_rate: 0.001
-epochs: 1
+epochs: 100
 initial_epoch:
-num_batches_train: 1
-num_batches_val: 1
+num_batches_train: 
+num_batches_val: 
