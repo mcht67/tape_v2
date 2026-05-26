@@ -582,7 +582,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                  # Log best to TensorBoard every epoch
                 if self._best_val.get(val_metric_key) is not None:
                     self.writer.add_scalar(
-                        f'best/{val_metric_key}',
+                        f'{val_metric_key}_best',
                         self._best_val[val_metric_key],
                         epoch
                     )

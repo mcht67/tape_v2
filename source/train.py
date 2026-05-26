@@ -229,19 +229,20 @@ def main():
     # Metrics dict
     metrics = {}
     for key in objectives_cfg.keys():
-        # metrics[f"{key}_loss"] = None
-        # metrics[f"val_{key}_loss"] = None
-        # metrics[f"{key}_accuracy"] = None
-        # metrics[f"val_{key}_accuracy"] = None 
+        metrics[f"{key}_loss"] = None
+        metrics[f"val_{key}_loss"] = None
+        metrics[f"{key}_accuracy"] = None
+        metrics[f"val_{key}_accuracy"] = None 
 
-        metrics[f"best/val_{key}_loss"] = None
-        metrics[f"best/val_{key}_accuracy"] = None
+        metrics[f"val_{key}_loss_best"] = None
+        metrics[f"val_{key}_accuracy_best"] = None
 
     print("Metrics:", metrics)
 
-    params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
-    params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
-    params['dataset']['test_size'] = str(len(dataset['test']))
+    # params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
+    # params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
+    # params['dataset']['test_size'] = str(len(dataset['test']))
+    params['train']['input_feature_name'] = input_feature_name
     params['train']['objectives'] = list(cfg.objectives.keys())
     print(params)
 
