@@ -66,31 +66,41 @@ echo $STUDY_NAME
 ##########################################
 
 BASE_REMOTE="base-remote"
+CONFIG_LOCAL=".dvc/config.local"
 
-# Check if remote already exists in local config
-EXISTING=$(dvc config --local "remote.$STUDY_NAME.url" 2>/dev/null)
-if [ -n "$EXISTING" ]; then
+# Get study name from hydra/optuna config
+STUDY_NAME=$(python -c "import yaml; print(yaml.safe_load(open('conf/config.yaml'))['hydra']['sweeper']['study_name'])")
+
+# Check if remote already exists
+if grep -q "\[remote \"$STUDY_NAME\"\]" "$CONFIG_LOCAL" 2>/dev/null; then
     echo "Remote '$STUDY_NAME' already exists, skipping creation."
-    dvc remote default --local "$STUDY_NAME"
+    # Update default
+    sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
     exit 0
 fi
 
 # Get base URL from local config
-BASE_URL=$(dvc config --local "remote.$BASE_REMOTE.url")
+BASE_URL=$(grep -A1 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "url" | awk -F'= ' '{print $2}' | tr -d ' ')
 
-# Create new remote with study name as subfolder
-dvc remote add --local "$STUDY_NAME" "$BASE_URL/$STUDY_NAME"
+# Read all settings from base remote section
+ACKNOWLEDGE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_acknowledge_abuse" | awk -F'= ' '{print $2}' | tr -d ' ')
+CLIENT_ID=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_id" | awk -F'= ' '{print $2}' | tr -d ' ')
+CLIENT_SECRET=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_secret" | awk -F'= ' '{print $2}' | tr -d ' ')
+CREDENTIALS_FILE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_user_credentials_file" | awk -F'= ' '{print $2}' | tr -d ' ')
 
-# Copy settings from base remote local config
-for KEY in gdrive_acknowledge_abuse gdrive_client_id gdrive_client_secret gdrive_user_credentials_file; do
-    VALUE=$(dvc config --local "remote.$BASE_REMOTE.$KEY" 2>/dev/null)
-    if [ -n "$VALUE" ]; then
-        dvc remote modify --local "$STUDY_NAME" "$KEY" "$VALUE"
-    fi
-done
+# Append new remote section
+cat >> "$CONFIG_LOCAL" << EOF
 
-# Set as default in local config
-dvc remote default --local "$STUDY_NAME"
+[remote "$STUDY_NAME"]
+    url = $BASE_URL/$STUDY_NAME
+    gdrive_acknowledge_abuse = $ACKNOWLEDGE
+    gdrive_client_id = $CLIENT_ID
+    gdrive_client_secret = $CLIENT_SECRET
+    gdrive_user_credentials_file = $CREDENTIALS_FILE
+EOF
+
+# Update default remote in [core] section
+sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
 
 echo "Created remote '$STUDY_NAME' -> $BASE_URL/$STUDY_NAME"
 
