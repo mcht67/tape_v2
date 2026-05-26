@@ -220,7 +220,7 @@ class CustomSummaryWriter(SummaryWriter):
         self.metrics = metrics
 
         if params:
-            self._log_hyperparameters(params, metrics, log_dir)
+            self._log_hyperparameters()
 
         self.current_step = 0
 
@@ -238,18 +238,25 @@ class CustomSummaryWriter(SummaryWriter):
         """Extracts datetime information from the log directory path."""
         return str(log_dir).split("/")[-1].split("_")[0]
 
-    def _log_hyperparameters(
-        self,
-        params: config.Params[str, Any],
-        metrics: Dict[str, None],
-        log_dir: str,
-    ) -> None:
+    # def _log_hyperparameters(
+    #     self,
+    #     params: config.Params[str, Any],
+    #     metrics: Dict[str, None],
+    #     log_dir: str,
+    # ) -> None:
+    #     """Logs hyperparameters and initial metrics to TensorBoard."""
+    #     clean_params = params.tensorboard_compatible_copy()
+    #     clean_params["datetime"] = self.datetime
+    #     # params = params.flattened_copy()
+    #     #cparams["datetime"] = self.datetime
+    #     self._add_hparams(hparam_dict=clean_params, metric_dict=metrics, run_name=log_dir)
+
+    def _log_hyperparameters(self) -> None:
         """Logs hyperparameters and initial metrics to TensorBoard."""
-        clean_params = params.tensorboard_compatible_copy()
+        clean_params = self.params.tensorboard_compatible_copy()
         clean_params["datetime"] = self.datetime
-        # params = params.flattened_copy()
-        #cparams["datetime"] = self.datetime
-        self._add_hparams(hparam_dict=clean_params, metric_dict=metrics, run_name=log_dir)
+        best_metrics = {f"best/{k}": v for k, v in self.metrics.items()}
+        self._add_hparams(hparam_dict=clean_params, metric_dict=best_metrics, run_name=self.log_dir)
 
     def step(self) -> None:
         """
@@ -330,37 +337,88 @@ def build_confusion_matrix_specs(objectives):
     
     return specs
 
+# class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
+#     """
+#     Custom callback that integrates with your CustomSummaryWriter
+#     Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
+#     """
+#     def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None,
+#                 log_confusion_matrix=True, confusion_matrix_frequency=5,
+#                 confusion_matrix_specs=None, input_shape=None, cfg=None,
+#                 loss_objects={}, previous_history=None, use_dvclive = True,
+#                 # dvclive_tracked_val_metrices=["val_loss"]
+#                 ):
+#         super().__init__()
+#         self.writer = writer
+#         self.val_dataset = val_dataset
+#         #self.val_results_save_path = val_results_save_path
+#         self.log_confusion_matrix = log_confusion_matrix
+#         self.confusion_matrix_frequency = confusion_matrix_frequency
+#         self.confusion_matrix_specs = confusion_matrix_specs or []
+#         self.metrics = {}
+#         self.input_shape = input_shape
+#         self.cfg = cfg
+#         self.loss_objects = loss_objects
+#         self.previous_history = previous_history
+
+#         # self.live = Live(dir=self.writer.log_dir / "dvclive", dvcyaml=False) if use_dvclive else None
+#         self.live = Live(dvcyaml=False) if use_dvclive else None
+#         # self.metrics = self.writer.metrics #dvclive_tracked_val_metrices
+
+#         self._best_val = {}
+#         self._best_step = {}
+
+#          # Optionally create standard TensorBoard callback
+#         self.standard_tb_callback = None
+#         if include_standard_tensorboard:
+#             # Create a standard TensorBoard callback that logs to the same directory
+#             self.standard_tb_callback = tf.keras.callbacks.TensorBoard(
+#                 log_dir=str(writer.log_dir),
+#                 histogram_freq=1,  # Log histograms every epoch
+#                 write_graph=True,  # Log the model graph
+#                 write_images=False,
+#                 update_freq='epoch',
+#                 profile_batch=0,  # Disable profiling by default
+#                 embeddings_freq=0
+#             )
+
+#         # Create separate file writers for train and validation
+#         self.train_writer = tf.summary.create_file_writer(
+#             str(Path(writer.log_dir) / 'train')
+#         )
+#         self.val_writer = tf.summary.create_file_writer(
+#             str(Path(writer.log_dir) / 'validation')
+#         )
+
+#         # Replay previous history
+#         if previous_history:
+#             self._replay_history_to_tensorboard(previous_history)
+#             self.train_writer.flush()
+#             self.val_writer.flush()
 class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
-    """
-    Custom callback that integrates with your CustomSummaryWriter
-    Focuses on custom metrics and syncing, while standard TensorBoard handles built-in features
-    """
-    def __init__(self, writer, include_standard_tensorboard=True, val_dataset=None,
+
+    HIGHER_IS_BETTER = {"accuracy", "f1", "auc"}
+
+    def __init__(self, writer, include_standard_tensorboard=False, val_dataset=None,
                 log_confusion_matrix=True, confusion_matrix_frequency=5,
                 confusion_matrix_specs=None, input_shape=None, cfg=None,
-                loss_objects={}, previous_history=None, use_dvclive = True,
-                dvclive_tracked_val_metrices=["val_loss"]):
+                loss_objects={}, previous_history=None, use_dvclive=True):
         super().__init__()
         self.writer = writer
         self.val_dataset = val_dataset
-        #self.val_results_save_path = val_results_save_path
         self.log_confusion_matrix = log_confusion_matrix
         self.confusion_matrix_frequency = confusion_matrix_frequency
         self.confusion_matrix_specs = confusion_matrix_specs or []
-        self.metrics = {}
         self.input_shape = input_shape
         self.cfg = cfg
         self.loss_objects = loss_objects
         self.previous_history = previous_history
-
-        # self.live = Live(dir=self.writer.log_dir / "dvclive", dvcyaml=False) if use_dvclive else None
         self.live = Live(dvcyaml=False) if use_dvclive else None
-        self.dvclive_tracked_val_metrices = dvclive_tracked_val_metrices
-
         self._best_val = {}
         self._best_step = {}
+        self._last_logs = {}
 
-         # Optionally create standard TensorBoard callback
+        # Optionally create standard TensorBoard callback
         self.standard_tb_callback = None
         if include_standard_tensorboard:
             # Create a standard TensorBoard callback that logs to the same directory
@@ -372,21 +430,110 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 update_freq='epoch',
                 profile_batch=0,  # Disable profiling by default
                 embeddings_freq=0
-            )
+#             )
 
-        # Create separate file writers for train and validation
-        self.train_writer = tf.summary.create_file_writer(
-            str(Path(writer.log_dir) / 'train')
-        )
-        self.val_writer = tf.summary.create_file_writer(
-            str(Path(writer.log_dir) / 'validation')
-        )
+        # Train/val subdirectory writers
+        self.train_writer = tf.summary.create_file_writer(str(Path(writer.log_dir) / 'train'))
+        self.val_writer = tf.summary.create_file_writer(str(Path(writer.log_dir) / 'validation'))
 
-        # Replay previous history
         if previous_history:
             self._replay_history_to_tensorboard(previous_history)
+            self._init_best_from_history(previous_history)  # ← initialize _best_val from history
             self.train_writer.flush()
             self.val_writer.flush()
+
+    def _init_best_from_history(self, previous_history):
+        """Seed _best_val/_best_step from replayed history so resumed training continues correctly."""
+        num_epochs = len(next(iter(previous_history.values())))
+        for epoch in range(num_epochs):
+            logs = {key: values[epoch] for key, values in previous_history.items()}
+            self._update_best(epoch, logs)
+
+    def _update_best(self, epoch, logs):
+        """Core best-tracking logic, shared by on_epoch_end and _init_best_from_history."""
+        for metric_key in self.writer.metrics:
+            metric = logs.get(metric_key)
+            if metric is None:
+                continue
+
+            higher_is_better = any(m in metric_key for m in self.HIGHER_IS_BETTER)
+            is_best = (
+                self._best_val.get(metric_key) is None or
+                (higher_is_better and metric > self._best_val[metric_key]) or
+                (not higher_is_better and metric < self._best_val[metric_key])
+            )
+            if is_best:
+                self._best_val[metric_key] = metric
+                self._best_step[metric_key] = epoch
+                if self.live:
+                    self.live.summary[f"{metric_key}_best"] = float(metric)
+                    self.live.summary[f"{metric_key}_best_step"] = epoch
+
+            # Staircase curve in TensorBoard — every epoch, only if we have a best value
+            if self._best_val.get(metric_key) is not None:
+                self.writer.add_scalar(f'best/{metric_key}', self._best_val[metric_key], epoch)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if logs is None:
+            return
+
+        # 1. Log unweighted per-objective losses
+        self._log_losses(epoch, logs)
+
+        # 2. Confusion matrix
+        if (self.val_dataset is not None
+            and self.confusion_matrix_specs
+            and (epoch + 1) % self.confusion_matrix_frequency == 0
+        ):
+            for spec in self.confusion_matrix_specs:
+                self._log_confusion_matrix(epoch, spec)
+
+        # 3. DVCLive — log all metrics every epoch
+        if self.live:
+            for key, value in logs.items():
+                self.live.log_metric(key, value)
+            self.live.next_step()
+
+        # Log all Keras metrics continuously to val_writer
+        with self.val_writer.as_default():
+            for key, value in logs.items():
+                if key.startswith('val_'):
+                    tf.summary.scalar(key.removeprefix('val_'), value, step=epoch)
+
+        with self.train_writer.as_default():
+            for key, value in logs.items():
+                if not key.startswith('val_'):
+                    tf.summary.scalar(key, value, step=epoch)
+
+        # 4. Best tracking → TensorBoard staircase + DVCLive summary
+        self._update_best(epoch, logs)
+
+        if self.live:
+            self.live.make_summary()
+
+        # 5. Sync
+        self.writer.step()
+        self.train_writer.flush()
+        self.val_writer.flush()
+
+        self._last_logs = logs
+
+    def on_train_end(self, logs=None):
+        if self.log_confusion_matrix and self.val_dataset is not None:
+            for spec in self.confusion_matrix_specs:
+                self._log_confusion_matrix(epoch=-1, spec=spec)
+
+        if self.live:
+            self.live.end()
+
+        # Write best values to HParams
+        self.writer.metrics = {
+            k: float(self._best_val[k]) if k in self._best_val else None
+            for k in self.writer.metrics
+        }
+        self.writer._log_hyperparameters()
+        self.writer.close()
+        print("Training completed!")
 
     def set_model(self, model):
         """Called when the callback is attached to a model"""
@@ -526,89 +673,79 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         if self.standard_tb_callback:
             self.standard_tb_callback.on_epoch_begin(epoch, logs)
 
-    def on_epoch_end(self, epoch, logs=None):
-        if logs is None:
-            return
+    # def on_epoch_end(self, epoch, logs=None):
+    #     if logs is None:
+    #         return
 
-        # # --- Run inference ONCE, cache for all consumers ---
-        # val_results = self._run_inference()
-        # y_pred, y_true = 
+    #     # # --- Run inference ONCE, cache for all consumers ---
+    #     # val_results = self._run_inference()
+    #     # y_pred, y_true = 
 
-        # --- Consumers read from cache ---
-        # 1. Loss logging (already comes from `logs`, no inference needed)
-        self._log_losses(epoch, logs)
+    #     # --- Consumers read from cache ---
+    #     # 1. Loss logging (already comes from `logs`, no inference needed)
+    #     self._log_losses(epoch, logs)
 
-        # 2. Confusion matrix
-        if (self.val_dataset is not None
-            and self.confusion_matrix_specs
-            and (epoch + 1) % self.confusion_matrix_frequency == 0
-        ):
-            for spec in self.confusion_matrix_specs:
-                self._log_confusion_matrix(epoch, spec)
+    #     # 2. Confusion matrix
+    #     if (self.val_dataset is not None
+    #         and self.confusion_matrix_specs
+    #         and (epoch + 1) % self.confusion_matrix_frequency == 0
+    #     ):
+    #         for spec in self.confusion_matrix_specs:
+    #             self._log_confusion_matrix(epoch, spec)
 
-        # # 3. Save raw results
-        # if self.val_dataset is not None:
-        #     for target, (y_pred, y_true) in self._epoch_cache.items():
-        #         self._save_val_results(y_pred, y_true, target, self.val_results_save_path, epoch)
+    #     # # 3. Save raw results
+    #     # if self.val_dataset is not None:
+    #     #     for target, (y_pred, y_true) in self._epoch_cache.items():
+    #     #         self._save_val_results(y_pred, y_true, target, self.val_results_save_path, epoch)
 
-        # Call standard TensorBoard callback
-        if self.standard_tb_callback:
-            self.standard_tb_callback.on_epoch_end(epoch, logs)
+    #     # Call standard TensorBoard callback
+    #     if self.standard_tb_callback:
+    #         self.standard_tb_callback.on_epoch_end(epoch, logs)
 
-        # DVCLive logging
-        if self.live:
-            for key, value in logs.items():
-                self.live.log_metric(key, value)
-            self.live.next_step()
+    #     # DVCLive logging
+    #     if self.live:
+    #         for key, value in logs.items():
+    #             self.live.log_metric(key, value)
+    #         self.live.next_step()
         
-        # Manual best tracking
-        # Metrics where higher is better
-        HIGHER_IS_BETTER = {"accuracy", "f1", "auc"}
+    #     # Manual best tracking
+    #     # Metrics where higher is better
+    #     HIGHER_IS_BETTER = {"accuracy", "f1", "auc"}
 
-        for val_metric_key in self.dvclive_tracked_val_metrices:
-            val_metric = logs.get(val_metric_key)
-            if val_metric is not None:
-                higher_is_better = any(m in val_metric_key for m in HIGHER_IS_BETTER)
-                is_best = (
-                    self._best_val.get(val_metric_key) is None or
-                    (higher_is_better and val_metric > self._best_val[val_metric_key]) or
-                    (not higher_is_better and val_metric < self._best_val[val_metric_key])
-                )
-                if is_best:
-                    self._best_val[val_metric_key] = val_metric
-                    self._best_step[val_metric_key] = epoch
-                    self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
-                    self.live.summary[f"{val_metric_key}_best_step"] = epoch
+    #     for metric_key in self.writer.metrics:
+    #         metric = logs.get(metric_key)
+    #         if metric is not None:
+    #             higher_is_better = any(m in metric_key for m in HIGHER_IS_BETTER)
+    #             is_best = (
+    #                 self._best_val.get(metric_key) is None or
+    #                 (higher_is_better and metric > self._best_val[metric_key]) or
+    #                 (not higher_is_better and metric < self._best_val[metric_key])
+    #             )
+    #             if is_best:
+    #                 # Update best value and step
+    #                 self._best_val[metric_key] = metric
+    #                 self._best_step[metric_key] = epoch
 
-                    # Log best to TensorBoard every epoch
-                    if self._best_val.get(val_metric_key) is not None:
-                        self.writer.add_scalar(
-                            f'best/{val_metric_key}',
-                            self._best_val[val_metric_key],
-                            epoch
-                        )
-    
-            
+    #                 # Log best metric to DVCLive summary
+    #                 self.live.summary[f"{metric_key}_best"] = float(metric)
+    #                 self.live.summary[f"{metric_key}_best_step"] = epoch
 
-        # for val_metric_key in self.dvclive_tracked_val_metrices: #["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"]:
-        #     val_metric = logs.get(val_metric_key)
-        #     if val_metric is not None:
-        #         if self._best_val.get(val_metric_key) is None or val_metric < self._best_val[val_metric_key]:
-        #             self._best_val[val_metric_key] = val_metric
-        #             self._best_step[val_metric_key] = epoch
-        #             self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
-        #             self.live.summary[f"{val_metric_key}_best_step"] = epoch
+    #         # Log best to TensorBoard every epoch
+    #         self.writer.add_scalar(
+    #             f'best/{metric_key}',
+    #             metric,
+    #             epoch)
 
-        self.live.make_summary()  # once after the loop
+    #     self.live.make_summary()  # once after the loop
 
-        # Step the writer (handles syncing)
-        self.writer.step()
+    #     # Step the writer (handles syncing)
+    #     self.writer.step()
         
-        # Flush all writers
-        self.train_writer.flush()
-        self.val_writer.flush()
+    #     # Flush all writers
+    #     self.train_writer.flush()
+    #     self.val_writer.flush()
 
-        self._last_logs = logs
+    #     self._last_logs = logs
 
     def _log_losses(self, epoch, logs):
         num_objectives = len(self.loss_objects)
@@ -861,77 +998,99 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         
     #     return y_pred_list, y_true_list
 
-    def on_train_end(self, logs=None):
-        """Final logging and cleanup"""
-        # Log final confusion matrix
-        if self.log_confusion_matrix and self.val_dataset is not None:
-            for spec in self.confusion_matrix_specs:
-                self._log_confusion_matrix(epoch=-1, spec=spec) # Special epoch for final
+    # def on_train_end(self, logs=None):
+    #     # Log final confusion matrix
+    #     if self.log_confusion_matrix and self.val_dataset is not None:
+    #         for spec in self.confusion_matrix_specs:
+    #             self._log_confusion_matrix(epoch=-1, spec=spec)
 
-        if self.standard_tb_callback:
-            self.standard_tb_callback.on_train_end(logs)
+    #     if self.standard_tb_callback:
+    #         self.standard_tb_callback.on_train_end(logs)
 
-        if self.live:
-            self.live.end()
+    #     if self.live:
+    #         self.live.end()
+
+    #     # Update writer metrics with best values and log to HParams
+    #     self.writer.metrics = {
+    #         k: float(self._best_val[k]) if k in self._best_val else None
+    #         for k in self.writer.metrics
+    #     }
+    #     self.writer._log_hyperparameters()
+
+    #     self.writer.close()
+    #     print("Training completed!")
+
+    # def on_train_end(self, logs=None):
+    #     """Final logging and cleanup"""
+    #     # Log final confusion matrix
+    #     if self.log_confusion_matrix and self.val_dataset is not None:
+    #         for spec in self.confusion_matrix_specs:
+    #             self._log_confusion_matrix(epoch=-1, spec=spec) # Special epoch for final
+
+    #     if self.standard_tb_callback:
+    #         self.standard_tb_callback.on_train_end(logs)
+
+    #     if self.live:
+    #         self.live.end()
         
-        # # Use the last recorded metrics from self.final_metrics
-        # logs = logs or {}
+    #     # # Use the last recorded metrics from self.final_metrics
+    #     # logs = logs or {}
 
-        # self.writer._log_hyperparameters(self.params, self.metrics)
+    #     # self.writer._log_hyperparameters(self.params, self.metrics)
         
-        # # Add any other metrics you want here, e.g. accuracy
+    #     # # Add any other metrics you want here, e.g. accuracy
         
-        # # Assuming `self.params` holds your hparams dictionary
-        # hparam_dict = self.params.tensorboard_compatible_copy()
+    #     # # Assuming `self.params` holds your hparams dictionary
+    #     # hparam_dict = self.params.tensorboard_compatible_copy()
         
-        # # Now write the hparams summary with final metrics
-        # self._add_hparams(hparam_dict, metrics)
+    #     # # Now write the hparams summary with final metrics
+    #     # self._add_hparams(hparam_dict, metrics)
 
-        logs = logs or self._last_logs or {}
-        print(logs)
+    #     logs = logs or self._last_logs or {}
+    #     print(logs)
 
-        print(f"Final logs keys: {list(logs.keys())}")
+    #     print(f"Final logs keys: {list(logs.keys())}")
     
-        num_objectives = len(self.loss_objects)
+    #     num_objectives = len(self.loss_objects)
         
-        # Extract final metrics from logs
-        for obj_name, loss_obj in self.loss_objects.items():
-            current_weight = float(loss_obj.weight.numpy())
+    #     # Extract final metrics from logs
+    #     for obj_name, loss_obj in self.loss_objects.items():
+    #         current_weight = float(loss_obj.weight.numpy())
             
-            # Get train loss
-            train_weighted = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
-            if train_weighted is not None:
-                train_base = self._calculate_base_loss(train_weighted, current_weight)
-                self.metrics[f"{obj_name}_loss"] = float(train_base)
-                print(f"Added {obj_name}_loss = {train_base}")
+    #         # Get train loss
+    #         train_weighted = self._get_loss_from_logs(logs, obj_name, '', num_objectives)
+    #         if train_weighted is not None:
+    #             train_base = self._calculate_base_loss(train_weighted, current_weight)
+    #             self.metrics[f"{obj_name}_loss"] = float(train_base)
+    #             print(f"Added {obj_name}_loss = {train_base}")
             
-            # Get validation loss
-            val_weighted = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
-            if val_weighted is not None:
-                val_base = self._calculate_base_loss(val_weighted, current_weight)
-                self.metrics[f"val_{obj_name}_loss"] = float(val_base)
-                print(f"Added val_{obj_name}_loss = {val_base}")
+    #         # Get validation loss
+    #         val_weighted = self._get_loss_from_logs(logs, obj_name, 'val_', num_objectives)
+    #         if val_weighted is not None:
+    #             val_base = self._calculate_base_loss(val_weighted, current_weight)
+    #             self.metrics[f"{obj_name}_val_loss"] = float(val_base)
+    #             print(f"Added {obj_name}_val_loss = {val_base}")
 
-            for log_prefix in ['', 'val_']:
-                acc_key = f"{log_prefix}{obj_name}_accuracy"
-                if acc_key in logs:
-                    self.metrics[acc_key] = float(logs[acc_key])
+    #         for log_prefix in ['', 'val_']:
+    #             acc_key = f"{log_prefix}{obj_name}_accuracy"
+    #             if acc_key in logs:
+    #                 self.metrics[acc_key] = float(logs[acc_key])
         
-        print(f"Final metrics for hParams: {self.metrics}")
+    #     print(f"Final metrics for hParams: {self.metrics}")
 
-        # # Update latest_metrics with latest logs keys you want
-        # for key in self.writer.metrics.keys():
-        #     print(key)
-        #     if key in logs:
-        #         print(key)
-        #         self.metrics[key] = logs[key]
+    #     # # Update latest_metrics with latest logs keys you want
+    #     # for key in self.writer.metrics.keys():
+    #     #     print(key)
+    #     #     if key in logs:
+    #     #         print(key)
+    #     #         self.metrics[key] = logs[key]
         
-        # Log hyperparameters + final metrics
-        self.writer._log_hyperparameters(self.writer.params, self.metrics, log_dir=self.writer.log_dir)
-        self.writer.close()
+    #     # Log hyperparameters + final metrics
+    #     self.writer._log_hyperparameters(self.writer.params, self.metrics, log_dir=self.writer.log_dir)
+    #     self.writer.close()
         
-        print("Training completed!")
-        self.writer.close()
+    #     print("Training completed!")
+    #     self.writer.close()
 
 
 def return_tensorboard_dir(subfolder=None, suffix='') -> PosixPath:
