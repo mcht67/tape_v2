@@ -146,6 +146,7 @@ def main():
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.initial_epoch if 'initial_epoch' in cfg.train and cfg.train.initial_epoch else 0
     learning_rate = cfg.train.learning_rate
+    early_stopping_patience = cfg.train.early_stopping_patience if 'early_stopping_patience' in cfg.train else 10
     batch_size = cfg.train.batch_size
     num_batches_train = cfg.train.num_batches_train if 'num_batches_train' in cfg.train else None
     num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train else None
@@ -228,10 +229,13 @@ def main():
     # Metrics dict
     metrics = {}
     for key in objectives_cfg.keys():
-        metrics[f"{key}_loss"] = None
-        metrics[f"val_{key}_loss"] = None
-        metrics[f"{key}_accuracy"] = None
-        metrics[f"val_{key}_accuracy"] = None 
+        # metrics[f"{key}_loss"] = None
+        # metrics[f"val_{key}_loss"] = None
+        # metrics[f"{key}_accuracy"] = None
+        # metrics[f"val_{key}_accuracy"] = None 
+
+        metrics[f"best/val_{key}_loss"] = None
+        metrics[f"best/val_{key}_accuracy"] = None
 
     print("Metrics:", metrics)
 
@@ -320,7 +324,7 @@ def main():
 
     early_stopping = EarlyStopping(
         monitor='val_loss',  
-        patience=5,            
+        patience=early_stopping_patience,            
         restore_best_weights=False
     )             
 
