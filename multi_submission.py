@@ -114,10 +114,20 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
         submitted_job_id = result.stdout.strip().split()[-1]
         print("Experiment job submitted: ", submitted_job_id)
 
+# def create_exp_params_str(config_dict):
+#     exp_params_str = ''
+#     for key, value in config_dict.items():
+#         exp_params_str += f"-S  {key}={str(value)} "
+#     return exp_params_str
+
 def create_exp_params_str(config_dict):
     exp_params_str = ''
     for key, value in config_dict.items():
-        exp_params_str += f"-S  {key}={str(value)} "
+        if isinstance(value, list):
+            formatted = "[" + ",".join(str(v) for v in value) + "]"
+        else:
+            formatted = str(value)
+        exp_params_str += f"-S  {key}={formatted} "
     return exp_params_str
 
 def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id):      
