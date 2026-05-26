@@ -12,6 +12,8 @@ import json
 import subprocess
 import shlex
 import yaml
+import configparser
+from pathlib import Path
 # import huggingface_hub
 
 # from source.utils.dataset import get_data_dir
@@ -153,6 +155,55 @@ def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id
         print("Submitting experiment for dataset ", train_config, " with hyperparameters: ", hyperparams_config)
         submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id)
 
+def create_study_remote(study_name: str, base_remote: str = "base-remote"):
+    local_config_path = Path(".dvc/config.local")
+    global_config_path = Path(".dvc/config")
+    
+    local_config = configparser.RawConfigParser()
+    local_config.read(local_config_path)
+
+    global_config = configparser.RawConfigParser()
+    global_config.read(global_config_path)
+    
+    base_section = f'remote "{base_remote}"'
+    new_section = f'remote "{study_name}"'
+    
+    # Check if already exists
+    if local_config.has_section(new_section):
+        print(f"Remote '{study_name}' already exists, skipping creation.")
+        global_config.set('core', 'remote', study_name)
+        with open(global_config_path, 'w') as f:
+            global_config.write(f)
+        return
+
+    # Get base URL and create new URL with subfolder
+    base_url = local_config.get(base_section, 'url')
+    
+    # Create new section
+    local_config.add_section(new_section)
+    local_config.set(new_section, 'url', f"{base_url}/{study_name}")
+    
+    # Copy non-empty values from base remote
+    for key in ['gdrive_acknowledge_abuse', 'gdrive_client_id', 
+                'gdrive_client_secret', 'gdrive_user_credentials_file']:
+        try:
+            value = local_config.get(base_section, key)
+            if value:
+                local_config.set(new_section, key, value)
+        except configparser.NoOptionError:
+            pass
+    
+    # Set as default
+    global_config.set('core', 'remote', study_name)
+    
+    with open(local_config_path, 'w') as f:
+        local_config.write(f)
+    
+    with open(global_config_path, 'w') as f:
+        global_config.write(f)
+
+    print(f"Created remote '{study_name}' -> {base_url}/{study_name}")
+
 if __name__ == "__main__":
 
     arguments = sys.argv[1:]
@@ -169,6 +220,10 @@ if __name__ == "__main__":
 
     dataset_subsets = study_config['dataset_subsets']
     embeddings = study_config['hyperparams']['embeddings']
+    study_name = study_config['base_config']['log.study_name']
+
+    # Create DVC remote for the study
+    create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
     run_dataset_preparation = True

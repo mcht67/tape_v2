@@ -61,47 +61,47 @@ fi
 echo "Study name: "
 echo $STUDY_NAME
 
-##########################################
-# Set or create DVC remote for the study
-##########################################
+# ##########################################
+# # Set or create DVC remote for the study
+# ##########################################
 
-BASE_REMOTE="base-remote"
-CONFIG_LOCAL=".dvc/config.local"
+# BASE_REMOTE="base-remote"
+# CONFIG_LOCAL=".dvc/config.local"
 
-# Check if remote already exists
-if grep -q "\[remote \"$STUDY_NAME\"\]" "$CONFIG_LOCAL" 2>/dev/null; then
-    echo "Remote '$STUDY_NAME' already exists, skipping creation."
-    # Update default
-    sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
-    exit 0
-fi
+# # Check if remote already exists
+# if grep -q "\[remote \"$STUDY_NAME\"\]" "$CONFIG_LOCAL" 2>/dev/null; then
+#     echo "Remote '$STUDY_NAME' already exists, skipping creation."
+#     # Update default
+#     sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
+#     exit 0
+# fi
 
-# Get base URL from local config
-BASE_URL=$(grep -A1 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "url" | awk -F'= ' '{print $2}' | tr -d ' ')
+# # Get base URL from local config
+# BASE_URL=$(grep -A1 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "url" | awk -F'= ' '{print $2}' | tr -d ' ')
 
-# Read all settings from base remote section
-ACKNOWLEDGE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_acknowledge_abuse" | awk -F'= ' '{print $2}' | tr -d ' ')
-CLIENT_ID=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_id" | awk -F'= ' '{print $2}' | tr -d ' ')
-CLIENT_SECRET=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_secret" | awk -F'= ' '{print $2}' | tr -d ' ')
-CREDENTIALS_FILE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_user_credentials_file" | awk -F'= ' '{print $2}' | tr -d ' ')
+# # Read all settings from base remote section
+# ACKNOWLEDGE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_acknowledge_abuse" | awk -F'= ' '{print $2}' | tr -d ' ')
+# CLIENT_ID=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_id" | awk -F'= ' '{print $2}' | tr -d ' ')
+# CLIENT_SECRET=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_secret" | awk -F'= ' '{print $2}' | tr -d ' ')
+# CREDENTIALS_FILE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_user_credentials_file" | awk -F'= ' '{print $2}' | tr -d ' ')
 
-# Append new remote section
-cat >> "$CONFIG_LOCAL" << EOF
+# # Append new remote section
+# cat >> "$CONFIG_LOCAL" << EOF
 
-[remote "$STUDY_NAME"]
-    url = $BASE_URL/$STUDY_NAME
-    gdrive_acknowledge_abuse = $ACKNOWLEDGE
-    gdrive_client_id = $CLIENT_ID
-    gdrive_client_secret = $CLIENT_SECRET
-    gdrive_user_credentials_file = $CREDENTIALS_FILE
-EOF
+# [remote "$STUDY_NAME"]
+#     url = $BASE_URL/$STUDY_NAME
+#     gdrive_acknowledge_abuse = $ACKNOWLEDGE
+#     gdrive_client_id = $CLIENT_ID
+#     gdrive_client_secret = $CLIENT_SECRET
+#     gdrive_user_credentials_file = $CREDENTIALS_FILE
+# EOF
 
-cat -n .dvc/config.local
+# cat -n .dvc/config.local
 
-# Update default remote in [core] section
-sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
+# # Update default remote in [core] section
+# sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
 
-echo "Created remote '$STUDY_NAME' -> $BASE_URL/$STUDY_NAME"
+# echo "Created remote '$STUDY_NAME' -> $BASE_URL/$STUDY_NAME"
 
 #################################
 # Python paths
