@@ -68,9 +68,6 @@ echo $STUDY_NAME
 BASE_REMOTE="base-remote"
 CONFIG_LOCAL=".dvc/config.local"
 
-# Get study name from hydra/optuna config
-STUDY_NAME=$(python -c "import yaml; print(yaml.safe_load(open('conf/config.yaml'))['hydra']['sweeper']['study_name'])")
-
 # Check if remote already exists
 if grep -q "\[remote \"$STUDY_NAME\"\]" "$CONFIG_LOCAL" 2>/dev/null; then
     echo "Remote '$STUDY_NAME' already exists, skipping creation."
