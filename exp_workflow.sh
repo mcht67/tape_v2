@@ -6,7 +6,7 @@
 
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
-set -x
+# set -x
 
 #################################
 # Import environment variables
@@ -61,48 +61,6 @@ fi
 echo "Study name: "
 echo $STUDY_NAME
 
-# ##########################################
-# # Set or create DVC remote for the study
-# ##########################################
-
-# BASE_REMOTE="base-remote"
-# CONFIG_LOCAL=".dvc/config.local"
-
-# # Check if remote already exists
-# if grep -q "\[remote \"$STUDY_NAME\"\]" "$CONFIG_LOCAL" 2>/dev/null; then
-#     echo "Remote '$STUDY_NAME' already exists, skipping creation."
-#     # Update default
-#     sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
-#     exit 0
-# fi
-
-# # Get base URL from local config
-# BASE_URL=$(grep -A1 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "url" | awk -F'= ' '{print $2}' | tr -d ' ')
-
-# # Read all settings from base remote section
-# ACKNOWLEDGE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_acknowledge_abuse" | awk -F'= ' '{print $2}' | tr -d ' ')
-# CLIENT_ID=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_id" | awk -F'= ' '{print $2}' | tr -d ' ')
-# CLIENT_SECRET=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_client_secret" | awk -F'= ' '{print $2}' | tr -d ' ')
-# CREDENTIALS_FILE=$(grep -A10 "\[remote \"$BASE_REMOTE\"\]" "$CONFIG_LOCAL" | grep "gdrive_user_credentials_file" | awk -F'= ' '{print $2}' | tr -d ' ')
-
-# # Append new remote section
-# cat >> "$CONFIG_LOCAL" << EOF
-
-# [remote "$STUDY_NAME"]
-#     url = $BASE_URL/$STUDY_NAME
-#     gdrive_acknowledge_abuse = $ACKNOWLEDGE
-#     gdrive_client_id = $CLIENT_ID
-#     gdrive_client_secret = $CLIENT_SECRET
-#     gdrive_user_credentials_file = $CREDENTIALS_FILE
-# EOF
-
-# cat -n .dvc/config.local
-
-# # Update default remote in [core] section
-# sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
-
-# echo "Created remote '$STUDY_NAME' -> $BASE_URL/$STUDY_NAME"
-
 #################################
 # Python paths
 #################################
@@ -142,36 +100,13 @@ TMP_DIR=tmp
 
 # Create a new sub-directory in the temporary directory for the experiment
 echo "Creating temporary sub-directory..." &&
-# Generate a unique ID with the current timestamp, process ID, and hostname for the sub-directory
-# UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
-# EXP_TMP_DIR="$(realpath "$TMP_DIR/$UNIQUE_ID")" &&
-# mkdir -p $EXP_TMP_DIR &&
 
+# Generate a unique ID with the current timestamp, process ID, and hostname for the sub-directory
 UNIQUE_ID=$(date +%s)-$$-$HOSTNAME &&
 EXP_TMP_DIR="$TMP_DIR/$UNIQUE_ID" &&
 mkdir -p $EXP_TMP_DIR &&
 
-# # Copy the necessary files to the temporary directory
-# echo "Copying files..." &&
-# {
-# # Add all git-tracked files
-# git ls-files;
-# if [ -f ".dvc/config.local" ]; then
-#     echo ".dvc/config.local";
-# fi;
 
-# if [ -f "secrets/dvc-token.json" ]; then
-#     echo "secrets/dvc-token.json"
-# else
-#   echo "WARNING: secrets/dvc-token.json not found" >&2
-#   ls -la secrets/ >&2   # show what's actually there
-# fi
-
-# echo ".git";
-# } | while read file; do
-#     # --chown flag is needed for docker to avoid permission issues
-#     rsync -aR --chown $(id -u):$(id -g) "$file" $EXP_TMP_DIR;
-# done &&
 
 echo "Copying files..." &&
 {
@@ -222,14 +157,6 @@ dvc exp run \
 # Archive
 #################################
 
-# Moving everythin to archive
-# DATETIME=$(date +%Y%m%d_%H%M%S)
-# if [ -n "$STUDY_NAME" ]; then
-#     ARCHIVE_DIR=${DEFAULT_DIR}/archive/$STUDY_NAME/${DATETIME}_$DVC_EXP_NAME
-# else
-#     ARCHIVE_DIR=${DEFAULT_DIR}/archive/unnamed_exp/${DATETIME}_$DVC_EXP_NAME
-# fi
-
 ARCHIVE_DIR=${DEFAULT_DIR}/archive/
 
 echo "Archiving results to $ARCHIVE_DIR..."
@@ -243,7 +170,7 @@ fi
 
 # Check if dvclive/ exists and rsync if it does
 if [ -d "dvclive" ]; then
-  rsync -rv dvclive/ ${ARCHIVE_DIR}
+  rsync -rv dvclive/ ${ARCHIVE_DIR}/dvclive/
 else
   echo "dvclive directory not found, skipping..."
 fi
