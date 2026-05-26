@@ -141,6 +141,7 @@ def main():
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
+    study_metrics = cfg.log.study_metrics if 'study_metrics' in cfg.log else None
 
     input_feature_name = cfg.train.input_feature_name
     total_epochs = cfg.train.epochs
@@ -228,14 +229,17 @@ def main():
 
     # Metrics dict
     metrics = {}
-    for key in objectives_cfg.keys():
-        metrics[f"{key}_loss"] = None
-        metrics[f"val_{key}_loss"] = None
-        metrics[f"{key}_accuracy"] = None
-        metrics[f"val_{key}_accuracy"] = None 
+    # for key in objectives_cfg.keys():
+    #     metrics[f"{key}_loss"] = None
+    #     metrics[f"val_{key}_loss"] = None
+    #     metrics[f"{key}_accuracy"] = None
+    #     metrics[f"val_{key}_accuracy"] = None 
 
-        metrics[f"val_{key}_loss_best"] = None
-        metrics[f"val_{key}_accuracy_best"] = None
+    #     metrics[f"val_{key}_loss_best"] = None
+    #     metrics[f"val_{key}_accuracy_best"] = None
+    
+    for key in study_metrics:
+        metrics[key] = None
 
     print("Metrics:", metrics)
 

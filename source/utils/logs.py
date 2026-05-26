@@ -578,16 +578,17 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                     self._best_val[val_metric_key] = val_metric
                     self._best_step[val_metric_key] = epoch
                     self.live.summary[f"{val_metric_key}_best"] = float(val_metric)
+                    self.live.summary[f"{val_metric_key}_best_step"] = epoch
 
-                 # Log best to TensorBoard every epoch
-                if self._best_val.get(val_metric_key) is not None:
-                    self.writer.add_scalar(
-                        f'{val_metric_key}_best',
-                        self._best_val[val_metric_key],
-                        epoch
-                    )
+                    # Log best to TensorBoard every epoch
+                    if self._best_val.get(val_metric_key) is not None:
+                        self.writer.add_scalar(
+                            f'best/{val_metric_key}',
+                            self._best_val[val_metric_key],
+                            epoch
+                        )
     
-            self.live.summary[f"{val_metric_key}_best_step"] = epoch
+            
 
         # for val_metric_key in self.dvclive_tracked_val_metrices: #["val_loss", "polyphony_degree_val_loss", "polyphony_degree_class_val_loss"]:
         #     val_metric = logs.get(val_metric_key)

@@ -15,6 +15,11 @@ base_config:
   train.epochs: 100
   train.learning_rate: 0.001
   path.study_subfolder: ${embeddings.name}/
+  train.study_metrics:
+    - "polyphony_degree_val_loss"
+    - "polyphony_degree_class_val_loss"
+    - "best/polyphony_degree_val_loss_best"
+    - "best/polyphony_degree_class_val_loss_best"
 
 hyperparams:
   model:
