@@ -61,6 +61,40 @@ fi
 echo "Study name: "
 echo $STUDY_NAME
 
+##########################################
+# Set or create DVC remote for the study
+##########################################
+
+#!/bin/bash
+BASE_REMOTE="base-remote"
+
+# Check if remote already exists in local config
+EXISTING=$(dvc config --local "remote.$STUDY_NAME.url" 2>/dev/null)
+if [ -n "$EXISTING" ]; then
+    echo "Remote '$STUDY_NAME' already exists, skipping creation."
+    dvc remote default --local "$STUDY_NAME"
+    exit 0
+fi
+
+# Get base URL from local config
+BASE_URL=$(dvc config --local "remote.$BASE_REMOTE.url")
+
+# Create new remote with study name as subfolder
+dvc remote add --local "$STUDY_NAME" "$BASE_URL/$STUDY_NAME"
+
+# Copy settings from base remote local config
+for KEY in gdrive_acknowledge_abuse gdrive_client_id gdrive_client_secret gdrive_user_credentials_file; do
+    VALUE=$(dvc config --local "remote.$BASE_REMOTE.$KEY" 2>/dev/null)
+    if [ -n "$VALUE" ]; then
+        dvc remote modify --local "$STUDY_NAME" "$KEY" "$VALUE"
+    fi
+done
+
+# Set as default in local config
+dvc remote default --local "$STUDY_NAME"
+
+echo "Created remote '$STUDY_NAME' -> $BASE_URL/$STUDY_NAME"
+
 #################################
 # Python paths
 #################################
