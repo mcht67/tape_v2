@@ -168,13 +168,6 @@ else
   echo "train_output directory not found, skipping..."
 fi
 
-# Check if dvclive/ exists and rsync if it does
-if [ -d "dvclive" ]; then
-  rsync -rv dvclive $ARCHIVE_DIR$STUDY_NAME/
-else
-  echo "dvclive directory not found, skipping..."
-fi
-
 # Check if eval_output exists and rsync if it does
 if [ -d "eval_output" ]; then
   rsync -rv eval_output/ ${ARCHIVE_DIR}
