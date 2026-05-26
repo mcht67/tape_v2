@@ -430,7 +430,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
                 update_freq='epoch',
                 profile_batch=0,  # Disable profiling by default
                 embeddings_freq=0
-#             )
+            )
 
         # Train/val subdirectory writers
         self.train_writer = tf.summary.create_file_writer(str(Path(writer.log_dir) / 'train'))
