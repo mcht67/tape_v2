@@ -6,7 +6,7 @@
 
 # Description: This script runs an experiment with DVC within a temporary directory copy and pushes the results to the DVC and Git remote.
 set -e
-#set -x
+set -x
 
 #################################
 # Import environment variables
@@ -65,7 +65,6 @@ echo $STUDY_NAME
 # Set or create DVC remote for the study
 ##########################################
 
-#!/bin/bash
 BASE_REMOTE="base-remote"
 
 # Check if remote already exists in local config
