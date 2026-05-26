@@ -141,7 +141,7 @@ def main():
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
-    study_metrics = cfg.log.study_metrics if 'study_metrics' in cfg.log else None
+    # study_metrics = cfg.log.study_metrics if 'study_metrics' in cfg.log else None
 
     input_feature_name = cfg.train.input_feature_name
     total_epochs = cfg.train.epochs
