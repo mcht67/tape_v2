@@ -1610,18 +1610,26 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
                 self.model.save_weights(self.best_weights_dir / f'best.weights.h5')
                 print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
-            # Save rolling last-N checkpoints
+            # Cleanup old checkpoints if configured
             if self.keep_last_n:
                 self._cleanup_old_checkpoints(epoch)
 
             # Save model
             if (epoch + 1) % self.save_model_every_n_epochs == 0:
                 self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
+                self._cleanup_old_models(epoch)
                 print(f"✓ Saved model at epoch {epoch + 1}")
+               
                 
         def _cleanup_old_checkpoints(self, current_epoch):
             for old_epoch in range(current_epoch - self.keep_last_n):
                 path = self.epoch_weights_dir / f'epoch_{old_epoch+1:03d}.weights.h5'
+                if os.path.exists(path):
+                    os.remove(path)
+
+        def _cleanup_old_models(self, current_epoch):
+            for old_epoch in range(current_epoch - self.keep_last_n):
+                path = self.resumable_dir / f'epoch_{old_epoch+1:03d}.keras'
                 if os.path.exists(path):
                     os.remove(path)
 
