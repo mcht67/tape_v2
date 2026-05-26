@@ -353,7 +353,8 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.loss_objects = loss_objects
         self.previous_history = previous_history
 
-        self.live = Live(dir=self.writer.log_dir / "dvclive", dvcyaml=False) if use_dvclive else None
+        # self.live = Live(dir=self.writer.log_dir / "dvclive", dvcyaml=False) if use_dvclive else None
+        self.live = Live(dvcyaml=False) if use_dvclive else None
         self.dvclive_tracked_val_metrices = dvclive_tracked_val_metrices
 
         self._best_val = {}
