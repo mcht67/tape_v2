@@ -229,15 +229,15 @@ def main():
 
     # Metrics dict
     metrics = {}
-    # for key in objectives_cfg.keys():
-    #     metrics[f"{key}_loss"] = None
-    #     metrics[f"val_{key}_loss"] = None
-    #     metrics[f"{key}_accuracy"] = None
-    #     metrics[f"val_{key}_accuracy"] = None 
+    for key in objectives_cfg.keys():
+        metrics[f"{key}_loss"] = None
+        metrics[f"{key}_val_loss"] = None
+        metrics[f"{key}_accuracy"] = None
+        metrics[f"{key}_val_accuracy"] = None 
 
     #     metrics[f"val_{key}_loss_best"] = None
     #     metrics[f"val_{key}_accuracy_best"] = None
-    
+
     for key in study_metrics:
         metrics[key] = None
 
@@ -339,7 +339,7 @@ def main():
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
                 log_confusion_matrix=True, confusion_matrix_frequency=1, 
                 confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
-                previous_history=previous_history, dvclive_tracked_val_metrices=list(metrics.keys())) 
+                previous_history=previous_history) #, dvclive_tracked_val_metrices=list(metrics.keys())) 
 
     callbacks = [tensorboard_callback, model_and_history_saver, early_stopping] #[model_and_history_saver, tensorboard_callback] # TODO: test model_and_history_saver and remove 
     if loss_weight_callback := setup_loss_scheduler(objectives_cfg, losses):
