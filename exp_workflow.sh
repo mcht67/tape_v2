@@ -96,6 +96,8 @@ cat >> "$CONFIG_LOCAL" << EOF
     gdrive_user_credentials_file = $CREDENTIALS_FILE
 EOF
 
+cat -n .dvc/config.local
+
 # Update default remote in [core] section
 sed -i "s/defaultremote = .*/defaultremote = $STUDY_NAME/" "$CONFIG_LOCAL"
 
