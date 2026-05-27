@@ -93,19 +93,19 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
 
     return example
 
-def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
+def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'):
 
     # Early return if audio is empty
-    if audio['array'].size == 0 or audio['array'] is None:
+    if audio_array.size == 0 or audio_array is None:
         return None, None
 
     with tf.device(device):
         if model_key == 'yamnet':
-            scores, embeddings, log_mel_spectrogram = model(audio)
+            scores, embeddings, log_mel_spectrogram = model(audio_array)
         elif model_key == 'vggish':
-            embeddings = model(audio)
+            embeddings = model(audio_array)
         else:
-            outputs = model.embed(audio)
+            outputs = model.embed(audio_array)
             embeddings = outputs.embeddings
 
         spatial_embeddings = None
@@ -162,15 +162,15 @@ def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
             
     return pooled_embeddings, spatial_embeddings if spatial_embeddings is not None else None
 
-def embed_with_perch2(model, audio, device='/CPU:0'):
+def embed_with_perch2(model, audio_array, device='/CPU:0'):
 
     # Early return if audio is empty
-    if audio['array'].size == 0 or audio['array'] is None:
+    if audio_array.size == 0 or audio_array is None:
         return None, None
 
     with tf.device(device):
         infer_fn = model.signatures['serving_default']
-        audio_batched = tf.constant(audio[np.newaxis, :], dtype=tf.float32)  # Shape: (1, 160000)
+        audio_batched = tf.constant(audio_array[np.newaxis, :], dtype=tf.float32)  # Shape: (1, 160000)
         outputs = infer_fn(inputs=audio_batched)
 
         spatial_embeddings = outputs['spatial_embedding']  # (1, 16, 4, 1536)
