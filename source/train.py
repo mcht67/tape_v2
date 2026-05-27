@@ -58,15 +58,44 @@ def get_tf_datasets(dataset, features, labels, batch_size):
 
     return train_dataset, test_dataset, val_dataset
 
+# def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
+#     if split_name not in dataset:
+#         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
+    
+#     # Keep only the columns actually needed
+#     cols_to_keep = set(features if isinstance(features, list) else [features]) | set(labels)
+#     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
+#     split = dataset[split_name].remove_columns(cols_to_remove)
+    
+#     return split.to_tf_dataset(
+#         columns=features,
+#         label_cols=labels,
+#         batch_size=batch_size,
+#         shuffle=shuffle,
+#         prefetch=False
+#     )
+
 def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
     if split_name not in dataset:
         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
-    
+
     # Keep only the columns actually needed
-    cols_to_keep = set(features if isinstance(features, list) else [features]) | set(labels)
+    feature_list = features if isinstance(features, list) else [features]
+    cols_to_keep = set(feature_list) | set(labels)
     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
     split = dataset[split_name].remove_columns(cols_to_remove)
-    
+
+    # Check for None values and report which columns are affected
+    none_cols = []
+    for col in cols_to_keep:
+        if any(v is None for v in split[col]):
+            none_cols.append(col)
+
+    if none_cols:
+        print(f"[WARNING] Columns with None values found: {none_cols}. Filtering out affected rows.")
+        split = split.filter(lambda row: all(row[col] is not None for col in none_cols))
+        print(f"[INFO] Remaining rows after filtering: {len(split)}")
+
     return split.to_tf_dataset(
         columns=features,
         label_cols=labels,
