@@ -63,10 +63,17 @@ def load_birdset_model(model_key):
 def embed_example(example, model, model_key, embedding_type, input_feature, sampling_rate, device='/CPU:0'):
 
     audio = example[input_feature]
-    audio_array = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
-    embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
+    pooled_embeddings_key = model_key + "_" + input_feature + "_pooled_embeddings"
     spatial_embeddings_key = model_key + "_" + input_feature + "_spatial_embeddings"
+
+    # Early return if audio is empty
+    if audio['array'].size == 0 or audio['array'] is None:
+        example[pooled_embeddings_key] = None
+        example[spatial_embeddings_key] = None
+        return example
+
+    audio_array = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
 
     # Normalize
     audio_array = normalize_audio_array(audio_array)
@@ -76,9 +83,9 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
         pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio_array, device=device)
         # if spatial_embeddings is not None:
         example[spatial_embeddings_key]= spatial_embeddings
-        example[embeddings_key] = pooled_embeddings
+        example[pooled_embeddings_key] = pooled_embeddings
     elif embedding_type == 'perch_v2':
-        example[embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio_array, device=device)
+        example[pooled_embeddings_key], example[spatial_embeddings_key]= embed_with_perch2(model, audio_array, device=device)
     # elif embedding_type == 'birdset':
     #     example[embeddings_key] = embed_with_birdset(model, audio, device=device)
     else:
@@ -87,6 +94,11 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     return example
 
 def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
+
+    # Early return if audio is empty
+    if audio['array'].size == 0 or audio['array'] is None:
+        return None, None
+
     with tf.device(device):
         if model_key == 'yamnet':
             scores, embeddings, log_mel_spectrogram = model(audio)
@@ -151,6 +163,11 @@ def embed_with_perch1(model, model_key, audio, device='/CPU:0'):
     return pooled_embeddings, spatial_embeddings if spatial_embeddings is not None else None
 
 def embed_with_perch2(model, audio, device='/CPU:0'):
+
+    # Early return if audio is empty
+    if audio['array'].size == 0 or audio['array'] is None:
+        return None, None
+
     with tf.device(device):
         infer_fn = model.signatures['serving_default']
         audio_batched = tf.constant(audio[np.newaxis, :], dtype=tf.float32)  # Shape: (1, 160000)
@@ -306,21 +323,21 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
     return dataset, embeddings_key
 
 def get_embedding_type(model_key):
-            # Define available models
-            perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
-            perch_v2_models = ['perch_v2', 'perch_v2_cpu']
-            birdset_models = []
+    # Define available models
+    perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+    perch_v2_models = ['perch_v2', 'perch_v2_cpu']
+    birdset_models = []
 
-            # Get embedding type [perch_v1, perch_v2, birdset]
-            if model_key in perch_v1_models:
-                embedding_type = 'perch_v1'
-            elif model_key in perch_v2_models:
-                embedding_type = 'perch_v2'
-            elif model_key in birdset_models:
-                embedding_type = 'birdset'
-            else:
-                print(f"Could not get embedding type for model {model_key}. Embedding model is not supported, skipping!")
-                return None
-            
-            print(model_key, "is a ", embedding_type, "model.")
-            return embedding_type
+    # Get embedding type [perch_v1, perch_v2, birdset]
+    if model_key in perch_v1_models:
+        embedding_type = 'perch_v1'
+    elif model_key in perch_v2_models:
+        embedding_type = 'perch_v2'
+    elif model_key in birdset_models:
+        embedding_type = 'birdset'
+    else:
+        print(f"Could not get embedding type for model {model_key}. Embedding model is not supported, skipping!")
+        return None
+    
+    print(model_key, "is a ", embedding_type, "model.")
+    return embedding_type
