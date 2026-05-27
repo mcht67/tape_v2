@@ -68,7 +68,7 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     spatial_embeddings_key = model_key + "_" + input_feature + "_spatial_embeddings"
 
     # Early return if audio is empty
-    if audio['array'] is None:
+    if audio is None or audio['array'] is None:
         example[pooled_embeddings_key] = None
         example[spatial_embeddings_key] = None
         return example

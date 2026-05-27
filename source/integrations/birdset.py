@@ -276,7 +276,7 @@ def embed_example(example, model, model_name, input_feature, device=torch.device
     spatial_embeddings_key = embeddings_keys['spatial_embeddings']
 
     # Early return if audio is empty
-    if audio['array'] is None:
+    if audio is None or audio['array'] is None:
         example[pooled_embeddings_key] = None
         example[spatial_embeddings_key] = None
         return example
