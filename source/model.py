@@ -484,7 +484,7 @@ class TemporalCNNMultiTask(tf.keras.Model):
 #         })
 #         return config
     
-@register_keras_serializable(package="model", name="TemporalCNNMultiTask_v2")
+@register_keras_serializable(package="model", name="TemporalCNN")
 class TemporalCNN(tf.keras.Model):
     def __init__(
         self,

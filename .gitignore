@@ -25,6 +25,8 @@ debug_tensorboard
 stage_results/
 data
 archive/
+train_output/
+eval_output/
 
 # Ignore tmp copies for experiments
 /tmp
@@ -57,3 +59,4 @@ source/exp_notebooks
 
 /logs
 /checkpoints
+/train_output
