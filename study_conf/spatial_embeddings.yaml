@@ -12,7 +12,7 @@ base_config:
   embeddings.dimension_type: spatial
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
   dataset.max_polyphony: 8
-  train.epochs: 1
+  train.epochs: 100
   train.learning_rate: 0.001
   path.study_subfolder: ${embeddings.name}/
   # log.study_metrics:
