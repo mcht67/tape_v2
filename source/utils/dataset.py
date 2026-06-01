@@ -31,6 +31,10 @@ def build_event_logits(
 
     event_logits = np.zeros(num_event_logits, dtype=np.float32)
 
+    # Early exit if no events 
+    if not events:
+        return event_logits
+
     # Length of one time bin in seconds
     bin_size = segment_duration_sec / num_event_logits
 
@@ -106,17 +110,23 @@ def build_framewise_polyphony(
 
 def add_event_logits(example, num_event_logits, feature_name):
         all_events = []
-        for events in example['sources_time_freq_bounds']:
-            all_events.extend(events)
-        segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
-        event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
+        if 'sources_time_freq_bounds' in example and example['sources_time_freq_bounds'] is not None:
+            for events in example['sources_time_freq_bounds']:
+                all_events.extend(events)
+            segment_duration_s = example['segment_duration_s'] #num_samples_to_duration_s(segment_sum_samples, sampling_rate)
+            event_logits = build_event_logits(all_events, segment_duration_s, num_event_logits)
+        else:
+            event_logits = np.zeros(num_event_logits, dtype=np.float32)
         example[feature_name] = event_logits
         return example
 
 def add_framewise_polyphony(example, num_frames, feature_name):
-        time_freq_bounds_per_raw_file = example['sources_time_freq_bounds']
-        segment_durations_s = example["segment_duration_s"]
-        framewise_polyphony_array = build_framewise_polyphony(time_freq_bounds_per_raw_file, segment_durations_s, num_frames)
+        if 'sources_time_freq_bounds' in example and example['sources_time_freq_bounds'] is not None:
+            time_freq_bounds_per_raw_file = example['sources_time_freq_bounds']
+            segment_durations_s = example["segment_duration_s"]
+            framewise_polyphony_array = build_framewise_polyphony(time_freq_bounds_per_raw_file, segment_durations_s, num_frames)
+        else:
+            framewise_polyphony_array = np.zeros(num_frames, dtype=np.int32)
         example[feature_name] = framewise_polyphony_array
         return example
 
@@ -176,3 +186,39 @@ def get_data_dir(dataset_config, subset=None):
     if subset is None:
         subset = dataset_config.split('_')[0]
     return f"{subset}/{dataset_config}"
+
+def add_polyphony_range(example):
+    start_times = np.array(example['start_time'])
+    end_times = np.array(example['end_time'])
+    species = example['ebird_code_multilabel']  # list of int values
+
+    n_events = len(start_times)
+
+    # --- Maximum polyphony (upper bound) ---
+    # Total number of events in the soundscape
+    max_polyphony = n_events
+
+    # --- Minimum polyphony (lower bound) ---
+    # Candidate 1: max overlapping events at any point in time
+    # Use an event-sweep approach: collect all start/end endpoints
+    events = []
+    for s, e in zip(start_times, end_times):
+        events.append((s, +1))  # start: +1
+        events.append((e, -1))  # end:   -1
+    # Sort by time; on ties, process ends (-1) before starts (+1)
+    events.sort(key=lambda x: (x[0], x[1]))
+
+    max_overlap = 0
+    current_overlap = 0
+    for _, delta in events:
+        current_overlap += delta
+        max_overlap = max(max_overlap, current_overlap)
+
+    # Candidate 2: number of unique species active in the soundscape
+    n_unique_species = len(set(species))
+
+    min_polyphony = max(max_overlap, n_unique_species)
+
+    example['polyphony_range'] = [int(min_polyphony), int(max_polyphony)]
+    return example
+    
