@@ -1,0 +1,11 @@
+{
+    "loss": 0.36982738971710205,
+    "polyphony_degree_accuracy": 0.6406330466270447,
+    "val_loss": 1.0774834156036377,
+    "val_polyphony_degree_accuracy": 0.4814305305480957,
+    "step": 36,
+    "val_loss_best": 1.0260329246520996,
+    "val_loss_best_step": 15,
+    "val_polyphony_degree_accuracy_best": 0.49931225180625916,
+    "val_polyphony_degree_accuracy_best_step": 25
+}
