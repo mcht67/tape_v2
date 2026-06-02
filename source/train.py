@@ -282,9 +282,8 @@ def main():
         elif objective == 'framewise_polyphony':
             compile_metrics[objective] = RoundedAccuracy(name=metric_name)
 
-        
     # # Metrics dict
-    # log_metrics = {'val_loss': None, 'val_accuracy': None}
+    log_metrics = {k: None for k in log_metrics}
     # for key in objectives_cfg.keys():
         # metrics[f"{key}_loss"] = None
         # metrics[f"{key}_val_loss"] = None
