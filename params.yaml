@@ -2,10 +2,14 @@ general:
   random_seed: 42
 dataset:
   huggingface_path: mcht67/Polyphonic-BirdSet-train
-  config: HSN_polyphonic_6
+  subset: HSN
+  train_config: HSN_polyphonic_6
+  soundscape_config: HSN_soundscape_test
+  max_polyphony: 8
 embeddings:
   name: Birdnet_V2.3
   type: perch_v1
+  dimension_type: pooled
 model:
   _target_: model.SimpleMLP
   hidden_units:
@@ -13,16 +17,18 @@ model:
   - 256
   dropout_rate: 0.3
 objectives:
-  polyphony_degree:
+  polyphony_degree_class:
     loss:
-      _target_: tensorflow.keras.losses.MeanSquaredError
+      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+      from_logits: true
+    weight: 1.0
     confusion_matrix:
-      type: regression_round
-      threshold: 0.5
+      type: classification
     label: polyphony_degree
+    num_classes: 7
 train:
   input_feature: null
-  input_feature_name: birdnet_V2.3_audio_embeddings
+  input_feature_name: EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
   batch_size: 128
   learning_rate: 0.001
   epochs: 1
@@ -32,14 +38,20 @@ train:
 log:
   study_name: test-study
   hyperparameters: null
-datetime: '20260506_112448'
+evaluation:
+  example_indices:
+  - 0
+  - 1
+  - 2
+  num_examples: 3
+datetime: '20260511_140603'
 path:
   train_output: train_output/
   eval_output: eval_output/
-  val_dataset: data/val_data/
-  train_log_dir: train_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/logs/
-  eval_log_dir: eval_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/logs/
-  checkpoint_dir: train_output/test-study/Birdnet_V2.3/20260506_112448_test-experiment/checkpoints/
+  study_subfolder: null
+  train_log_dir: train_output/test-study/local-test-experiment/logs/
+  eval_log_dir: eval_output/test-study/local-test-experiment/logs/
+  checkpoint_dir: train_output/test-study/local-test-experiment/checkpoints/
 python:
   base: venv/bin/python
   perch: perch-venv/bin/python
