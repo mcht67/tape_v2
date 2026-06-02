@@ -14,12 +14,12 @@ base_config:
   dataset.max_polyphony: 8
   train.epochs: 100
   train.learning_rate: 0.001
+  train.early_stopping_patience: 20
   path.study_subfolder: ${embeddings.name}/
-  # log.study_metrics:
-  #   - "polyphony_degree_val_loss"
-  #   - "polyphony_degree_class_val_loss"
-  #   - "best/polyphony_degree_val_loss_best"
-  #   - "best/polyphony_degree_class_val_loss_best"
+  log.metrics:
+    - val_loss
+    - val_polyphony_degree_accuracy
+    - val_polyphony_degree_class_accuracy
 
 hyperparams:
   model:
