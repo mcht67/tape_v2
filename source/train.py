@@ -144,6 +144,81 @@ def get_predictions_and_true_labels(model, dataset):
 
     return y_pred, y_true
 
+# TODO: remove after handling in model output processing
+def reshape_to_tfe(example, input_feature_name):
+    """
+    Convert audio spatial embeddings to (time, freq, embedding).
+
+    Returns:
+        example with transformed embedding stored back into the same field.
+    """
+
+    x = np.asarray(example[input_feature_name])
+
+    # Models with explicit (embedding, freq, time)
+    if input_feature_name in {
+        "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+    }:
+        # (C, F, T) -> (T, F, C)
+        x = np.transpose(x, (2, 1, 0))
+
+    # Perch models already have (T, F, C)
+    elif input_feature_name in {
+        "perch_v2_cpu_audio_spatial_embeddings",
+    }:
+        pass
+
+    # Sequence models: (T, C) -> (T, 1, C)
+    elif input_feature_name in {
+        "yamnet_audio_spatial_embeddings",
+        "vggish_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
+        "beans_baseline_audio_spatial_embeddings",
+    }:
+        x = x[:, None, :]
+
+    # AST patch tokens
+    elif input_feature_name == "AST-Birdset-XCL_audio_spatial_embeddings":
+        x = x[:, None, :]
+    # elif input_feature_name == "AST-Birdset-XCL_audio_spatial_embeddings":
+    #     #
+    #     # Expected shape approximately:
+    #     #   (1214, 768)
+    #     # where first token is CLS.
+    #     #
+    #     # Remove CLS and reconstruct patch grid if possible.
+    #     #
+    #     if x.ndim != 2:
+    #         raise ValueError(
+    #             f"Unexpected AST shape {x.shape}"
+    #         )
+
+    #     tokens = x[1:]  # remove CLS
+
+    #     n_tokens, emb_dim = tokens.shape
+
+    #     # Standard BirdSet AST typically yields:
+    #     # 1214 total tokens = 1 CLS + 1213 patches
+    #     #
+    #     # 1213 = 17 * 71
+    #     #
+    #     if n_tokens == 1213:
+    #         x = tokens.reshape(71, 17, emb_dim)
+    #     else:
+    #         raise ValueError(
+    #             f"Cannot infer AST patch grid from shape {x.shape}"
+            # )
+
+    else:
+        raise ValueError(
+            f"Unsupported feature name: {input_feature_name}"
+        )
+
+    example[input_feature_name] = x.astype(np.float32)
+
+    return example
+
 def main():
 
     # Configuration
@@ -211,10 +286,10 @@ def main():
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
     dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))
-     # TODO: reset after testing
+    # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
+    # for split in dataset.keys():
+    #     dataset[split] = dataset[split].select(range(100))
+    #  # TODO: reset after testing
     # from datasets import load_dataset, DatasetDict, Dataset
     # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
     # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
@@ -223,16 +298,22 @@ def main():
     #     split: Dataset.from_list(list(ds.take(1)))
     #     for split, ds in dataset.items()
     # })
-    # ds_train = load_dataset(huggingface_path, dataset_config, split="train[0%:1%]",  token=huggingface_token)
-    # ds_val = load_dataset(huggingface_path, dataset_config, split="validation[0%:1%]",  token=huggingface_token)
-    # ds_test = load_dataset(huggingface_path, dataset_config, split="test[0%:1%]",  token=huggingface_token)
 
-    # dataset = DatasetDict({
-    #     'train': ds_train,
-    #     'validation': ds_val,
-    #     'test': ds_test
-    # })
-
+    # TODO: Remove after handling in model output processing
+    # Reshape input features if needed based on model requirements
+    if input_feature_name in {
+        "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+        "yamnet_audio_spatial_embeddings",
+        "vggish_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
+        "beans_baseline_audio_spatial_embeddings",
+        "perch_v2_cpu_audio_spatial_embeddings",
+        "AST-Birdset-XCL_audio_spatial_embeddings"
+    }:
+        print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")

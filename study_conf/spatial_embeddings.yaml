@@ -16,16 +16,19 @@ base_config:
   train.learning_rate: 0.001
   train.early_stopping_patience: 20
   path.study_subfolder: ${embeddings.name}/
-  log.metrics: # use val_accuracy if only one objective
+  log.metrics: 
     - val_loss
+    - val_accuracy # use val_accuracy if only one objective is used
     - val_polyphony_degree_loss
     - val_polyphony_degree_class_loss
     - val_event_logits_loss
     - val_framewise_polyphony_loss
+    - val_framewise_polyphony_class_loss
     - val_polyphony_degree_accuracy
     - val_polyphony_degree_class_accuracy
     - val_event_logits_accuracy
     - val_framewise_polyphony_accuracy
+    - val_framewise_polyphony_class_accuracy
 
 hyperparams:
   model:
@@ -34,13 +37,10 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    # - "birdnet_V2.3"
     # - "vggish"
-    # - "perch_8"
     # - "yamnet"
     # - "beans_baseline"
     # - "EfficientNet-B1-BirdSet-XCL"
-    # - "Bird-MAE-Huge"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
@@ -51,4 +51,7 @@ hyperparams:
     - "only_polyphony_degree_class"
     - "multi_task_v1_add_event_logits"
     - "multi_task_v2_add_framewise_polyphony"
+    - "multi_task_v3_add_framewise_polyphony_class"
+    - "multi_task_v4_reg_and_class_polyphony"
+    - "multi_task_v5_all"
   # dataset.config is added automatically per dataset_config iteration
