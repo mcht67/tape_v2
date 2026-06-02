@@ -16,7 +16,7 @@ base_config:
   train.learning_rate: 0.001
   train.early_stopping_patience: 20
   path.study_subfolder: ${embeddings.name}/
-  log.metrics:
+  log.metrics: # use val_accuracy if only one objective
     - val_loss
     - val_polyphony_degree_loss
     - val_polyphony_degree_class_loss

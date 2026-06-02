@@ -85,6 +85,9 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
     split = dataset[split_name].remove_columns(cols_to_remove)
 
+    # Remove duplicated labels if any
+    labels = list(set(labels))
+
     # Check for None values and report which columns are affected
     none_cols = []
     for col in cols_to_keep:
@@ -207,19 +210,29 @@ def main():
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    # TODO: remove after testing - keep only a subset of the dataset to speed up testing
+    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
     # for split in dataset.keys():
-    #     dataset[split] = dataset[split].select(range(100))
+    #     dataset[split] = dataset[split].select(range(10))
      # TODO: reset after testing
-    # from datasets import load_dataset, DatasetDict, Dataset
+    from datasets import load_dataset, DatasetDict, Dataset
     # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    # print("Dataset loaded. Converting to in-memory format for processing...")
+    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    print("Dataset loaded. Converting to in-memory format for processing...")
+    dataset = DatasetDict({
+        split: Dataset.from_list(list(ds.take(1)))
+        for split, ds in dataset.items()
+    })
+    # ds_train = load_dataset(huggingface_path, dataset_config, split="train[0%:1%]",  token=huggingface_token)
+    # ds_val = load_dataset(huggingface_path, dataset_config, split="validation[0%:1%]",  token=huggingface_token)
+    # ds_test = load_dataset(huggingface_path, dataset_config, split="test[0%:1%]",  token=huggingface_token)
+
     # dataset = DatasetDict({
-    #     split: Dataset.from_list(list(ds.take(1)))
-    #     for split, ds in dataset.items()
+    #     'train': ds_train,
+    #     'validation': ds_val,
+    #     'test': ds_test
     # })
+
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
@@ -267,21 +280,22 @@ def main():
     for objective, obj_cfg in objectives_cfg.items():
 
         # Handle polyphony accuracy
-        metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
+        # metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
         if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name=metric_name)
+            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
         elif objective == "polyphony_degree_class":
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=metric_name)
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') 
+
         elif objective == "binary":
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=metric_name)
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
 
         # Handle event logits accuracy
         elif objective == 'event_logits':
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='event_logits_accuracy')
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
 
         # Handle frame-wise polyphony accuracy
         elif objective == 'framewise_polyphony':
-            compile_metrics[objective] = RoundedAccuracy(name=metric_name)
+            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
 
     # # Metrics dict
     log_metrics = {k: None for k in log_metrics}

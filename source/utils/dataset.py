@@ -132,11 +132,22 @@ def add_framewise_polyphony(example, num_frames, feature_name):
 
 def add_labels(dataset, labels, time_dim=None, freq_dim=None):
     added_labels = []
+
+    # Segment-wise polyphony based label
+    if 'polyphony_degree_class' in labels:
+        print('Add polyphony degree class labels...')
+        feature_name = 'polyphony_degree_class'
+        added_labels.append(feature_name)
+
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony_degree"])},keep_in_memory=False)
+            
     # Time dimension based labels
     if time_dim:
         # Event logits
         if 'event_logits' in labels:
-            print("Add event logits...")
+            print("Add event logits..."
+                  )
             feature_name = 'event_logits'
             added_labels.append(feature_name)
             num_event_logits = time_dim

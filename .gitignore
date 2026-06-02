@@ -60,3 +60,4 @@ source/exp_notebooks
 /logs
 /checkpoints
 /train_output
+dvclive/
