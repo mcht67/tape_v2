@@ -33,3 +33,11 @@ To ensure the dataset cache is valid, the dataset is loaded once in prepare_data
 ### Polyphony Estimation Heads
 
 ### Multi Task Heads
+
+### Dataset preparation
+To avoid multiple experiments accessing huggingface hub at the same time an pushing new embeddings, the dataset preparation is separated from the experiment pipeline. All embeddings needed for the multi_submission setup are calculated before the experiments jobs are submitted.
+
+### Loggging
+
+#### History logging
+- replaying back history to Tensorboard

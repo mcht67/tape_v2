@@ -80,6 +80,7 @@ Optionally use --sif-container flag to use .sif container instead of sandbox.
 
 ## GoogleDrive reauthentication
 Because authentiation is done inside the browser. You have do the authentication locally. To reset authentication delete dvc-token.json on your local machine. This will open authentication in the browser on the next dvc pull.
+The refresh token is valid for 7 days. If you want it to persist, you have to publish the Google Cloud App.
 
 ```bash
 dvc pull
@@ -99,7 +100,7 @@ EOF
 Checkpoints and logs are stored in ./archive/ on the HPC Cluster. All experiment logs with the same study name are stored in one folder.
 
 ### Syncing artifacts from HPC to Local Machine
- To investigate the logs it is useful to sync them to the local machine. First login to the TU network via VPN then run:
+ To investigate the logs it is useful to sync them to the local machine. First login to the [TU network via VPN](https://www.tu.berlin/campusmanagement/angebot/vpn-mit-cisco-secure-client) then run:
 ```bash
 rsync -avz -e "ssh -J <username>@gateway.hpc.tu-berlin.de" <username>@frontend02:/beegfs/scratch/cohrt/tape_v2/archive/ ./archive/
 ```
@@ -122,11 +123,29 @@ archive/<study-name>/<timecode_dvc-exp-name>/
     ├── validation/
     └── params.yaml
 
-
 ### Tensorboard
 
 You can visualize logs with tensorboard:
 ```bash
 tensorboard --logdir=./archive/logs/tensorboard/<study name>
+```
+
+### Reset dvc exp stage for a study
+
+Delete remote cache (WARNING: destructive) and git refs
+```bash
+dvc exp remove -g origin -A
+dvc gc -w -c
+```
+or delete manually on remote
+
+
+Delete cache, archive, tmp, logs on cluster
+```bash
+rm -rf logs/slurm/slurm-*
+rm -rf archive
+rm -rf tmp
+rm -rf .dvc/cache
+rm -rf .dvc/tmp
 ```
 
