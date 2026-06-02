@@ -1,0 +1,19 @@
+{
+    "event_logits_event_logits_accuracy": 0.9162652492523193,
+    "event_logits_loss": 0.18617424368858337,
+    "loss": 0.576080858707428,
+    "polyphony_degree_loss": 0.39031168818473816,
+    "polyphony_degree_polyphony_degree_accuracy": 0.6253225803375244,
+    "val_event_logits_event_logits_accuracy": 0.9176409840583801,
+    "val_event_logits_loss": 0.18097703158855438,
+    "val_loss": 1.1693602800369263,
+    "val_polyphony_degree_loss": 0.9837021827697754,
+    "val_polyphony_degree_polyphony_degree_accuracy": 0.473177433013916,
+    "step": 78,
+    "val_loss_best": 1.075354814529419,
+    "val_loss_best_step": 57,
+    "val_polyphony_degree_loss_best": 0.9079413414001465,
+    "val_polyphony_degree_loss_best_step": 57,
+    "val_event_logits_loss_best": 0.1577242761850357,
+    "val_event_logits_loss_best_step": 76
+}
