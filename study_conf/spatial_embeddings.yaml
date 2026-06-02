@@ -37,21 +37,21 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    # - "vggish"
+    - "vggish"
     # - "yamnet"
     # - "beans_baseline"
-    # - "EfficientNet-B1-BirdSet-XCL"
+    - "EfficientNet-B1-BirdSet-XCL"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    - "perch_v2_cpu"
+    # - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
     - "only_polyphony_degree"
     - "only_polyphony_degree_class"
     - "multi_task_v1_add_event_logits"
     - "multi_task_v2_add_framewise_polyphony"
-    - "multi_task_v3_add_framewise_polyphony_class"
+    # - "multi_task_v3_add_framewise_polyphony_class" # framewisewise polyphony class labels have to be implemented first
     - "multi_task_v4_reg_and_class_polyphony"
-    - "multi_task_v5_all"
+    # - "multi_task_v5_all" # framewisewise polyphony class labels have to be implemented first
   # dataset.config is added automatically per dataset_config iteration

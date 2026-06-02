@@ -141,7 +141,7 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony_degree"])},keep_in_memory=False)
-            
+
     # Time dimension based labels
     if time_dim:
         # Event logits
@@ -174,7 +174,7 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
                 dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
                 dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
             print('Done!')
-
+            
     return dataset, added_labels
 
 def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='reuse_dataset_if_exists'):

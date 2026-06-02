@@ -308,7 +308,6 @@ def main():
         "vggish_audio_spatial_embeddings",
         "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
         "beans_baseline_audio_spatial_embeddings",
-        "perch_v2_cpu_audio_spatial_embeddings",
         "AST-Birdset-XCL_audio_spatial_embeddings"
     }:
         print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
@@ -336,7 +335,7 @@ def main():
     print("Added labels: ", added_labels)
 
     existing_labels = added_labels + ['polyphony_degree']
-    missing_labels = set(labels) ^ set(existing_labels)
+    missing_labels = set(labels) - set(existing_labels)
     if missing_labels:
         raise Exception("Not all requested labels could be computed.")
     
