@@ -18,8 +18,14 @@ base_config:
   path.study_subfolder: ${embeddings.name}/
   log.metrics:
     - val_loss
+    - val_polyphony_degree_loss
+    - val_polyphony_degree_class_loss
+    - val_event_logits_loss
+    - val_framewise_polyphony_loss
     - val_polyphony_degree_accuracy
     - val_polyphony_degree_class_accuracy
+    - val_event_logits_accuracy
+    - val_framewise_polyphony_accuracy
 
 hyperparams:
   model:

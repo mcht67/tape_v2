@@ -170,7 +170,7 @@ def main():
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
-    # study_metrics = cfg.log.study_metrics if 'study_metrics' in cfg.log else None
+    log_metrics = cfg.log.log_metrics if 'log_metrics' in cfg.log else None
 
     input_feature_name = cfg.train.input_feature_name
     total_epochs = cfg.train.epochs
@@ -206,7 +206,16 @@ def main():
 
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # TODO: reset after testing
+    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    from datasets import load_dataset, DatasetDict, Dataset
+    print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
+    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    print("Dataset loaded. Converting to in-memory format for processing...")
+    dataset = DatasetDict({
+        split: Dataset.from_list(list(ds.take(1)))
+        for split, ds in dataset.items()
+    })
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
@@ -214,9 +223,12 @@ def main():
     #################################
     # Add labels
     #################################
+    print("Adding labels to dataset based on objectives config...")
 
     # Get input dim
     input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
+
+    print(f"Input feature '{input_feature_name}' has shape {input_dim} for the first example. Assuming this is the input shape for the model.")
 
     # Compute additional labels
     time_dim = input_dim[0] if len(input_dim) > 1 else None
@@ -249,15 +261,27 @@ def main():
     compile_metrics = {}
 
     for objective, obj_cfg in objectives_cfg.items():
-        if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name='accuracy') #name=f"{objective}_accuracy")
-        elif objective == "polyphony_degree_class":
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') #(name=f"{objective}_accuracy")
-        elif objective == "binary":
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy') #(name=f"{objective}_accuracy")
 
-    # Metrics dict
-    metrics = {'val_loss': None, 'val_accuracy': None}
+        # Handle polyphony accuracy
+        metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
+        if objective == "polyphony_degree":
+            compile_metrics[objective] = RoundedAccuracy(name=metric_name)
+        elif objective == "polyphony_degree_class":
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name=metric_name)
+        elif objective == "binary":
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name=metric_name)
+
+        # Handle event logits accuracy
+        elif objective == 'event_logits':
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='event_logits_accuracy')
+
+        # Handle frame-wise polyphony accuracy
+        elif objective == 'framewise_polyphony':
+            compile_metrics[objective] = RoundedAccuracy(name=metric_name)
+
+        
+    # # Metrics dict
+    # log_metrics = {'val_loss': None, 'val_accuracy': None}
     # for key in objectives_cfg.keys():
         # metrics[f"{key}_loss"] = None
         # metrics[f"{key}_val_loss"] = None
@@ -270,7 +294,7 @@ def main():
     # for key in study_metrics:
     #     metrics[key] = None
 
-    print("Metrics:", metrics)
+    print("Metrics to log in hParam tab of tensorboard:", log_metrics)
 
     # params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
     # params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
@@ -364,7 +388,7 @@ def main():
 
     model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history, keep_last_n=keep_last_n_checkpoints)
 
-    writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=metrics, sync_interval=0)
+    writer = CustomSummaryWriter(log_dir=log_dir, params=params, metrics=log_metrics, sync_interval=0)
     tensorboard_callback = CustomSummaryWriterCallback(writer=writer, include_standard_tensorboard=False, val_dataset=val_dataset,
                 log_confusion_matrix=True, confusion_matrix_frequency=1, 
                 confusion_matrix_specs=confusion_matrix_specs, input_shape=input_dim, cfg=cfg, loss_objects=losses,
