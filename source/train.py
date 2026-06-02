@@ -170,7 +170,7 @@ def main():
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
-    log_metrics = cfg.log.log_metrics if 'log_metrics' in cfg.log else None
+    log_metrics = cfg.log.metrics if 'metrics' in cfg.log else []
 
     input_feature_name = cfg.train.input_feature_name
     total_epochs = cfg.train.epochs
@@ -206,16 +206,18 @@ def main():
 
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-    # TODO: reset after testing
-    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    from datasets import load_dataset, DatasetDict, Dataset
-    print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    print("Dataset loaded. Converting to in-memory format for processing...")
-    dataset = DatasetDict({
-        split: Dataset.from_list(list(ds.take(1)))
-        for split, ds in dataset.items()
-    })
+   
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    dataset.select(range(100)) # TODO: remove after testing
+     # TODO: reset after testing
+    # from datasets import load_dataset, DatasetDict, Dataset
+    # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
+    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    # print("Dataset loaded. Converting to in-memory format for processing...")
+    # dataset = DatasetDict({
+    #     split: Dataset.from_list(list(ds.take(1)))
+    #     for split, ds in dataset.items()
+    # })
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
