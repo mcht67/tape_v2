@@ -48,7 +48,7 @@ hyperparams:
     # - "perch_v2"
   objectives:
     - "only_polyphony_degree"
-    # - "only_polyphony_degree_class"
-    # - "multi_task_v1_add_event_logits"
-    # - "multi_task_v2_add_framewise_polyphony"
+    - "only_polyphony_degree_class"
+    - "multi_task_v1_add_event_logits"
+    - "multi_task_v2_add_framewise_polyphony"
   # dataset.config is added automatically per dataset_config iteration
