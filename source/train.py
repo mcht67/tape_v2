@@ -210,19 +210,19 @@ def main():
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
-    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    # for split in dataset.keys():
-    #     dataset[split] = dataset[split].select(range(10))
+    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # TODO: remove after testing - keep only a subset of the dataset to speed up testing
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))
      # TODO: reset after testing
-    from datasets import load_dataset, DatasetDict, Dataset
+    # from datasets import load_dataset, DatasetDict, Dataset
     # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    print("Dataset loaded. Converting to in-memory format for processing...")
-    dataset = DatasetDict({
-        split: Dataset.from_list(list(ds.take(1)))
-        for split, ds in dataset.items()
-    })
+    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    # print("Dataset loaded. Converting to in-memory format for processing...")
+    # dataset = DatasetDict({
+    #     split: Dataset.from_list(list(ds.take(1)))
+    #     for split, ds in dataset.items()
+    # })
     # ds_train = load_dataset(huggingface_path, dataset_config, split="train[0%:1%]",  token=huggingface_token)
     # ds_val = load_dataset(huggingface_path, dataset_config, split="validation[0%:1%]",  token=huggingface_token)
     # ds_test = load_dataset(huggingface_path, dataset_config, split="test[0%:1%]",  token=huggingface_token)
