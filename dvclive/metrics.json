@@ -1,0 +1,11 @@
+{
+    "loss": 0.10759364813566208,
+    "polyphony_degree_class_accuracy": 0.9635300040245056,
+    "val_loss": 2.8035316467285156,
+    "val_polyphony_degree_class_accuracy": 0.46905088424682617,
+    "step": 22,
+    "val_loss_best": 1.1918671131134033,
+    "val_loss_best_step": 1,
+    "val_polyphony_degree_class_accuracy_best": 0.5061898231506348,
+    "val_polyphony_degree_class_accuracy_best_step": 2
+}
