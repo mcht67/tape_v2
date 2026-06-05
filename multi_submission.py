@@ -236,7 +236,7 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = False
+    run_dataset_preparation = True
     recompute_embeddings = False
     force_redownload = False
 
