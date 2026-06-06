@@ -289,6 +289,8 @@ def main():
         print("No input features or no embeddings passed. Skipping.")
         sys.exit(2)
 
+    batch_size = 50
+
     #  # Get default config
     # cfg = OmegaConf.load("params.yaml")
     # hf_download_path = cfg.dataset.huggingface.download_path
@@ -354,6 +356,7 @@ def main():
                                                                            split, 
                                                                            force_recompute=force_recompute,
                                                                            device=device,
+                                                                           batch_size=batch_size
                                                                            )
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
