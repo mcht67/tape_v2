@@ -252,5 +252,5 @@ if __name__ == "__main__":
             if run_dataset_preparation:
                 # prep_job_id = submit_dataset_prep_job(study_config['base_config']['dataset.huggingface_path'], dataset_config, study_config['hyperparams']['train.input_feature'], embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
                 prep_job_id = submit_dataset_prep_job(study_config, data_dir, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        # submit_experiment_jobs(study_config['base_config'], study_config['hyperparams'], dataset_config, dependency_job_id=prep_job_id)
-        submit_experiment_jobs(study_config, data_dir, train_config, dependency_job_id=prep_job_id)
+        # # submit_experiment_jobs(study_config['base_config'], study_config['hyperparams'], dataset_config, dependency_job_id=prep_job_id)
+        # submit_experiment_jobs(study_config, data_dir, train_config, dependency_job_id=prep_job_id)

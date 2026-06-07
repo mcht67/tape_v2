@@ -2,6 +2,7 @@ import os
 import numpy as np
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
+import datasets
 from datasets import concatenate_datasets
 from functools import partial
 import tempfile
@@ -21,94 +22,156 @@ def get_embedding_keys(model_name, input_feature):
 
 def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, batch_size=100, device=torch.device("cpu")):
     
-    # Set HuggingFace cache to this temporary directory
-    #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
-    
     embeddings_keys = get_embedding_keys(model_key, input_feature).values()
 
-    # any(example in split_key if example.get(key) is not None)
-    for key in embeddings_keys:
-        features = dataset.features
-        boolean = key in features
-
     if any(key in dataset.features for key in embeddings_keys) and not force_recompute:
-        print("Embedding with model", model_key, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
+        print(f"Embedding with model {model_key} for {input_feature} in {split_key} split has already been calculated, skipping.")
         return dataset, None
-    
+
     # Instantiate model
     model_cfg = model_configs[model_key]['model_cfg']
     model = instantiate(model_cfg)
-
-    # # Auto-detect device
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # print(f"Using device: {device}")
-
     if hasattr(model, 'to'):
         model = model.to(device)
 
     print("######################################################################")
     print("Embed", input_feature, "with:", model_key)
-    print("######################################################################")    
-        
+    print("######################################################################")
+
     embedding_fn = partial(
-            embed_example_batched,
-            model=model,
-            model_name=model_key,
-            input_feature=input_feature,
-            device=device
-        )
-    
-    # Process in batches
-    processed_datasets = []
-    total_samples = len(dataset)
+        embed_example_batched,
+        model=model,
+        model_name=model_key,
+        input_feature=input_feature,
+        device=device
+    )
 
-    with tempfile.TemporaryDirectory() as temp_cache_dir:
-        
-        for i in range(0, total_samples, batch_size):
-            end_idx = min(i + batch_size, total_samples)
-            print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
-            
-            # Select batch
-            batch_dataset = dataset.select(range(i, end_idx))
-            
-            # Process batch
-            cache_file = os.path.join(temp_cache_dir, f"{model_key}_{input_feature}_{split_key}_batch_{i}_{end_idx}_cache.arrow")
+    # Single .map() call — HuggingFace handles batching and streams to Arrow cache
+    cache_file = os.path.join(
+        datasets.config.HF_DATASETS_CACHE,
+        f"{model_key}_{input_feature}_{split_key}_cache.arrow"
+    )
+    if force_recompute and os.path.exists(cache_file):
+        os.remove(cache_file)
 
-            #batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
-            # Enable batched processing
-            batch_processed = batch_dataset.map(
-                embedding_fn, 
-                batched=True,
-                batch_size=50,
-                cache_file_name=cache_file
-            )
-            
-            processed_datasets.append(batch_processed)
-        
-        # Concatenate all processed batches
-        print(f"Concatenating {len(processed_datasets)} batches...")
-        dataset = concatenate_datasets(processed_datasets)
+    dataset = dataset.map(
+        embedding_fn,
+        batched=True,
+        batch_size=batch_size,
+        cache_file_name=cache_file
+    )
 
-        embeddings_name = model_key + "_" + input_feature
+    embeddings_name = model_key + "_" + input_feature
+    pooled_embeddings_key, spatial_embeddings_key = get_embedding_keys(model_key, input_feature).values()
+    print("Pooled embeddings key:", pooled_embeddings_key)
+    print("Spatial embeddings key:", spatial_embeddings_key)
 
-        pooled_embeddings_key, spatial_embeddings_key = get_embedding_keys(model_key, input_feature).values()
+    # Debug: print embedding dimensions
+    example = dataset[0]
+    embeddings_dim = np.shape(example[pooled_embeddings_key])
+    print("Pooled embeddings dim:", embeddings_dim)
+    try:
+        spatial_embeddings_dim = np.shape(example[spatial_embeddings_key])
+        print("Spatial embeddings dim:", spatial_embeddings_dim)
+    except Exception:
+        pass
 
-        print("Pooled embeddings key:", pooled_embeddings_key)
-        print("Spatial embeddingskey:", spatial_embeddings_key)
-        # DEBUG: print embeddings dimension
-        example = dataset.take(1)
-        example_embeddings = example[pooled_embeddings_key]
-        embeddings_dim = np.shape(example_embeddings)
-        print("Pooled embeddings dim: ", embeddings_dim)
-
-        try:
-            example_spatial_embeddings = example[spatial_embeddings_key]
-            spatial_embeddings_dim = np.shape(example_spatial_embeddings)
-            print("Spatial embeddings dim: ", spatial_embeddings_dim)
-        except:
-            pass
-    
     return dataset, embeddings_name
+
+# def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, split_key, force_recompute=False, batch_size=100, device=torch.device("cpu")):
+    
+#     # Set HuggingFace cache to this temporary directory
+#     #datasets.config.HF_DATASETS_CACHE = temp_cache_dir
+    
+#     embeddings_keys = get_embedding_keys(model_key, input_feature).values()
+
+#     # any(example in split_key if example.get(key) is not None)
+#     for key in embeddings_keys:
+#         features = dataset.features
+#         boolean = key in features
+
+#     if any(key in dataset.features for key in embeddings_keys) and not force_recompute:
+#         print("Embedding with model", model_key, "for", input_feature, "in", split_key, "split has already been calculated, skipping.")
+#         return dataset, None
+    
+#     # Instantiate model
+#     model_cfg = model_configs[model_key]['model_cfg']
+#     model = instantiate(model_cfg)
+
+#     # # Auto-detect device
+#     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     # print(f"Using device: {device}")
+
+#     if hasattr(model, 'to'):
+#         model = model.to(device)
+
+#     print("######################################################################")
+#     print("Embed", input_feature, "with:", model_key)
+#     print("######################################################################")    
+        
+#     embedding_fn = partial(
+#             embed_example_batched,
+#             model=model,
+#             model_name=model_key,
+#             input_feature=input_feature,
+#             device=device
+#         )
+    
+#     # Process in batches
+#     processed_datasets = []
+#     total_samples = len(dataset)
+
+#     with tempfile.TemporaryDirectory() as temp_cache_dir:
+        
+#         for i in range(0, total_samples, batch_size):
+#             end_idx = min(i + batch_size, total_samples)
+#             print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+            
+#             # Select batch
+#             batch_dataset = dataset.select(range(i, end_idx))
+            
+#             # Process batch
+#             cache_file = os.path.join(temp_cache_dir, f"{model_key}_{input_feature}_{split_key}_batch_{i}_{end_idx}_cache.arrow")
+
+#             #batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+#             # Enable batched processing
+#             batch_processed = batch_dataset.map(
+#                 embedding_fn, 
+#                 batched=True,
+#                 batch_size=50,
+#                 cache_file_name=cache_file
+#             )
+            
+#             processed_datasets.append(batch_processed)
+        
+#         # Concatenate all processed batches
+#         print(f"Concatenating {len(processed_datasets)} batches...")
+#         dataset = concatenate_datasets(processed_datasets)
+
+#         # Load and concatenate memory-mapped shards — much cheaper
+#         from datasets import load_from_disk, concatenate_datasets
+#         result = concatenate_datasets([load_from_disk(p) for p in shard_paths])
+
+#         embeddings_name = model_key + "_" + input_feature
+
+#         pooled_embeddings_key, spatial_embeddings_key = get_embedding_keys(model_key, input_feature).values()
+
+#         print("Pooled embeddings key:", pooled_embeddings_key)
+#         print("Spatial embeddingskey:", spatial_embeddings_key)
+#         # DEBUG: print embeddings dimension
+#         example = dataset.take(1)
+#         example_embeddings = example[pooled_embeddings_key]
+#         embeddings_dim = np.shape(example_embeddings)
+#         print("Pooled embeddings dim: ", embeddings_dim)
+
+#         try:
+#             example_spatial_embeddings = example[spatial_embeddings_key]
+#             spatial_embeddings_dim = np.shape(example_spatial_embeddings)
+#             print("Spatial embeddings dim: ", spatial_embeddings_dim)
+#         except:
+#             pass
+    
+#     return dataset, embeddings_name
 
 def embed_example_batched(examples, model, model_name, input_feature, device=torch.device("cpu")):
     """Process a batch of examples at once"""
