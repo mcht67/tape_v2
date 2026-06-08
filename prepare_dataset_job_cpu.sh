@@ -15,7 +15,7 @@
 
 # CPU
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=500GB
+#SBATCH --mem=1024GB
 #SBATCH --time=48:00:00
 #SBATCH --partition=standard
 
