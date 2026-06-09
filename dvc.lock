@@ -72,24 +72,35 @@ stages:
       md5: edea1e974dfc50eb749c562725624182
       size: 148
   train:
-    cmd: complete-venv/bin/python source/train.py
+    cmd: /opt/complete-venv/bin/python source/train.py
     deps:
     - path: source/train.py
       hash: md5
-      md5: b695185ea9c1c625b5d06ec73884b11a
-      size: 14338
+      md5: 62cebef69784608ab347f81f1c486372
+      size: 20483
     params:
       params.yaml:
         dataset:
           huggingface_path: mcht67/Polyphonic-BirdSet-train
-          subset: HSN
-          train_config: HSN_polyphonic_6
-          soundscape_config: HSN_soundscape_test
+          subset: PER/PER_polyphonic_8
           max_polyphony: 8
+          train_config: PER_polyphonic_8
+          soundscape_config: PER/PER_polyphonic_8_soundscape_test
         general.random_seed: 42
         log:
-          study_name: test-study
+          study_name: Pooled-Embeddings
+          exp_name: test-exp
+          keep_last_n_checkpoints: 5
           hyperparameters:
+          - model
+          - train.input_feature
+          - embeddings
+          - objectives
+          - dataset.subset
+          - dataset.train_config
+          metrics:
+          - val_loss
+          - val_accuracy
         model:
           _target_: model.SimpleMLP
           hidden_units:
@@ -97,31 +108,30 @@ stages:
           - 256
           dropout_rate: 0.3
         objectives:
-          polyphony_degree_class:
+          polyphony_degree:
             loss:
-              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-              from_logits: true
+              _target_: tensorflow.keras.losses.MeanSquaredError
             weight: 1.0
             confusion_matrix:
-              type: classification
+              type: regression_round
+              threshold: 0.5
             label: polyphony_degree
-            num_classes: 7
         train:
-          input_feature:
-          input_feature_name: 
-            EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
-          batch_size: 128
+          input_feature: audio
+          input_feature_name: perch_v2_cpu_audio_pooled_embeddings
+          batch_size: 32
           learning_rate: 0.001
-          epochs: 1
+          early_stopping_patience: 10
+          epochs: 100
           initial_epoch:
-          num_batches_train: 1
-          num_batches_val: 1
+          num_batches_train:
+          num_batches_val:
     outs:
-    - path: train_output/
+    - path: train_output/Pooled-Embeddings/perch_v2_cpu/
       hash: md5
-      md5: 3f78c0ea37614dd271af9566a2070382.dir
-      size: 39347809
-      nfiles: 65
+      md5: 2eaf8295a0b829ed21be865e75f880f5.dir
+      size: 23875846
+      nfiles: 7
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:
