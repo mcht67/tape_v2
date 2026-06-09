@@ -1770,24 +1770,25 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
 
             # Save current checkpoint
             val_loss = logs.get('val_loss')
-            self.model.save_weights(self.epoch_weights_dir / f'epoch_{epoch+1:03d}.weights.h5')
-            print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
+            # self.model.save_weights(self.epoch_weights_dir / f'epoch_{epoch+1:03d}.weights.h5')
+            # print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
 
-            # Save best checkpoint
+            # Save best checkpoint and model
             if val_loss and val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
                 self.model.save_weights(self.best_weights_dir / f'best.weights.h5')
+                self.model.save(self.best_weights_dir / f'best.keras')
                 print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
-            # Cleanup old checkpoints if configured
-            if self.keep_last_n:
-                self._cleanup_old_checkpoints(epoch)
+            # # Cleanup old checkpoints if configured
+            # if self.keep_last_n:
+            #     self._cleanup_old_checkpoints(epoch)
 
-            # Save model
-            if (epoch + 1) % self.save_model_every_n_epochs == 0:
-                self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
-                self._cleanup_old_models(epoch)
-                print(f"✓ Saved model at epoch {epoch + 1}")
+            # # Save model
+            # if (epoch + 1) % self.save_model_every_n_epochs == 0:
+            #     self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
+            #     self._cleanup_old_models(epoch)
+            #     print(f"✓ Saved model at epoch {epoch + 1}")
                
                 
         def _cleanup_old_checkpoints(self, current_epoch):
