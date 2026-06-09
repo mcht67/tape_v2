@@ -32,7 +32,7 @@ hyperparams:
     - "yamnet"
     - "beans_baseline"
     - "EfficientNet-B1-BirdSet-XCL"
-    - "Bird-MAE-Huge"j
+    - "Bird-MAE-Huge"
     - "AudioProtoPNet-20-BirdSet-XCL"
     - "AST-Birdset-XCL"
     - "Wav2Vec2-Base-BirdSet-XCL"
