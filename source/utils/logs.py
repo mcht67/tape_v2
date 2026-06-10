@@ -157,6 +157,10 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
     plt.tight_layout()
     return fig
 
+##############################
+# Custom Metrics
+#############################
+
 class RoundedAccuracy(tf.keras.metrics.Metric):
     """Accuracy after rounding predictions to nearest integer (for regression polyphony)."""
     def __init__(self, name="rounded_accuracy", **kwargs):
@@ -177,6 +181,171 @@ class RoundedAccuracy(tf.keras.metrics.Metric):
     def reset_state(self):
         self.correct.assign(0.0)
         self.total.assign(0.0)
+
+class RoundedPrecision(tf.keras.metrics.Metric):
+    def __init__(self, name="precision", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+
+class RoundedRecall(tf.keras.metrics.Metric):
+    def __init__(self, name="recall", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fn.assign(0.0)
+class RoundedF1(tf.keras.metrics.Metric):
+    def __init__(self, name="f1", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+        self.fn.assign(0.0)
+
+class ClassificationSpeciesAccuracy(tf.keras.metrics.Metric):
+    """Exact count match after argmax (per species slot)."""
+    def __init__(self, name="accuracy", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.correct = self.add_weight(name="correct", initializer="zeros")
+        self.total   = self.add_weight(name="total",   initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # y_pred: [B, num_species, num_classes]
+        # y_true: [B, num_species]
+        y_pred_class = tf.cast(tf.argmax(y_pred, axis=-1), tf.int32)  # [B, num_species]
+        y_true_flat  = tf.cast(tf.reshape(y_true, [-1]), tf.int32)
+        y_pred_flat  = tf.reshape(y_pred_class, [-1])
+        matches = tf.cast(tf.equal(y_pred_flat, y_true_flat), tf.float32)
+        self.correct.assign_add(tf.reduce_sum(matches))
+        self.total.assign_add(tf.cast(tf.size(matches), tf.float32))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.correct, self.total)
+
+    def reset_state(self):
+        self.correct.assign(0.0)
+        self.total.assign(0.0)
+
+
+class ClassificationSpeciesPrecision(tf.keras.metrics.Metric):
+    """Of species predicted present (argmax > 0), how many are truly present."""
+    def __init__(self, name="precision", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)          # [B, num_species]
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+
+
+class ClassificationSpeciesRecall(tf.keras.metrics.Metric):
+    """Of species truly present, how many are predicted present (argmax > 0)."""
+    def __init__(self, name="recall", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fn.assign(0.0)
+
+
+class ClassificationSpeciesF1(tf.keras.metrics.Metric):
+    def __init__(self, name="f1", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+        self.fn.assign(0.0)
+
+#########################
+# Custom Summary Writer
+#########################
 
 class CustomSummaryWriter(SummaryWriter):
     """
@@ -471,6 +640,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
             # Staircase curve in TensorBoard — every epoch, only if we have a best value
             if self._best_val.get(metric_key) is not None:
+                self.writer.add_scalar(f'best/{metric_key}_epoch', self._best_step[metric_key], epoch) if self._best_step.get(metric_key) is not None else None
                 self.writer.add_scalar(f'best/{metric_key}', self._best_val[metric_key], epoch)
 
     def on_epoch_end(self, epoch, logs=None):

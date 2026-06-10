@@ -499,7 +499,15 @@ class TemporalCNN(tf.keras.Model):
         self.input_dim = input_dim
         self.conv_channels = list(conv_channels)
         self.dropout_rate = dropout_rate
-        self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+        # self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+        self.objectives_cfg =   {
+                                    obj_name: {
+                                        k: obj_cfg[k]
+                                        for k in ("num_classes", "num_species")
+                                        if k in obj_cfg
+                                    }
+                                    for obj_name, obj_cfg in (objectives_cfg or {}).items()
+                                }
 
         # Build encoder
         self.conv1 = tf.keras.layers.Conv1D(self.conv_channels[0], 3, padding="same", activation="relu")
@@ -576,8 +584,17 @@ class SimpleMLP(tf.keras.Model):
         self.input_dim = input_dim
         self.hidden_units = list(hidden_units)
         self.dropout_rate = dropout_rate
-        self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+        # self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
         #self.objectives = list(objectives_cfg.keys())
+        # self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
+        self.objectives_cfg =   {
+                                    obj_name: {
+                                        k: obj_cfg[k]
+                                        for k in ("num_classes", "num_species")
+                                        if k in obj_cfg
+                                    }
+                                    for obj_name, obj_cfg in (objectives_cfg or {}).items()
+                                }
 
         # Build encoder (shared feature extraction)
         self.flatten = layers.Flatten()
@@ -603,8 +620,20 @@ class SimpleMLP(tf.keras.Model):
             self.polyphony_reg_head = layers.Dense(1)
 
         if "polyphony_degree_class" in self.objectives_cfg:
-            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7) 
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 9) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            self.num_species = self.objectives_cfg.get("species_polyphony_reg", {}).get("num_species")
+            self.species_polyphony_reg_head = layers.Dense(self.num_species)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            self.num_classes = self.objectives_cfg.get("species_polyphony_class", {}).get("num_classes")
+            self.num_species = self.objectives_cfg.get("species_polyphony_class", {}).get("num_species")
+            self.species_polyphony_class_head = tf.keras.Sequential([
+                layers.Dense(self.num_species * self.num_classes),
+                layers.Reshape((self.num_species, self.num_classes))
+            ])
 
     # def build(self, input_shape):
     #     self.input_dim = input_shape
@@ -639,7 +668,17 @@ class SimpleMLP(tf.keras.Model):
             outputs["polyphony_degree_class"] = self.polyphony_class_head(
                 features, training=training
             )
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(
+                features, training=training
+            )
         
+        if "species_polyphony_class" in self.objectives_cfg:
+            outputs["species_polyphony_class"] = self.species_polyphony_class_head(
+                features, training=training
+            )
+
         return outputs
     
     def get_config(self):

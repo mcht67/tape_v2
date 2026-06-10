@@ -1,5 +1,4 @@
 study_name: 'test-study'
-exp_name: 'test-exp'
 keep_last_n_checkpoints: 5
 hyperparameters:
 metrics:

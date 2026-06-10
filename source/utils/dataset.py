@@ -5,6 +5,7 @@ import time
 import random
 from datasets import load_dataset
 import traceback
+from collections import Counter
 
 def build_event_logits(
     events,
@@ -130,7 +131,57 @@ def add_framewise_polyphony(example, num_frames, feature_name):
         example[feature_name] = framewise_polyphony_array
         return example
 
-def add_labels(dataset, labels, time_dim=None, freq_dim=None):
+def add_species_polyphony(example, birdset_id2label, feature_name):
+    counts = None
+
+    # TODO: remove once we have birdset_id_multilabel for all datasets
+    if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+        counts = Counter(example['birdset_code_multilabel'])
+    elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+        counts = Counter(example['birdset_id_multilabel'])
+    
+    if counts is not None:
+        # total_polyphony = sum(counts.values())
+        labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
+        # labels[len(birdset_id2label)] = total_polyphony
+    else:
+        labels = [0] * (len(birdset_id2label) + 1)
+        # total_polyphony = 0
+        # labels[len(birdset_id2label)] = total_polyphony
+    example[feature_name] = labels
+    return example
+
+def get_birdset_id2label(dataset):
+
+    # Get list of birdset ids
+    dataset_split = next(iter(dataset.keys()))
+    info = dataset[dataset_split].info
+    metadata = getattr(info, "metadata", None)
+
+    if metadata and "birdset_id2label" in metadata:
+        return metadata["birdset_id2label"]
+    else:
+        unique_birdset_ids = set()
+
+        def collect_values(batch):
+            if 'birdset_id_multilabel' in batch and batch['birdset_id_multilabel'] is not None:
+                for birdset_id in batch["birdset_id_multilabel"]:
+                    unique_birdset_ids.update(birdset_id)
+            # TODO: remove once we have birdset_id_multilabel for all datasets
+            elif 'birdset_code_multilabel' in batch and batch['birdset_code_multilabel'] is not None:
+                for birdset_id in batch["birdset_code_multilabel"]:
+                    unique_birdset_ids.update(birdset_id)
+            else:
+                raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
+            return batch  # return unchanged
+
+        for split in dataset.values():
+            split.map(collect_values, batched=True, batch_size=100, num_proc=1, keep_in_memory=False)
+
+        print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
+        return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
+
+def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None):
     added_labels = []
 
     # Segment-wise polyphony based label
@@ -141,6 +192,25 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony_degree"])},keep_in_memory=False)
+
+    # Species specific polyphony
+    if 'species_polyphony_reg' in labels or 'species_polyphony_class' in labels:
+        feature_names = [x for x in ['species_polyphony_reg', 'species_polyphony_class'] if x in labels]
+
+        if not birdset_id2label:
+            birdset_id2label = get_birdset_id2label(dataset)
+
+        for feature_name in feature_names:
+            print(f'Add {feature_name} labels...')
+            add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
+            species_polyphony_feature = Sequence(Value("int32"))
+
+            for split in dataset.keys():
+                dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
+                dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+
+            added_labels.append(feature_name)
+        print('Done!')
 
     # Time dimension based labels
     if time_dim:
@@ -161,7 +231,7 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
             print('Done!')
 
         # Framewise polyphony
-        if 'framewise_polyphony' in labels:
+        if 'framewise_polyphony_reg' in labels:
             print('Add framewise polyphony labels...')
             feature_name = 'framewise_polyphony'
             num_frames = time_dim
@@ -174,7 +244,7 @@ def add_labels(dataset, labels, time_dim=None, freq_dim=None):
                 dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
                 dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
             print('Done!')
-            
+
     return dataset, added_labels
 
 def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='reuse_dataset_if_exists'):

@@ -6,4 +6,4 @@ polyphony_degree_class:
   confusion_matrix:
     type: classification
   label: polyphony_degree
-  num_classes: 7
+  num_classes: 

@@ -10,10 +10,10 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RoundedAccuracy, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RoundedAccuracy, RoundedPrecision, RoundedRecall, RoundedF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, load_dataset_with_retry
+from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
 from losses import create_losses_from_objectives, setup_loss_scheduler
 
 tf.keras.backend.clear_session()
@@ -219,6 +219,58 @@ def reshape_to_tfe(example, input_feature_name):
 
     return example
 
+def build_metrics(objectives_cfg):
+    compile_metrics = {}
+    log_metrics = {}
+    multiple_objectives = len(objectives_cfg) > 1
+
+    def metric_key(objective, metric_name):
+        if multiple_objectives:
+            return f"val_{objective}_{metric_name}"
+        return f"val_{metric_name}"
+
+    for objective, obj_cfg in objectives_cfg.items():
+        if objective == "polyphony_degree":
+            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == "polyphony_degree_class":
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == "binary":
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'event_logits':
+            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'framewise_polyphony':
+            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'species_polyphony':
+            compile_metrics[objective] = [
+                RoundedAccuracy(name='accuracy'),
+                RoundedPrecision(name='precision'),
+                RoundedRecall(name='recall'),
+                RoundedF1(name='f1'),
+            ]
+            for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
+                log_metrics[metric_key(objective, metric_name)] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+    # Add top-level val_loss
+    log_metrics['val_loss'] = None
+
+    return compile_metrics, log_metrics
+
 def main():
 
     # Configuration
@@ -248,7 +300,6 @@ def main():
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
-    log_metrics = cfg.log.metrics if 'metrics' in cfg.log else []
 
     input_feature_name = cfg.train.input_feature_name
     total_epochs = cfg.train.epochs
@@ -261,18 +312,7 @@ def main():
 
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
-
-    model_cfg.objectives_cfg = objectives_cfg
-
-    # Set number of classes for polyphony degree classification based on dataset config
-    if 'polyphony_degree_class' in objectives_cfg:
-        num_classes = cfg.dataset.max_polyphony + 1
-        model_cfg.objectives_cfg.polyphony_degree_class.num_classes = num_classes
-        print(f"Using {num_classes} classes for polyphony degree classification based on config.")
-
-    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
-
-    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
+    
 
     #################################
     # Load dataset
@@ -285,19 +325,19 @@ def main():
     # Load Dataset
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
     # for split in dataset.keys():
     #     dataset[split] = dataset[split].select(range(100))
     #  # TODO: reset after testing
-    # from datasets import load_dataset, DatasetDict, Dataset
-    # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    # print("Dataset loaded. Converting to in-memory format for processing...")
-    # dataset = DatasetDict({
-    #     split: Dataset.from_list(list(ds.take(1)))
-    #     for split, ds in dataset.items()
-    # })
+    from datasets import load_dataset, DatasetDict, Dataset
+    print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
+    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    print("Dataset loaded. Converting to in-memory format for processing...")
+    dataset = DatasetDict({
+        split: Dataset.from_list(list(ds.take(1)))
+        for split, ds in dataset.items()
+    })
 
     # TODO: Remove after handling in model output processing
     # Reshape input features if needed based on model requirements
@@ -316,6 +356,40 @@ def main():
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
+    
+
+    #####################################
+    # Update model and objectives config
+    #####################################
+    if 'species_polyphony_reg' or 'species_polyphony_class' in objectives_cfg:
+        # Get birdset ids
+        birdset_id2label = get_birdset_id2label(dataset)
+        # Save mapping
+        mapping = {i: (bird_id, birdset_id2label[bird_id]) for i, bird_id in enumerate(birdset_id2label)}
+        path = os.path.join(log_dir, "species_polyphony_mapping.json")
+        with open(path, "w") as f:
+            json.dump(mapping, f, indent=2)
+
+    # Set number of classes for polyphony degree classification based on dataset config
+    num_classes = cfg.dataset.max_polyphony + 1
+    num_species = len(birdset_id2label)
+    if 'polyphony_degree_class' in objectives_cfg:
+        objectives_cfg.polyphony_degree_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for polyphony degree classification based on config.")
+    if 'species_polyphony_reg' in objectives_cfg:
+        objectives_cfg.species_polyphony_reg.num_species = num_species
+        print(f"Using {num_species} species for species polyphony regression based on dataset.")
+    if 'species_polyphony_class' in objectives_cfg:
+        objectives_cfg.species_polyphony_class.num_classes = num_classes
+        objectives_cfg.species_polyphony_class.num_species = num_species
+        print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
+
+    # Set objectives config in model config for easy access when building model and losses
+    model_cfg.objectives_cfg = objectives_cfg
+
+    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
+
+    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
 
     #################################
     # Add labels
@@ -330,7 +404,7 @@ def main():
     # Compute additional labels
     time_dim = input_dim[0] if len(input_dim) > 1 else None
     freq_dim = input_dim[1] if len(input_dim) > 2 else None
-    dataset, added_labels = add_labels(dataset, labels, time_dim=time_dim, freq_dim=freq_dim)
+    dataset, added_labels = add_labels(dataset, labels, birdset_id2label=birdset_id2label, time_dim=time_dim, freq_dim=freq_dim)
 
     print("Added labels: ", added_labels)
 
@@ -354,48 +428,45 @@ def main():
     # Logging setup
     #################################
 
-    # Build per-output accuracy metrics depending on objective type
-    compile_metrics = {}
+    # # Build per-output accuracy metrics depending on objective type
+    # compile_metrics = {}
 
-    for objective, obj_cfg in objectives_cfg.items():
+    # for objective, obj_cfg in objectives_cfg.items():
 
-        # Handle polyphony accuracy
-        # metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
-        if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
-        elif objective == "polyphony_degree_class":
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') 
+    #     # Handle polyphony accuracy
+    #     # metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
+    #     if objective == "polyphony_degree":
+    #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+    #     elif objective == "polyphony_degree_class":
+    #         compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') 
 
-        elif objective == "binary":
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+    #     elif objective == "binary":
+    #         compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
 
-        # Handle event logits accuracy
-        elif objective == 'event_logits':
-            compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+    #     # Handle event logits accuracy
+    #     elif objective == 'event_logits':
+    #         compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
 
-        # Handle frame-wise polyphony accuracy
-        elif objective == 'framewise_polyphony':
-            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+    #     # Handle frame-wise polyphony accuracy
+    #     elif objective == 'framewise_polyphony':
+    #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
 
-    # # Metrics dict
-    log_metrics = {k: None for k in log_metrics}
-    # for key in objectives_cfg.keys():
-        # metrics[f"{key}_loss"] = None
-        # metrics[f"{key}_val_loss"] = None
-        # metrics[f"{key}_accuracy"] = None
-        # metrics[f"{key}_val_accuracy"] = None 
+    #     # Handle species polyphony accuracy
+    #     elif objective == 'species_polyphony':
+    #         compile_metrics[objective] = [
+    #             RoundedAccuracy(name='accuracy'),
+    #             RoundedPrecision(name='precision'),
+    #             RoundedRecall(name='recall'),
+    #             RoundedF1(name='f1'),
+    #         ]
 
-    #     metrics[f"val_{key}_loss_best"] = None
-    #     metrics[f"val_{key}_accuracy_best"] = None
-
-    # for key in study_metrics:
-    #     metrics[key] = None
-
+    # Build metrics from objectives config        
+    compile_metrics, log_metrics = build_metrics(objectives_cfg)
     print("Metrics to log in hParam tab of tensorboard:", log_metrics)
 
-    # params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
-    # params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
-    # params['dataset']['test_size'] = str(len(dataset['test']))
+    params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
+    params['dataset']['val_size'] = str(val_size) #str(len(dataset['validation']))
+    params['dataset']['test_size'] = str(len(dataset['test']))
     params['train']['input_feature_name'] = input_feature_name
     params['train']['objectives'] = list(cfg.objectives.keys())
     print(params)

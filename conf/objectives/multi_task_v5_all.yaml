@@ -15,7 +15,13 @@ polyphony_degree_class:
   confusion_matrix:
     type: classification
   label: polyphony_degree_class
-  num_classes: 9
+  num_classes: 
+
+polyphony_degree_poisson:
+  loss:
+    _target_: tensorflow.keras.losses.Poisson
+  weight: 1.0
+  label: polyphony_degree_poisson
 
 event_logits:
   loss:
@@ -50,4 +56,23 @@ framewise_polyphony_class:
   confusion_matrix:
     type: classification
   label: framewise_polyphony_class
-  num_classes: 9
+  num_classes: 
+
+species_polyphony_reg:
+  loss:
+    _target_: tensorflow.keras.losses.MeanSquaredError
+  weight: 1.0
+  label: species_polyphony_reg
+
+species_polyphony_class:
+  loss:
+    _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+  weight: 1.0
+  label: species_polyphony_class
+  num_classes: 
+
+species_polyphony_poission:
+  loss:
+    _target_: tensorflow.keras.losses.Poisson
+  weight: 1.0
+  label: species_polyphony_poisson
