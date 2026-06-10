@@ -363,7 +363,7 @@ class TemporalCNNMultiTask(tf.keras.Model):
 #         # Frame-wise polyphony perch_v2_spatial: (B, 16)
 #         if self.enable_frame_polyphony:
 #             frame_poly = self.frame_polyphony_head(features, training=training)
-#             outputs["framewise_polyphony"] = tf.squeeze(frame_poly, axis=-1)
+#             outputs["framewise_polyphony_reg"] = tf.squeeze(frame_poly, axis=-1)
 
 #         # Segment-level polyphony perch_v2_spatial: (B, 1)
 #         if self.enable_segment_polyphony:
@@ -395,7 +395,7 @@ class TemporalCNNMultiTask(tf.keras.Model):
 #             }
         
 #         if self.enable_frame_polyphony:
-#             loss_config["framewise_polyphony"] = {
+#             loss_config["framewise_polyphony_reg"] = {
 #                 "type": tf.keras.losses.MeanSquaredError,
 #                 "weight": 1.0
 #             }
@@ -438,7 +438,7 @@ class TemporalCNNMultiTask(tf.keras.Model):
 #         if "event_logits" in self.objectives:
 #             self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
         
-#         if "framewise_polyphony" in self.objectives:
+#         if "framewise_polyphony_reg" in self.objectives:
 #             self.frame_polyphony_head = tf.keras.layers.Conv1D(1, kernel_size=1)
         
 #         if "polyphony_degree" in self.objectives:
@@ -462,9 +462,9 @@ class TemporalCNNMultiTask(tf.keras.Model):
 #             event_logits = self.event_head(features, training=training)
 #             outputs["event_logits"] = tf.squeeze(event_logits, axis=-1)
         
-#         if "framewise_polyphony" in self.objectives:
+#         if "framewise_polyphony_reg" in self.objectives:
 #             frame_poly = self.frame_polyphony_head(features, training=training)
-#             outputs["framewise_polyphony"] = tf.squeeze(frame_poly, axis=-1)
+#             outputs["framewise_polyphony_reg"] = tf.squeeze(frame_poly, axis=-1)
         
 #         if "polyphony_degree" in self.objectives:
 #             x = self.segment_pool(features)
@@ -519,7 +519,7 @@ class TemporalCNN(tf.keras.Model):
         # Build heads based on objectives
         if "event_logits" in self.objectives_cfg:
             self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
-        if "framewise_polyphony" in self.objectives_cfg:
+        if "framewise_polyphony_reg" in self.objectives_cfg:
             self.frame_polyphony_head = tf.keras.layers.Conv1D(1, kernel_size=1)
         if "polyphony_degree" in self.objectives_cfg:
             self.segment_pool = tf.keras.layers.GlobalAveragePooling1D()
@@ -544,8 +544,8 @@ class TemporalCNN(tf.keras.Model):
         outputs = {}
         if "event_logits" in self.objectives_cfg:
             outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
-        if "framewise_polyphony" in self.objectives_cfg:
-            outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
         if "polyphony_degree" in self.objectives_cfg:
             x = self.segment_pool(features)
             x = self.segment_dense1(x)
@@ -613,7 +613,7 @@ class SimpleMLP(tf.keras.Model):
         if "event_logits" in self.objectives_cfg:
             self.event_head = layers.Dense(1)
         
-        if "framewise_polyphony" in self.objectives_cfg:
+        if "framewise_polyphony_reg" in self.objectives_cfg:
             self.frame_polyphony_head = layers.Dense(1)
         
         if "polyphony_degree" in self.objectives_cfg:
@@ -658,8 +658,8 @@ class SimpleMLP(tf.keras.Model):
         if "event_logits" in self.objectives_cfg:
             outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
         
-        if "framewise_polyphony" in self.objectives_cfg:
-            outputs["framewise_polyphony"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
         
         if "polyphony_degree" in self.objectives_cfg:
             outputs["polyphony_degree"] = self.polyphony_reg_head(features, training=training)

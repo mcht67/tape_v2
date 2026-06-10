@@ -19,7 +19,7 @@ event_logits:
     type: binary
   label: event_logits
 
-framewise_polyphony:
+framewise_polyphony_reg:
   loss:
     _target_: tensorflow.keras.losses.MeanSquaredError
   scheduler:
@@ -28,4 +28,4 @@ framewise_polyphony:
   confusion_matrix:
     type: regression_round
     threshold: 0.5
-  label: framewise_polyphony
+  label: framewise_polyphony_reg

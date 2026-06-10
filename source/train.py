@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RoundedAccuracy, RoundedPrecision, RoundedRecall, RoundedF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RegressionAccuracy, RegressionPrecision, RegressionRecall, RegressionF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
@@ -231,7 +231,7 @@ def build_metrics(objectives_cfg):
 
     for objective, obj_cfg in objectives_cfg.items():
         if objective == "polyphony_degree":
-            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+            compile_metrics[objective] = RegressionAccuracy(name='accuracy')
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
@@ -250,17 +250,17 @@ def build_metrics(objectives_cfg):
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == 'framewise_polyphony':
-            compile_metrics[objective] = RoundedAccuracy(name='accuracy')
+        elif objective == 'framewise_polyphony_reg':
+            compile_metrics[objective] = RegressionAccuracy(name='accuracy')
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == 'species_polyphony':
             compile_metrics[objective] = [
-                RoundedAccuracy(name='accuracy'),
-                RoundedPrecision(name='precision'),
-                RoundedRecall(name='recall'),
-                RoundedF1(name='f1'),
+                RegressionAccuracy(name='accuracy'),
+                RegressionPrecision(name='precision'),
+                RegressionRecall(name='recall'),
+                RegressionF1(name='f1'),
             ]
             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
                 log_metrics[metric_key(objective, metric_name)] = None
@@ -268,6 +268,9 @@ def build_metrics(objectives_cfg):
 
     # Add top-level val_loss
     log_metrics['val_loss'] = None
+    for key in log_metrics.keys():
+            epoch_key = key + "_epoch"
+            log_metrics[key] = None
 
     return compile_metrics, log_metrics
 
@@ -448,7 +451,7 @@ def main():
     #         compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
 
     #     # Handle frame-wise polyphony accuracy
-    #     elif objective == 'framewise_polyphony':
+    #     elif objective == 'framewise_polyphony_reg':
     #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
 
     #     # Handle species polyphony accuracy

@@ -161,7 +161,7 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
 # Custom Metrics
 #############################
 
-class RoundedAccuracy(tf.keras.metrics.Metric):
+class RegressionAccuracy(tf.keras.metrics.Metric):
     """Accuracy after rounding predictions to nearest integer (for regression polyphony)."""
     def __init__(self, name="rounded_accuracy", **kwargs):
         super().__init__(name=name, **kwargs)
@@ -182,7 +182,7 @@ class RoundedAccuracy(tf.keras.metrics.Metric):
         self.correct.assign(0.0)
         self.total.assign(0.0)
 
-class RoundedPrecision(tf.keras.metrics.Metric):
+class RegressionPrecision(tf.keras.metrics.Metric):
     def __init__(self, name="precision", **kwargs):
         super().__init__(name=name, **kwargs)
         self.tp = self.add_weight(name="tp", initializer="zeros")
@@ -203,7 +203,7 @@ class RoundedPrecision(tf.keras.metrics.Metric):
         self.tp.assign(0.0)
         self.fp.assign(0.0)
 
-class RoundedRecall(tf.keras.metrics.Metric):
+class RegressionRecall(tf.keras.metrics.Metric):
     def __init__(self, name="recall", **kwargs):
         super().__init__(name=name, **kwargs)
         self.tp = self.add_weight(name="tp", initializer="zeros")
@@ -223,7 +223,7 @@ class RoundedRecall(tf.keras.metrics.Metric):
     def reset_state(self):
         self.tp.assign(0.0)
         self.fn.assign(0.0)
-class RoundedF1(tf.keras.metrics.Metric):
+class RegressionF1(tf.keras.metrics.Metric):
     def __init__(self, name="f1", **kwargs):
         super().__init__(name=name, **kwargs)
         self.tp = self.add_weight(name="tp", initializer="zeros")
@@ -249,7 +249,7 @@ class RoundedF1(tf.keras.metrics.Metric):
         self.fp.assign(0.0)
         self.fn.assign(0.0)
 
-class ClassificationSpeciesAccuracy(tf.keras.metrics.Metric):
+class ClassificationAccuracy(tf.keras.metrics.Metric):
     """Exact count match after argmax (per species slot)."""
     def __init__(self, name="accuracy", **kwargs):
         super().__init__(name=name, **kwargs)
@@ -274,7 +274,7 @@ class ClassificationSpeciesAccuracy(tf.keras.metrics.Metric):
         self.total.assign(0.0)
 
 
-class ClassificationSpeciesPrecision(tf.keras.metrics.Metric):
+class ClassificationPrecision(tf.keras.metrics.Metric):
     """Of species predicted present (argmax > 0), how many are truly present."""
     def __init__(self, name="precision", **kwargs):
         super().__init__(name=name, **kwargs)
@@ -296,7 +296,7 @@ class ClassificationSpeciesPrecision(tf.keras.metrics.Metric):
         self.fp.assign(0.0)
 
 
-class ClassificationSpeciesRecall(tf.keras.metrics.Metric):
+class ClassificationRecall(tf.keras.metrics.Metric):
     """Of species truly present, how many are predicted present (argmax > 0)."""
     def __init__(self, name="recall", **kwargs):
         super().__init__(name=name, **kwargs)
@@ -318,7 +318,7 @@ class ClassificationSpeciesRecall(tf.keras.metrics.Metric):
         self.fn.assign(0.0)
 
 
-class ClassificationSpeciesF1(tf.keras.metrics.Metric):
+class ClassificationF1(tf.keras.metrics.Metric):
     def __init__(self, name="f1", **kwargs):
         super().__init__(name=name, **kwargs)
         self.tp = self.add_weight(name="tp", initializer="zeros")

@@ -29,7 +29,7 @@ event_logits:
     type: binary
   label: event_logits
 
-# framewise_polyphony:
+# framewise_polyphony_reg:
 #   loss:
 #     _target_: tensorflow.keras.losses.MeanSquaredError
 #   scheduler:
@@ -38,9 +38,9 @@ event_logits:
 #   confusion_matrix:
 #     type: regression_round
 #     threshold: 0.5
-#   label: framewise_polyphony
+#   label: framewise_polyphony_reg
 
-framewise_polyphony_class:
+framewise_polyphony_reg_class:
   loss:
     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
     from_logits: true
@@ -49,5 +49,5 @@ framewise_polyphony_class:
     weights: [5.0, 10.0, 5.0, 1.0, 0.5]
   confusion_matrix:
     type: classification
-  label: framewise_polyphony
+  label: framewise_polyphony_reg
   num_classes: 

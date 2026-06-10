@@ -14,14 +14,6 @@ import shlex
 import yaml
 import configparser
 from pathlib import Path
-# import huggingface_hub
-
-# from source.utils.dataset import get_data_dir
-
-# from dotenv import load_dotenv
-# from hydra import compose, initialize
-# from omegaconf import OmegaConf
-# from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
 def submit_dataset_prep_job(study_config, data_dir, dataset_config, recompute_embeddings=False, force_redownload=False):
