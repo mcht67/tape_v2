@@ -517,21 +517,55 @@ class TemporalCNN(tf.keras.Model):
         self.bn2 = tf.keras.layers.BatchNormalization()
 
         # Build heads based on objectives
-        if "event_logits" in self.objectives_cfg:
-            self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            self.frame_polyphony_head = tf.keras.layers.Conv1D(1, kernel_size=1)
         if "polyphony_degree" in self.objectives_cfg:
             self.segment_pool = tf.keras.layers.GlobalAveragePooling1D()
             self.segment_dense1 = tf.keras.layers.Dense(128, activation="relu")
             self.segment_dropout = tf.keras.layers.Dropout(dropout_rate)
             self.segment_dense2 = tf.keras.layers.Dense(1)
+
         if "polyphony_degree_class" in self.objectives_cfg:
-            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 7)
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 9)
             self.segment_pool_class = tf.keras.layers.GlobalAveragePooling1D()
             self.segment_dense1_class = tf.keras.layers.Dense(128, activation="relu")
             self.segment_dropout_class = tf.keras.layers.Dropout(dropout_rate)
             self.polyphony_class_head = tf.keras.layers.Dense(self.polyphony_num_classes)
+
+        if "event_logits" in self.objectives_cfg:
+            self.event_head = tf.keras.layers.Conv1D(1, kernel_size=1)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            self.frame_polyphony_reg_head = tf.keras.layers.Conv1D(1, kernel_size=1)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            self.frame_polyphony_num_classes = self.objectives_cfg.get("framewise_polyphony_class", {}).get("num_classes", 9)
+            self.frame_polyphony_class_head = tf.keras.layers.Conv1D(self.frame_polyphony_num_classes, kernel_size=1)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            self.num_species_reg = self.objectives_cfg.get("species_polyphony_reg", {}).get("num_species")
+            self.species_polyphony_reg_pool = tf.keras.layers.GlobalAveragePooling1D()
+            self.species_polyphony_reg_dense1 = tf.keras.layers.Dense(256, activation="relu")
+            self.species_polyphony_reg_dropout = tf.keras.layers.Dropout(dropout_rate)
+            self.species_polyphony_reg_dense2 = tf.keras.layers.Dense(128, activation="relu")
+            self.species_polyphony_reg_head = tf.keras.layers.Dense(self.num_species_reg)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            self.num_classes_global = self.objectives_cfg.get("species_polyphony_class", {}).get("num_classes")
+            self.num_species_global = self.objectives_cfg.get("species_polyphony_class", {}).get("num_species")
+            self.species_polyphony_class_pool = tf.keras.layers.GlobalAveragePooling1D()
+            self.species_polyphony_class_dense1 = tf.keras.layers.Dense(256, activation="relu")
+            self.species_polyphony_class_dropout = tf.keras.layers.Dropout(dropout_rate)
+            self.species_polyphony_class_dense2 = tf.keras.layers.Dense(128, activation="relu")
+            self.species_polyphony_class_head = tf.keras.layers.Dense(self.num_species_global * self.num_classes_global)
+
+        # if "framewise_species_polyphony_reg" in self.objectives_cfg:
+        #     self.num_species_fw = self.objectives_cfg.get("framewise_species_polyphony_reg", {}).get("num_species")
+        #     self.framewise_species_polyphony_reg_head = tf.keras.layers.Conv1D(self.num_species_fw, kernel_size=1)
+
+        # if "framewise_species_polyphony_class" in self.objectives_cfg:
+        #     self.num_classes_fw = self.objectives_cfg.get("framewise_species_polyphony_class", {}).get("num_classes")
+        #     self.num_species_fw = self.objectives_cfg.get("framewise_species_polyphony_class", {}).get("num_species")
+        #     self.framewise_species_polyphony_class_head = tf.keras.layers.Conv1D(self.num_species_fw * self.num_classes_fw, kernel_size=1)
+        
 
     def call(self, inputs, training=False):
         x = tf.reduce_mean(inputs, axis=2)
@@ -542,20 +576,58 @@ class TemporalCNN(tf.keras.Model):
         features = self.bn2(x, training=training)
 
         outputs = {}
-        if "event_logits" in self.objectives_cfg:
-            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
+
         if "polyphony_degree" in self.objectives_cfg:
             x = self.segment_pool(features)
             x = self.segment_dense1(x)
             x = self.segment_dropout(x, training=training)
             outputs["polyphony_degree"] = self.segment_dense2(x)
+            
         if "polyphony_degree_class" in self.objectives_cfg:
             x = self.segment_pool_class(features)
             x = self.segment_dense1_class(x)
             x = self.segment_dropout_class(x, training=training)
             outputs["polyphony_degree_class"] = self.polyphony_class_head(x, training=training)
+
+        if "event_logits" in self.objectives_cfg:
+            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_reg_head(features, training=training), axis=-1)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            outputs["framewise_polyphony_class"] = self.frame_polyphony_class_head(features, training=training)
+        
+        if "species_polyphony_reg" in self.objectives_cfg:
+            x = self.species_polyphony_reg_pool(features)
+            x = self.species_polyphony_reg_dense1(x)
+            x = self.species_polyphony_reg_dropout(x, training=training)
+            x = self.species_polyphony_reg_dense2(x)
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(x)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            x = self.species_polyphony_class_pool(features)
+            x = self.species_polyphony_class_dense1(x)
+            x = self.species_polyphony_class_dropout(x, training=training)
+            x = self.species_polyphony_class_dense2(x)
+            x = self.species_polyphony_class_head(x)
+            outputs["species_polyphony_class"] = tf.reshape(
+                x, (-1, self.num_species_global, self.num_classes_global)
+            )  # shape: (batch, num_species, num_classes)
+
+        # if "framewise_species_polyphony_reg" in self.objectives_cfg:
+        #     outputs["framewise_species_polyphony_reg"] = self.framewise_species_polyphony_reg_head(
+        #         features, training=training
+        #     )  # shape: (batch, time, num_species)
+
+        # if "framewise_species_polyphony_class" in self.objectives_cfg:
+        #     x = self.framewise_species_polyphony_class_head(features, training=training)
+        #     batch = tf.shape(x)[0]
+        #     time = tf.shape(x)[1]
+        #     outputs["framewise_species_polyphony_class"] = tf.reshape(
+        #         x, (batch, time, self.num_species_fw, self.num_classes_fw)
+        #     )  # shape: (batch, time, num_species, num_classes)
+        
         return outputs
 
     def get_config(self):
@@ -584,9 +656,6 @@ class SimpleMLP(tf.keras.Model):
         self.input_dim = input_dim
         self.hidden_units = list(hidden_units)
         self.dropout_rate = dropout_rate
-        # self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
-        #self.objectives = list(objectives_cfg.keys())
-        # self.objectives_cfg = {obj_name: ({"num_classes": obj_cfg["num_classes"]} if "num_classes" in obj_cfg else {}) for obj_name, obj_cfg in (objectives_cfg or {}).items()}
         self.objectives_cfg =   {
                                     obj_name: {
                                         k: obj_cfg[k]
@@ -610,12 +679,6 @@ class SimpleMLP(tf.keras.Model):
                 self.dropout_layers.append(None)
         
         # Build heads based on objectives
-        if "event_logits" in self.objectives_cfg:
-            self.event_head = layers.Dense(1)
-        
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            self.frame_polyphony_head = layers.Dense(1)
-        
         if "polyphony_degree" in self.objectives_cfg:
             self.polyphony_reg_head = layers.Dense(1)
 
@@ -623,18 +686,32 @@ class SimpleMLP(tf.keras.Model):
             self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 9) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
+        if "event_logits" in self.objectives_cfg:
+            self.event_head = layers.Dense(1)
+        
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            self.frame_polyphony_reg_head = layers.Dense(1)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            self.frame_polyphony_class_head = layers.Dense(self.frame_polyphony_num_classes)
+
+        # Deeper bottleneck than polyphony_degree: joint multi-species prediction
+        # requires capacity to model inter-species correlations
         if "species_polyphony_reg" in self.objectives_cfg:
-            self.num_species = self.objectives_cfg.get("species_polyphony_reg", {}).get("num_species")
-            self.species_polyphony_reg_head = layers.Dense(self.num_species)
+            self.num_species_reg = self.objectives_cfg.get("species_polyphony_reg", {}).get("num_species")
+            self.species_polyphony_reg_dense1 = layers.Dense(256, activation="relu")
+            self.species_polyphony_reg_dropout = layers.Dropout(dropout_rate)
+            self.species_polyphony_reg_dense2 = layers.Dense(128, activation="relu")
+            self.species_polyphony_reg_head = layers.Dense(self.num_species_reg)
 
         if "species_polyphony_class" in self.objectives_cfg:
-            self.num_classes = self.objectives_cfg.get("species_polyphony_class", {}).get("num_classes")
-            self.num_species = self.objectives_cfg.get("species_polyphony_class", {}).get("num_species")
-            self.species_polyphony_class_head = tf.keras.Sequential([
-                layers.Dense(self.num_species * self.num_classes),
-                layers.Reshape((self.num_species, self.num_classes))
-            ])
-
+            self.num_classes_global = self.objectives_cfg.get("species_polyphony_class", {}).get("num_classes")
+            self.num_species_global = self.objectives_cfg.get("species_polyphony_class", {}).get("num_species")
+            self.species_polyphony_class_dense1 = layers.Dense(256, activation="relu")
+            self.species_polyphony_class_dropout = layers.Dropout(dropout_rate)
+            self.species_polyphony_class_dense2 = layers.Dense(128, activation="relu")
+            self.species_polyphony_class_head = layers.Dense(self.num_species_global * self.num_classes_global)
+        
     # def build(self, input_shape):
     #     self.input_dim = input_shape
     #     super().build(input_shape)
@@ -654,13 +731,7 @@ class SimpleMLP(tf.keras.Model):
         
         # Multi-task heads
         outputs = {}
-        
-        if "event_logits" in self.objectives_cfg:
-            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
-        
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_head(features, training=training), axis=-1)
-        
+
         if "polyphony_degree" in self.objectives_cfg:
             outputs["polyphony_degree"] = self.polyphony_reg_head(features, training=training)
 
@@ -668,16 +739,32 @@ class SimpleMLP(tf.keras.Model):
             outputs["polyphony_degree_class"] = self.polyphony_class_head(
                 features, training=training
             )
+        
+        if "event_logits" in self.objectives_cfg:
+            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
+        
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_reg_head(features, training=training), axis=-1)
+        
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            outputs["framewise_polyphony_class"] = self.frame_polyphony_class_head(
+                features, training=training
+            )
 
         if "species_polyphony_reg" in self.objectives_cfg:
-            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(
-                features, training=training
-            )
-        
+            x = self.species_polyphony_reg_dense1(features)
+            x = self.species_polyphony_reg_dropout(x, training=training)
+            x = self.species_polyphony_reg_dense2(x)
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(x)
+
         if "species_polyphony_class" in self.objectives_cfg:
-            outputs["species_polyphony_class"] = self.species_polyphony_class_head(
-                features, training=training
-            )
+            x = self.species_polyphony_class_dense1(features)
+            x = self.species_polyphony_class_dropout(x, training=training)
+            x = self.species_polyphony_class_dense2(x)
+            x = self.species_polyphony_class_head(x)
+            outputs["species_polyphony_class"] = tf.reshape(
+                x, (-1, self.num_species_global, self.num_classes_global)
+            )  # shape: (batch, num_species, num_classes)
 
         return outputs
     

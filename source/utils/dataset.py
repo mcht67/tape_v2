@@ -215,7 +215,9 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             print('Done!')
 
     # Time dimension based labels
-    if time_dim:
+    if 'framewise_polyphony_reg' in labels or 'framewise_polyphony_class' in labels or 'event_logits' in labels:
+        if not time_dim:
+            raise ValueError("Time dimension is required for framewise polyphony and event logits")
         # Event logits
         if 'event_logits' in labels:
             print("Add event logits..."

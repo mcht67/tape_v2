@@ -309,6 +309,7 @@ def main():
     initial_epoch = cfg.train.initial_epoch if 'initial_epoch' in cfg.train and cfg.train.initial_epoch else 0
     learning_rate = cfg.train.learning_rate
     early_stopping_patience = cfg.train.early_stopping_patience if 'early_stopping_patience' in cfg.train else 10
+    early_stopping_delay_epochs = cfg.train.early_stopping_delay_epochs if 'early_stopping_delay_epochs' in cfg.train else 0
     batch_size = cfg.train.batch_size
     num_batches_train = cfg.train.num_batches_train if 'num_batches_train' in cfg.train else None
     num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train else None
@@ -386,6 +387,9 @@ def main():
         objectives_cfg.species_polyphony_class.num_classes = num_classes
         objectives_cfg.species_polyphony_class.num_species = num_species
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
+    if 'framewise_polyphony_class' in objectives_cfg:
+        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
 
     # Set objectives config in model config for easy access when building model and losses
     model_cfg.objectives_cfg = objectives_cfg
@@ -519,10 +523,16 @@ def main():
     else:
         print("Creating new model")
         model = instantiate(model_cfg)
-        # print("Model config:")
-        # print(model_cfg)
+        print("Model config:")
+        print(model_cfg)
         # Initialize new model with forward pass
         sample_batch = next(iter(train_dataset))
+        print(sample_batch[0].shape)  # full shape including all dims
+        print(sample_batch[0].dtype)  
+        print(input_dim)  
+        input_dim = sample_batch[0].shape
+        _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
+        _ = model(tf.zeros((input_dim)), training=False)
         _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")
         print(f"Compiling model with losses: {losses}")
@@ -554,7 +564,8 @@ def main():
     early_stopping = EarlyStopping(
         monitor='val_loss',  
         patience=early_stopping_patience,            
-        restore_best_weights=False
+        restore_best_weights=False,
+        start_from_epoch=early_stopping_delay_epochs
     )             
 
     model_and_history_saver = ModelAndHistorySaver(checkpoint_dir=checkpoint_dir, loss_objects=losses, previous_history=previous_history, keep_last_n=keep_last_n_checkpoints)

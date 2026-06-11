@@ -15,20 +15,21 @@ base_config:
   train.epochs: 100
   train.learning_rate: 0.001
   train.early_stopping_patience: 20
+  train.early_stopping_delay_epochs: 50
   path.study_subfolder: ${embeddings.name}/
-  log.metrics: 
-    - val_loss
-    - val_accuracy # use val_accuracy if only one objective is used
-    - val_polyphony_degree_loss
-    - val_polyphony_degree_class_loss
-    - val_event_logits_loss
-    - val_framewise_polyphony_loss
-    - val_framewise_polyphony_class_loss
-    - val_polyphony_degree_accuracy
-    - val_polyphony_degree_class_accuracy
-    - val_event_logits_accuracy
-    - val_framewise_polyphony_accuracy
-    - val_framewise_polyphony_class_accuracy
+  # log.metrics: 
+  #   - val_loss
+  #   - val_accuracy # use val_accuracy if only one objective is used
+  #   - val_polyphony_degree_loss
+  #   - val_polyphony_degree_class_loss
+  #   - val_event_logits_loss
+  #   - val_framewise_polyphony_loss
+  #   - val_framewise_polyphony_class_loss
+  #   - val_polyphony_degree_accuracy
+  #   - val_polyphony_degree_class_accuracy
+  #   - val_event_logits_accuracy
+  #   - val_framewise_polyphony_accuracy
+  #   - val_framewise_polyphony_class_accuracy
 
 hyperparams:
   model:
