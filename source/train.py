@@ -230,12 +230,12 @@ def build_metrics(objectives_cfg):
         return f"val_{metric_name}"
 
     for objective, obj_cfg in objectives_cfg.items():
-        if objective == "polyphony_degree":
+        if objective == "polyphony_reg":
             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == "polyphony_degree_class":
+        elif objective == "polyphony_class":
             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None
@@ -268,9 +268,9 @@ def build_metrics(objectives_cfg):
 
     # Add top-level val_loss
     log_metrics['val_loss'] = None
-    for key in log_metrics.keys():
-            epoch_key = key + "_epoch"
-            log_metrics[key] = None
+    epoch_keys = [f'{key}_epoch' for key in log_metrics.keys()]
+    for epoch_key in epoch_keys:
+        log_metrics[epoch_key] = None
 
     return compile_metrics, log_metrics
 
@@ -331,17 +331,21 @@ def main():
    
     # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    # for split in dataset.keys():
-    #     dataset[split] = dataset[split].select(range(100))
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(100))
     #  # TODO: reset after testing
-    from datasets import load_dataset, DatasetDict, Dataset
-    print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    print("Dataset loaded. Converting to in-memory format for processing...")
-    dataset = DatasetDict({
-        split: Dataset.from_list(list(ds.take(1)))
-        for split, ds in dataset.items()
-    })
+    # from datasets import load_from_disk
+    # dataset = load_from_disk("test_data/HSN")
+    # from datasets import load_dataset, DatasetDict, Dataset
+    # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
+    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
+    # print("Dataset loaded. Converting to in-memory format for processing...")
+    # dataset = DatasetDict({
+    #     split: Dataset.from_list(list(ds.take(2)))
+    #     for split, ds in dataset.items()
+    # })
+
+    # dataset.save_to_disk("test_data/HSN")
 
     # TODO: Remove after handling in model output processing
     # Reshape input features if needed based on model requirements
@@ -377,8 +381,8 @@ def main():
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
     num_species = len(birdset_id2label)
-    if 'polyphony_degree_class' in objectives_cfg:
-        objectives_cfg.polyphony_degree_class.num_classes = num_classes
+    if 'polyphony_class' in objectives_cfg:
+        objectives_cfg.polyphony_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
     if 'species_polyphony_reg' in objectives_cfg:
         objectives_cfg.species_polyphony_reg.num_species = num_species
@@ -394,7 +398,7 @@ def main():
     # Set objectives config in model config for easy access when building model and losses
     model_cfg.objectives_cfg = objectives_cfg
 
-    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
+    labels = list(objectives_cfg.keys()) #[objectives_cfg[x]['label'] for x in objectives_cfg]
 
     print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
 
@@ -408,17 +412,21 @@ def main():
 
     print(f"Input feature '{input_feature_name}' has shape {input_dim} for the first example. Assuming this is the input shape for the model.")
 
-    # Compute additional labels
-    time_dim = input_dim[0] if len(input_dim) > 1 else None
-    freq_dim = input_dim[1] if len(input_dim) > 2 else None
-    dataset, added_labels = add_labels(dataset, labels, birdset_id2label=birdset_id2label, time_dim=time_dim, freq_dim=freq_dim)
+    # Add labels if more than polyphony degree is requested
+    if labels == ['polyphony_reg'] or labels == ['polyphony_class']:
+        labels = ['polyphony_degree']
+    else:        
+        # Compute additional labels
+        time_dim = input_dim[0] if len(input_dim) > 1 else None
+        freq_dim = input_dim[1] if len(input_dim) > 2 else None
+        dataset, added_labels = add_labels(dataset, labels, birdset_id2label=birdset_id2label, time_dim=time_dim, freq_dim=freq_dim)
 
-    print("Added labels: ", added_labels)
+        print("Added labels: ", added_labels)
 
-    existing_labels = added_labels + ['polyphony_degree']
-    missing_labels = set(labels) - set(existing_labels)
-    if missing_labels:
-        raise Exception("Not all requested labels could be computed.")
+        existing_labels = added_labels # + ['polyphony_reg']
+        missing_labels = set(labels) - set(existing_labels)
+        if missing_labels:
+            raise Exception("Not all requested labels could be computed.")
     
     ###########################################
     # Transform dataset to tensorflow datasets 
@@ -442,9 +450,9 @@ def main():
 
     #     # Handle polyphony accuracy
     #     # metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
-    #     if objective == "polyphony_degree":
+    #     if objective == "polyphony_reg":
     #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
-    #     elif objective == "polyphony_degree_class":
+    #     elif objective == "polyphony_class":
     #         compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') 
 
     #     elif objective == "binary":
@@ -531,7 +539,7 @@ def main():
         print(sample_batch[0].dtype)  
         print(input_dim)  
         input_dim = sample_batch[0].shape
-        _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
+        # _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
         _ = model(tf.zeros((input_dim)), training=False)
         _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")

@@ -517,14 +517,14 @@ class TemporalCNN(tf.keras.Model):
         self.bn2 = tf.keras.layers.BatchNormalization()
 
         # Build heads based on objectives
-        if "polyphony_degree" in self.objectives_cfg:
+        if "polyphony_reg" in self.objectives_cfg:
             self.segment_pool = tf.keras.layers.GlobalAveragePooling1D()
             self.segment_dense1 = tf.keras.layers.Dense(128, activation="relu")
             self.segment_dropout = tf.keras.layers.Dropout(dropout_rate)
             self.segment_dense2 = tf.keras.layers.Dense(1)
 
-        if "polyphony_degree_class" in self.objectives_cfg:
-            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 9)
+        if "polyphony_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_class", {}).get("num_classes", 9)
             self.segment_pool_class = tf.keras.layers.GlobalAveragePooling1D()
             self.segment_dense1_class = tf.keras.layers.Dense(128, activation="relu")
             self.segment_dropout_class = tf.keras.layers.Dropout(dropout_rate)
@@ -577,17 +577,17 @@ class TemporalCNN(tf.keras.Model):
 
         outputs = {}
 
-        if "polyphony_degree" in self.objectives_cfg:
+        if "polyphony_reg" in self.objectives_cfg:
             x = self.segment_pool(features)
             x = self.segment_dense1(x)
             x = self.segment_dropout(x, training=training)
-            outputs["polyphony_degree"] = self.segment_dense2(x)
+            outputs["polyphony_reg"] = self.segment_dense2(x)
             
-        if "polyphony_degree_class" in self.objectives_cfg:
+        if "polyphony_class" in self.objectives_cfg:
             x = self.segment_pool_class(features)
             x = self.segment_dense1_class(x)
             x = self.segment_dropout_class(x, training=training)
-            outputs["polyphony_degree_class"] = self.polyphony_class_head(x, training=training)
+            outputs["polyphony_class"] = self.polyphony_class_head(x, training=training)
 
         if "event_logits" in self.objectives_cfg:
             outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
@@ -679,11 +679,11 @@ class SimpleMLP(tf.keras.Model):
                 self.dropout_layers.append(None)
         
         # Build heads based on objectives
-        if "polyphony_degree" in self.objectives_cfg:
+        if "polyphony_reg" in self.objectives_cfg:
             self.polyphony_reg_head = layers.Dense(1)
 
-        if "polyphony_degree_class" in self.objectives_cfg:
-            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_degree_class", {}).get("num_classes", 9) 
+        if "polyphony_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg.get("polyphony_class", {}).get("num_classes", 9) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
         if "event_logits" in self.objectives_cfg:
@@ -695,7 +695,7 @@ class SimpleMLP(tf.keras.Model):
         if "framewise_polyphony_class" in self.objectives_cfg:
             self.frame_polyphony_class_head = layers.Dense(self.frame_polyphony_num_classes)
 
-        # Deeper bottleneck than polyphony_degree: joint multi-species prediction
+        # Deeper bottleneck than polyphony_reg: joint multi-species prediction
         # requires capacity to model inter-species correlations
         if "species_polyphony_reg" in self.objectives_cfg:
             self.num_species_reg = self.objectives_cfg.get("species_polyphony_reg", {}).get("num_species")
@@ -732,11 +732,11 @@ class SimpleMLP(tf.keras.Model):
         # Multi-task heads
         outputs = {}
 
-        if "polyphony_degree" in self.objectives_cfg:
-            outputs["polyphony_degree"] = self.polyphony_reg_head(features, training=training)
+        if "polyphony_reg" in self.objectives_cfg:
+            outputs["polyphony_reg"] = self.polyphony_reg_head(features, training=training)
 
-        if "polyphony_degree_class" in self.objectives_cfg:
-            outputs["polyphony_degree_class"] = self.polyphony_class_head(
+        if "polyphony_class" in self.objectives_cfg:
+            outputs["polyphony_class"] = self.polyphony_class_head(
                 features, training=training
             )
         

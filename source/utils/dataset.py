@@ -185,9 +185,19 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
     added_labels = []
 
     # Segment-wise polyphony based label
-    if 'polyphony_degree_class' in labels:
+    if 'polyphony_reg' in labels:
+        print('Add polyphony degree reg labels...')
+        feature_name = 'polyphony_reg'
+
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(lambda example: {feature_name: float(example["polyphony_degree"])},keep_in_memory=False)
+        
+        added_labels.append(feature_name)
+        print('Done!')
+
+    if 'polyphony_class' in labels:
         print('Add polyphony degree class labels...')
-        feature_name = 'polyphony_degree_class'
+        feature_name = 'polyphony_class'
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony_degree"])},keep_in_memory=False)

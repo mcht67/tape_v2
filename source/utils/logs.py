@@ -101,16 +101,25 @@ def prepare_classification_for_cm(y_true, y_pred):
     
     return yt, yp
 
+# def prepare_polyphony_for_cm(y_true, y_pred):
+#     """
+#     y_true: (N,) or (N, 1)
+#     y_pred: (N, 1)
+#     """
+#     y_true = np.asarray(y_true).squeeze().astype(int)
+#     y_pred = np.asarray(y_pred).squeeze()
+
+#     y_pred =np.round(y_pred).astype(int)
+
+#     return y_true, y_pred
+
 def prepare_polyphony_for_cm(y_true, y_pred):
     """
     y_true: (N,) or (N, 1)
-    y_pred: (N, 1)
+    y_pred: (N,) or (N, 1)
     """
-    y_true = np.asarray(y_true).squeeze().astype(int)
-    y_pred = np.asarray(y_pred).squeeze()
-
-    y_pred = np.round(y_pred).astype(int)
-
+    y_true = np.atleast_1d(np.asarray(y_true).squeeze()).astype(int)
+    y_pred = np.atleast_1d(np.round(np.asarray(y_pred).squeeze())).astype(int)
     return y_true, y_pred
 
 def prepare_event_logits_for_cm(y_true, y_pred_logits, threshold=0.5):
@@ -141,7 +150,7 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
         for j in range(cm.shape[1]):
             annot[i, j] = f"{cm[i, j]}\n({cm_percent[i, j]:.1f}%)"
 
-    fig = plt.figure(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(
         cm,
         annot=annot,
@@ -149,11 +158,12 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
         cmap="Blues",
         xticklabels=labels,
         yticklabels=labels,
+        ax=ax,
     )
-
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title(title)
+    ax.invert_yaxis()
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    ax.set_title(title)
     plt.tight_layout()
     return fig
 

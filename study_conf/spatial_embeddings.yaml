@@ -14,22 +14,9 @@ base_config:
   dataset.max_polyphony: 8
   train.epochs: 100
   train.learning_rate: 0.001
-  train.early_stopping_patience: 20
-  train.early_stopping_delay_epochs: 50
+  train.early_stopping_patience: 5
+  train.early_stopping_delay_epochs: 25
   path.study_subfolder: ${embeddings.name}/
-  # log.metrics: 
-  #   - val_loss
-  #   - val_accuracy # use val_accuracy if only one objective is used
-  #   - val_polyphony_degree_loss
-  #   - val_polyphony_degree_class_loss
-  #   - val_event_logits_loss
-  #   - val_framewise_polyphony_loss
-  #   - val_framewise_polyphony_class_loss
-  #   - val_polyphony_degree_accuracy
-  #   - val_polyphony_degree_class_accuracy
-  #   - val_event_logits_accuracy
-  #   - val_framewise_polyphony_accuracy
-  #   - val_framewise_polyphony_class_accuracy
 
 hyperparams:
   model:
@@ -39,20 +26,21 @@ hyperparams:
     # - "no_noise_audio"
   embeddings:
     # - "vggish"
-    - "yamnet"
-    - "beans_baseline"
+    # - "yamnet"
+    # - "beans_baseline"
     # - "EfficientNet-B1-BirdSet-XCL"
-    - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
-    - "Wav2Vec2-Base-BirdSet-XCL"
+    # - "Wav2Vec2-Base-BirdSet-XCL"
     - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
-    - "only_polyphony_degree"
-    - "only_polyphony_degree_class"
-    - "multi_task_v1_add_event_logits"
-    - "multi_task_v2_add_framewise_polyphony"
-    # - "multi_task_v3_add_framewise_polyphony_class" # framewisewise polyphony class labels have to be implemented first
-    - "multi_task_v4_reg_and_class_polyphony"
-    # - "multi_task_v5_all" # framewisewise polyphony class labels have to be implemented first
+    - "polyphony_reg"
+    - "polyphony_class"
+    - "multi_task_v0_polyphony_reg_class"
+    - "multi_task_v1_add_event_logits_reg"
+    - "multi_task_v2_add_framewise_polyphony_reg"
+    - "multi_task_v3_add_event_logits_class" 
+    - "multi_task_v4_add_framewise_polyphony_class"
+
   # dataset.config is added automatically per dataset_config iteration
