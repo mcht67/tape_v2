@@ -157,7 +157,7 @@ def reshape_to_tfe(example, input_feature_name):
 
     x = np.asarray(example[input_feature_name])
     if x.ndim == 0:
-        pass
+        return example
 
     # Models with explicit (embedding, freq, time)
     if input_feature_name in {
