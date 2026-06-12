@@ -2,58 +2,101 @@ general:
   random_seed: 42
 dataset:
   huggingface_path: mcht67/Polyphonic-BirdSet-train
-  subset: HSN
-  train_config: HSN_polyphonic_6
-  soundscape_config: HSN_soundscape_test
+  subset: PER/PER_polyphonic_8
   max_polyphony: 8
+  train_config: PER_polyphonic_8
+  soundscape_config: PER/PER_polyphonic_8_soundscape_test
 embeddings:
-  name: Birdnet_V2.3
-  type: perch_v1
-  dimension_type: pooled
+  name: AudioProtoPNet-20-BirdSet-XCL
+  type: birdset
+  dimension_type: spatial
+  model_cfg:
+    _target_: torch_models.BirdSetAudioProtoPNet
+    pretrained_model_path: DBD-research-group/AudioProtoPNet-20-BirdSet-XCL
+    pooling: mean
 model:
-  _target_: model.SimpleMLP
-  hidden_units:
-  - 512
-  - 256
-  dropout_rate: 0.3
+  _target_: model.TemporalCNN
 objectives:
-  polyphony_degree_class:
+  polyphony_class:
     loss:
       _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
       from_logits: true
     weight: 1.0
     confusion_matrix:
       type: classification
-    label: polyphony_degree
-    num_classes: 7
+    label: polyphony_class
+    num_classes: null
+  event_logits:
+    loss:
+      _target_: tensorflow.keras.losses.BinaryCrossentropy
+      from_logits: false
+      label_smoothing: 0.1
+    scheduler:
+      switch_epochs:
+      - 0
+      - 5
+      - 10
+      - 15
+      - 20
+      weights:
+      - 10.0
+      - 5.0
+      - 1.0
+      - 0.5
+      - 0.1
+    confusion_matrix:
+      type: binary
+    label: event_logits
+  framewise_polyphony_class:
+    loss:
+      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+      from_logits: true
+    scheduler:
+      switch_epochs:
+      - 0
+      - 5
+      - 10
+      - 15
+      - 20
+      weights:
+      - 5.0
+      - 10.0
+      - 5.0
+      - 1.0
+      - 0.5
+    confusion_matrix:
+      type: classification
+    label: framewise_polyphony_class
+    num_classes: null
 train:
-  input_feature: null
-  input_feature_name: EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
-  batch_size: 128
+  input_feature: no_noise_audio
+  input_feature_name: AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings
+  batch_size: 32
   learning_rate: 0.001
-  epochs: 1
+  early_stopping_patience: 5
+  early_stopping_delay_epochs: 25
+  epochs: 100
   initial_epoch: null
-  num_batches_train: 1
-  num_batches_val: 1
+  num_batches_train: null
+  num_batches_val: null
 log:
-  study_name: test-study
-  hyperparameters: null
-evaluation:
-  example_indices:
-  - 0
-  - 1
-  - 2
-  num_examples: 3
-datetime: '20260511_140603'
+  study_name: Spatial-Embeddings
+  keep_last_n_checkpoints: 5
+  hyperparameters:
+  - model
+  - train.input_feature
+  - embeddings
+  - objectives
+  - dataset.subset
+  - dataset.train_config
+  metrics: null
+datetime: '20260612_063421'
 path:
-  train_output: train_output/
-  eval_output: eval_output/
-  study_subfolder: null
-  train_log_dir: train_output/test-study/local-test-experiment/logs/
-  eval_log_dir: eval_output/test-study/local-test-experiment/logs/
-  checkpoint_dir: train_output/test-study/local-test-experiment/checkpoints/
+  study_subfolder: AudioProtoPNet-20-BirdSet-XCL/
+  train_output: train_output/Spatial-Embeddings/AudioProtoPNet-20-BirdSet-XCL/
+  eval_output: eval_output/Spatial-Embeddings/AudioProtoPNet-20-BirdSet-XCL/
 python:
   base: venv/bin/python
   perch: perch-venv/bin/python
   train: train-venv/bin/python
-  complete: complete-venv/bin/python
+  complete: /opt/complete-venv/bin/python
