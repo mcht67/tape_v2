@@ -161,6 +161,8 @@ def reshape_to_tfe(example, input_feature_name):
     if input_feature_name in {
         "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
         "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+        "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
     }:
         # (C, F, T) -> (T, F, C)
         x = np.transpose(x, (2, 1, 0))
@@ -168,6 +170,7 @@ def reshape_to_tfe(example, input_feature_name):
     # Perch models already have (T, F, C)
     elif input_feature_name in {
         "perch_v2_cpu_audio_spatial_embeddings",
+        "perch_v2_cpu_no_noise_audio_spatial_embeddings",
     }:
         pass
 
@@ -177,11 +180,19 @@ def reshape_to_tfe(example, input_feature_name):
         "vggish_audio_spatial_embeddings",
         "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
         "beans_baseline_audio_spatial_embeddings",
+        "yamnet_no_noise_audio_spatial_embeddings",
+        "vggish_no_noise_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "beans_baseline_no_noise_audio_spatial_embeddings",
     }:
         x = x[:, None, :]
 
     # AST patch tokens
-    elif input_feature_name == "AST-Birdset-XCL_audio_spatial_embeddings":
+    elif input_feature_name in {
+        "AST-Birdset-XCL_audio_spatial_embeddings",
+        "AST-Birdset-XCL_no_noise_audio_spatial_embeddings",
+    }:
+
         x = x[:, None, :]
     # elif input_feature_name == "AST-Birdset-XCL_audio_spatial_embeddings":
     #     #
