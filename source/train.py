@@ -93,6 +93,8 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
     for col in cols_to_keep:
         if any(v is None for v in split[col]):
             none_cols.append(col)
+    
+    print("None columns: ", none_cols)
 
     if none_cols:
         print(f"[WARNING] Columns with None values found: {none_cols}. Filtering out affected rows.")
@@ -356,7 +358,15 @@ def main():
         "vggish_audio_spatial_embeddings",
         "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
         "beans_baseline_audio_spatial_embeddings",
-        "AST-Birdset-XCL_audio_spatial_embeddings"
+        "AST-Birdset-XCL_audio_spatial_embeddings",
+
+        "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "yamnet_no_noise_audio_spatial_embeddings",
+        "vggish_no_noise_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "beans_baseline_no_noise_audio_spatial_embeddings",
+        "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
     }:
         print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
         for split in dataset.keys():
