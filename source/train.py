@@ -346,8 +346,8 @@ def main():
    
     dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(100))
+    # for split in dataset.keys():
+    #     dataset[split] = dataset[split].select(range(100))
     #  # TODO: reset after testing
     # from datasets import load_from_disk
     # dataset = load_from_disk("test_data/HSN")
