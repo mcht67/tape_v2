@@ -76,14 +76,14 @@ stages:
     deps:
     - path: source/train.py
       hash: md5
-      md5: b695185ea9c1c625b5d06ec73884b11a
-      size: 14338
+      md5: f9b6a67a503398b5fcf4f45e16b10d54
+      size: 25286
     params:
       params.yaml:
         dataset:
           huggingface_path: mcht67/Polyphonic-BirdSet-train
           subset: HSN
-          train_config: HSN_polyphonic_6
+          train_config: HSN_polyphonic_8
           soundscape_config: HSN_soundscape_test
           max_polyphony: 8
         general.random_seed: 42
@@ -91,25 +91,103 @@ stages:
           study_name: test-study
           hyperparameters:
         model:
-          _target_: model.SimpleMLP
-          hidden_units:
-          - 512
-          - 256
-          dropout_rate: 0.3
+          _target_: model.TemporalCNN
         objectives:
-          polyphony_degree_class:
+          polyphony_reg:
+            loss:
+              _target_: tensorflow.keras.losses.MeanSquaredError
+            weight: 1.0
+            confusion_matrix:
+              type: regression_round
+              threshold: 0.5
+            label: polyphony_reg
+          polyphony_class:
             loss:
               _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
               from_logits: true
             weight: 1.0
             confusion_matrix:
               type: classification
-            label: polyphony_degree
-            num_classes: 7
+            label: polyphony_class
+            num_classes:
+          event_logits:
+            loss:
+              _target_: tensorflow.keras.losses.BinaryCrossentropy
+              from_logits: false
+              label_smoothing: 0.1
+            scheduler:
+              switch_epochs:
+              - 0
+              - 10
+              - 20
+              - 30
+              - 40
+              weights:
+              - 10.0
+              - 5.0
+              - 1.0
+              - 0.5
+              - 0.1
+            confusion_matrix:
+              type: binary
+            label: event_logits
+          framewise_polyphony_reg:
+            loss:
+              _target_: tensorflow.keras.losses.MeanSquaredError
+            scheduler:
+              switch_epochs:
+              - 0
+              - 10
+              - 20
+              - 30
+              - 40
+              weights:
+              - 5.0
+              - 10.0
+              - 5.0
+              - 1.0
+              - 0.5
+            confusion_matrix:
+              type: regression_round
+              threshold: 0.5
+            label: framewise_polyphony_reg
+          framewise_polyphony_class:
+            loss:
+              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+              from_logits: true
+            scheduler:
+              switch_epochs:
+              - 0
+              - 10
+              - 20
+              - 30
+              - 40
+              weights:
+              - 5.0
+              - 10.0
+              - 5.0
+              - 1.0
+              - 0.5
+            confusion_matrix:
+              type: classification
+            label: framewise_polyphony_class
+            num_classes:
+          species_polyphony_reg:
+            loss:
+              _target_: tensorflow.keras.losses.MeanSquaredError
+            weight: 1.0
+            label: species_polyphony_reg
+          species_polyphony_class:
+            loss:
+              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+              from_logits: true
+            weight: 1.0
+            label: species_polyphony_class
+            num_classes:
         train:
           input_feature:
           input_feature_name: 
-            EfficientNet-B1-BirdSet-XCL_audio_pooled_embeddings
+            EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings
           batch_size: 128
           learning_rate: 0.001
           epochs: 1
@@ -119,9 +197,9 @@ stages:
     outs:
     - path: train_output/
       hash: md5
-      md5: 3f78c0ea37614dd271af9566a2070382.dir
-      size: 39347809
-      nfiles: 65
+      md5: c50f4a312fd2536f76410192d1992d28.dir
+      size: 64471837
+      nfiles: 7
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:

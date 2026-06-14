@@ -27,6 +27,7 @@ data
 archive/
 train_output/
 eval_output/
+test_data/
 
 # Ignore tmp copies for experiments
 /tmp

@@ -22,8 +22,8 @@ hyperparams:
   model:
     - "TemporalCNN"
   train.input_feature:
-    # - "audio"
-    - "no_noise_audio"
+    - "audio"
+    # - "no_noise_audio"
   embeddings:
     - "vggish"
     - "yamnet"
