@@ -1,4 +1,4 @@
 study_name: 'test-study'
 keep_last_n_checkpoints: 5
 hyperparameters:
-metrics:
+objective_to_log:
