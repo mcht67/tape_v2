@@ -76,8 +76,8 @@ stages:
     deps:
     - path: source/train.py
       hash: md5
-      md5: f9b6a67a503398b5fcf4f45e16b10d54
-      size: 25286
+      md5: 3315db533645457195c21f5adbc3cfab
+      size: 29629
     params:
       params.yaml:
         dataset:
@@ -90,6 +90,12 @@ stages:
         log:
           study_name: test-study
           hyperparameters:
+          objectives_to_log:
+          - polyphony_reg
+          - polyphony_class
+          - event_logits
+          - framewise_polyphony_reg
+          - framewise_polyphony_class
         model:
           _target_: model.TemporalCNN
         objectives:
@@ -197,9 +203,9 @@ stages:
     outs:
     - path: train_output/
       hash: md5
-      md5: c50f4a312fd2536f76410192d1992d28.dir
-      size: 64471837
-      nfiles: 7
+      md5: 98e345d775c66bdf24e513ec33b21017.dir
+      size: 64769520
+      nfiles: 10
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:

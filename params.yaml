@@ -98,6 +98,12 @@ train:
 log:
   study_name: test-study
   hyperparameters: null
+  objectives_to_log: 
+    - polyphony_reg
+    - polyphony_class
+    - event_logits
+    - framewise_polyphony_reg
+    - framewise_polyphony_class
 evaluation:
   example_indices:
   - 0
