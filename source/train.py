@@ -234,9 +234,63 @@ def reshape_to_tfe(example, input_feature_name):
 
     return example
 
-def build_metrics(objectives_cfg):
+# def build_metrics(objectives_cfg):
+#     compile_metrics = {}
+#     log_metrics = {}
+#     multiple_objectives = len(objectives_cfg) > 1
+
+#     def metric_key(objective, metric_name):
+#         if multiple_objectives:
+#             return f"val_{objective}_{metric_name}"
+#         return f"val_{metric_name}"
+
+#     for objective, obj_cfg in objectives_cfg.items():
+#         if objective == "polyphony_reg":
+#             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
+#             log_metrics[metric_key(objective, 'accuracy')] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#         elif objective == "polyphony_class":
+#             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+#             log_metrics[metric_key(objective, 'accuracy')] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#         elif objective == "binary":
+#             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+#             log_metrics[metric_key(objective, 'accuracy')] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#         elif objective == 'event_logits':
+#             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
+#             log_metrics[metric_key(objective, 'accuracy')] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#         elif objective == 'framewise_polyphony_reg':
+#             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
+#             log_metrics[metric_key(objective, 'accuracy')] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#         elif objective == 'species_polyphony':
+#             compile_metrics[objective] = [
+#                 RegressionAccuracy(name='accuracy'),
+#                 RegressionPrecision(name='precision'),
+#                 RegressionRecall(name='recall'),
+#                 RegressionF1(name='f1'),
+#             ]
+#             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
+#                 log_metrics[metric_key(objective, metric_name)] = None
+#             log_metrics[metric_key(objective, 'loss')] = None
+
+#     # Add top-level val_loss
+#     log_metrics['val_loss'] = None
+#     epoch_keys = [f'{key}_epoch' for key in log_metrics.keys()]
+#     for epoch_key in epoch_keys:
+#         log_metrics[epoch_key] = None
+
+#     return compile_metrics, log_metrics
+
+def build_compile_metrics(objectives_cfg):
     compile_metrics = {}
-    log_metrics = {}
     multiple_objectives = len(objectives_cfg) > 1
 
     def metric_key(objective, metric_name):
@@ -247,28 +301,18 @@ def build_metrics(objectives_cfg):
     for objective, obj_cfg in objectives_cfg.items():
         if objective == "polyphony_reg":
             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == "polyphony_class":
             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == "binary":
             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == 'event_logits':
             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == 'framewise_polyphony_reg':
             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
 
         elif objective == 'species_polyphony':
             compile_metrics[objective] = [
@@ -277,17 +321,56 @@ def build_metrics(objectives_cfg):
                 RegressionRecall(name='recall'),
                 RegressionF1(name='f1'),
             ]
+
+    return compile_metrics
+
+def build_log_metrics(objectives_to_log):
+    if objectives_to_log is None:
+        return {}
+    log_metrics = {}
+    multiple_objectives = len(objectives_to_log) > 1
+
+    def metric_key(objective, metric_name):
+        if multiple_objectives:
+            return f"val_{objective}_{metric_name}"
+        return f"val_{metric_name}"
+
+    for objective in objectives_to_log:
+        if objective == "polyphony_reg":
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == "polyphony_class":
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == "binary":
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'event_logits':
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'framewise_polyphony_reg':
+            log_metrics[metric_key(objective, 'accuracy')] = None
+            log_metrics[metric_key(objective, 'loss')] = None
+
+        elif objective == 'species_polyphony':
+
             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
                 log_metrics[metric_key(objective, metric_name)] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
     # Add top-level val_loss
     log_metrics['val_loss'] = None
+
+    # Add epoch for all metrics
     epoch_keys = [f'{key}_epoch' for key in log_metrics.keys()]
     for epoch_key in epoch_keys:
         log_metrics[epoch_key] = None
 
-    return compile_metrics, log_metrics
+    return log_metrics
 
 def main():
 
@@ -329,6 +412,7 @@ def main():
     num_batches_train = cfg.train.num_batches_train if 'num_batches_train' in cfg.train else None
     num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train else None
 
+    objectives_to_log = cfg.log.objectives_to_log if 'objectives_to_log' in cfg.log else None
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
     
@@ -499,7 +583,8 @@ def main():
     #         ]
 
     # Build metrics from objectives config        
-    compile_metrics, log_metrics = build_metrics(objectives_cfg)
+    compile_metrics = build_compile_metrics(objectives_cfg)
+    log_metrics = build_log_metrics(objectives_to_log)
     print("Metrics to log in hParam tab of tensorboard:", log_metrics)
 
     params['dataset']['train_size'] = str(train_size) #str(len(dataset['train']))
