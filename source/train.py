@@ -336,33 +336,41 @@ def build_log_metrics(objectives_to_log):
         return f"val_{metric_name}"
 
     for objective in objectives_to_log:
-        if objective == "polyphony_reg":
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
+        # if objective == "polyphony_reg":
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == "polyphony_class":
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
+        # elif objective == "polyphony_class":
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == "binary":
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
+        # elif objective == "binary":
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == 'event_logits':
-            log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
+        # elif objective == 'event_logits':
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
 
-        elif objective == 'framewise_polyphony_reg':
+        # elif objective == 'framewise_polyphony_reg':
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
+
+        # elif objective == 'framewise_polyphony_reg':
+        #     log_metrics[metric_key(objective, 'accuracy')] = None
+        #     log_metrics[metric_key(objective, 'loss')] = None
+         
+        if objective in {"polyphony_reg", "polyphony_class", "binary", "event_logits", "framewise_polyphony_reg", "framewise_polyphony_class"}:
             log_metrics[metric_key(objective, 'accuracy')] = None
-            log_metrics[metric_key(objective, 'loss')] = None
+            log_metrics[metric_key(objective, 'loss')] = None    
 
         elif objective == 'species_polyphony':
-
             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
                 log_metrics[metric_key(objective, metric_name)] = None
             log_metrics[metric_key(objective, 'loss')] = None
 
-    # Add top-level val_loss
+    # Add top-level metrics
+    log_metrics['val_accuracy'] = None
     log_metrics['val_loss'] = None
 
     # Add epoch for all metrics

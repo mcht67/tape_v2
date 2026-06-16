@@ -28,19 +28,19 @@ hyperparams:
   model:
     - "TemporalCNN"
   train.input_feature:
-    # - "audio"
-    - "no_noise_audio"
+    - "audio"
+    # - "no_noise_audio"
   embeddings:
-    - "vggish"
-    - "yamnet"
-    - "beans_baseline"
-    - "EfficientNet-B1-BirdSet-XCL"
-    - "AudioProtoPNet-20-BirdSet-XCL"
-    - "AST-Birdset-XCL"
-    - "Wav2Vec2-Base-BirdSet-XCL"
+    # - "vggish"
+    # - "yamnet"
+    # - "beans_baseline"
+    # - "EfficientNet-B1-BirdSet-XCL"
+    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "AST-Birdset-XCL"
+    # - "Wav2Vec2-Base-BirdSet-XCL"
     - "perch_v2_cpu"
     # - "perch_v2"
-  objectives:
+  objectivess:
     - "polyphony_reg"
     - "polyphony_class"
     - "multi_task_v0_polyphony_reg_class"
