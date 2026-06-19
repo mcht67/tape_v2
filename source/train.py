@@ -314,6 +314,9 @@ def build_compile_metrics(objectives_cfg):
         elif objective == 'framewise_polyphony_reg':
             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
 
+        elif objective == 'framewise_polyphony_class':
+            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+
         elif objective == 'species_polyphony':
             compile_metrics[objective] = [
                 RegressionAccuracy(name='accuracy'),
