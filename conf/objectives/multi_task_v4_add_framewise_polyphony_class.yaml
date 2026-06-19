@@ -14,8 +14,8 @@ event_logits:
     from_logits: false
     label_smoothing: 0.1
   scheduler:
-    switch_epochs: [0, 5, 10, 15, 20]
-    weights: [10.0, 5.0, 1.0, 0.5, 0.1]
+    switch_epochs: [0, 5, 10, 15, 20, 25, 30]
+    weights: [10.0, 5.0, 1.0, 0.5, 0.2, 0.1, 0.0]
   confusion_matrix:
     type: binary
   label: event_logits
@@ -25,8 +25,8 @@ framewise_polyphony_class:
     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
     from_logits: true
   scheduler:
-    switch_epochs: [0, 5, 10, 15, 20]
-    weights: [5.0, 10.0, 5.0, 1.0, 0.5]
+    switch_epochs: [0, 5, 10, 15, 20, 25, 30]
+    weights: [5.0, 10.0, 5.0, 1.0, 0.5, 0.1, 0.0]
   confusion_matrix:
     type: classification
   label: framewise_polyphony_class
