@@ -8,7 +8,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "SNE"
 
 base_config:
-  log.study_name: "Pooled-Embeddings"
+  log.study_name: "Pooled-Embeddings-Species-Specific"
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
   dataset.max_polyphony: 8
