@@ -15,9 +15,12 @@ base_config:
   train.epochs: 100
   train.learning_rate: 0.001
   path.study_subfolder: ${embeddings.name}/
-  log.metrics:
-    - val_loss
-    - val_accuracy # use val_accuracy if only one objective is used
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+  # log.metrics:
+  #   - val_loss
+  #   - val_accuracy # use val_accuracy if only one objective is used
 
 hyperparams:
   model:

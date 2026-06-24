@@ -151,33 +151,52 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
     example[feature_name] = labels
     return example
 
-def get_birdset_id2label(dataset):
+# def get_birdset_id2label(dataset):
 
-    # Get list of birdset ids
+#     # Get list of birdset ids
+#     dataset_split = next(iter(dataset.keys()))
+#     info = dataset[dataset_split].info
+#     metadata = getattr(info, "metadata", None)
+
+#     if metadata and "birdset_id2label" in metadata:
+#         return metadata["birdset_id2label"]
+#     else:
+#         unique_birdset_ids = set()
+
+#         def collect_values(batch):
+#             if 'birdset_id_multilabel' in batch and batch['birdset_id_multilabel'] is not None:
+#                 for birdset_id in batch["birdset_id_multilabel"]:
+#                     unique_birdset_ids.update(birdset_id)
+#             # TODO: remove once we have birdset_id_multilabel for all datasets
+#             elif 'birdset_code_multilabel' in batch and batch['birdset_code_multilabel'] is not None:
+#                 for birdset_id in batch["birdset_code_multilabel"]:
+#                     unique_birdset_ids.update(birdset_id)
+#             else:
+#                 raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
+#             return batch  # return unchanged
+
+#         for split in dataset.values():
+#             split.map(collect_values, batched=True, batch_size=100, num_proc=1, keep_in_memory=False)
+
+#         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
+#         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
+    
+def get_birdset_id2label(dataset):
     dataset_split = next(iter(dataset.keys()))
     info = dataset[dataset_split].info
     metadata = getattr(info, "metadata", None)
-
     if metadata and "birdset_id2label" in metadata:
         return metadata["birdset_id2label"]
     else:
         unique_birdset_ids = set()
-
-        def collect_values(batch):
-            if 'birdset_id_multilabel' in batch and batch['birdset_id_multilabel'] is not None:
-                for birdset_id in batch["birdset_id_multilabel"]:
-                    unique_birdset_ids.update(birdset_id)
-            # TODO: remove once we have birdset_id_multilabel for all datasets
-            elif 'birdset_code_multilabel' in batch and batch['birdset_code_multilabel'] is not None:
-                for birdset_id in batch["birdset_code_multilabel"]:
-                    unique_birdset_ids.update(birdset_id)
-            else:
-                raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
-            return batch  # return unchanged
-
         for split in dataset.values():
-            split.map(collect_values, batched=True, batch_size=100, num_proc=1, keep_in_memory=False)
-
+            for example in split:
+                if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+                    unique_birdset_ids.update(example['birdset_id_multilabel'])
+                elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+                    unique_birdset_ids.update(example['birdset_code_multilabel'])
+                else:
+                    raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
 

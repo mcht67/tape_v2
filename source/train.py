@@ -493,7 +493,7 @@ def main():
     #####################################
     # Update model and objectives config
     #####################################
-    if 'species_polyphony_reg' or 'species_polyphony_class' in objectives_cfg:
+    if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         # Get birdset ids
         birdset_id2label = get_birdset_id2label(dataset)
         # Save mapping
