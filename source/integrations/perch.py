@@ -142,7 +142,10 @@ def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'):
             num_dims = len(embeddings.shape)
             
             if num_dims > 1 and any(dim[x] != 1 for x in range(num_dims - 1)):
-                spatial_embeddings = embeddings.copy()
+                if model_key == 'yamnet' or model_key == 'vggish' or model_key == 'beans_baseline':
+                    spatial_embeddings = embeddings[:, None, :]  # (time, freq, embeddings)
+                else:
+                    spatial_embeddings = embeddings.copy()
 
             axes_to_reduce = tuple(range(num_dims - 1))
             pooled_embeddings = np.mean(embeddings, axis=axes_to_reduce)

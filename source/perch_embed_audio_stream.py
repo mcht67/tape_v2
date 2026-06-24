@@ -366,6 +366,8 @@ def main():
     if not embedding_models or not input_features:
         print("No input features or no embeddings passed. Skipping.")
         sys.exit(2)
+
+    batch_size = 50
     
     # # Get default config
     # cfg = OmegaConf.load("params.yaml")
@@ -426,7 +428,9 @@ def main():
                                                                            input_feature, 
                                                                            dataset[split], 
                                                                            force_recompute=force_recompute,
-                                                                           device=device)
+                                                                           device=device,
+                                                                           batch_size=batch_size
+                                                                           )
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
                     embeddings_added = True

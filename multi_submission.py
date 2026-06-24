@@ -14,14 +14,6 @@ import shlex
 import yaml
 import configparser
 from pathlib import Path
-# import huggingface_hub
-
-# from source.utils.dataset import get_data_dir
-
-# from dotenv import load_dotenv
-# from hydra import compose, initialize
-# from omegaconf import OmegaConf
-# from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
 def submit_dataset_prep_job(study_config, data_dir, dataset_config, recompute_embeddings=False, force_redownload=False):
@@ -223,7 +215,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/spatial_embeddings.yaml'
+    study_config_path = 'study_conf/pooled_embeddings_species_specific.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
@@ -250,7 +242,5 @@ if __name__ == "__main__":
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
-                # prep_job_id = submit_dataset_prep_job(study_config['base_config']['dataset.huggingface_path'], dataset_config, study_config['hyperparams']['train.input_feature'], embeddings, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
                 prep_job_id = submit_dataset_prep_job(study_config, data_dir, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        # submit_experiment_jobs(study_config['base_config'], study_config['hyperparams'], dataset_config, dependency_job_id=prep_job_id)
         submit_experiment_jobs(study_config, data_dir, train_config, dependency_job_id=prep_job_id)

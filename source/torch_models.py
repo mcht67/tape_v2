@@ -149,7 +149,7 @@ class BirdSetEfficientNet(torch.nn.Module):
 
         return EmbeddingModelOutput(
             pooled_embeddings=pooled_features,
-            spatial_embeddings=last_hidden_states,
+            spatial_embeddings=last_hidden_states.permute(2, 1, 0), # (time, freq, embeddings) to match other models
             logits=logits
         )
     
@@ -267,7 +267,7 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
 
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
-        spatial_embeddings=last_hidden_state,
+        spatial_embeddings=last_hidden_state.permute(2, 1, 0), # (time, freq, embeddings) to match other models
         logits=logits
     )
     
@@ -534,7 +534,7 @@ class BirdSetWav2Vec2(torch.nn.Module):
 
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
-        spatial_embeddings=spatial_embeddings,
+        spatial_embeddings=spatial_embeddings[:, None, :], # (time, freq, embeddings) to match other models, add dummy freq dimension
         logits=logits
     )
     

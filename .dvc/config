@@ -1,4 +1,6 @@
 [core]
-    remote = myremote
+remote = Spatial-Embeddings
+
 [hydra]
-    enabled = True
+enabled = True
+

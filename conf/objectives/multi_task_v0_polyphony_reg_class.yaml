@@ -1,0 +1,18 @@
+polyphony_reg:
+  loss:
+    _target_: tensorflow.keras.losses.MeanSquaredError
+  weight: 1.0
+  confusion_matrix:
+    type: regression_round
+    threshold: 0.5
+  label: polyphony_reg
+
+polyphony_class:
+  loss:
+    _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+    from_logits: true
+  weight: 1.0
+  confusion_matrix:
+    type: classification
+  label: polyphony_class
+  num_classes: 

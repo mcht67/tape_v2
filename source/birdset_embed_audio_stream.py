@@ -289,6 +289,8 @@ def main():
         print("No input features or no embeddings passed. Skipping.")
         sys.exit(2)
 
+    batch_size = 50
+
     #  # Get default config
     # cfg = OmegaConf.load("params.yaml")
     # hf_download_path = cfg.dataset.huggingface.download_path
@@ -354,6 +356,7 @@ def main():
                                                                            split, 
                                                                            force_recompute=force_recompute,
                                                                            device=device,
+                                                                           batch_size=batch_size
                                                                            )
                 if embeddings_name:
                     embeddings_names.append(embeddings_name)
@@ -369,12 +372,13 @@ def main():
             try:
                 dataset.push_to_hub(huggingface_path, config_name=dataset_config, data_dir=data_dir, commit_message=commit_message, token=huggingface_token)
                 break
-            except ConnectionError as e:
-                print(f"Attempt {attempt+1} failed: {e}")
-                if attempt < 4:
-                    time.sleep(30 * (attempt + 1))  # back-off
-                else:
-                    raise
+            except Exception as e:
+                if isinstance(e, ConnectionError) or "503" in str(e) or "504" in str(e):
+                    print(f"Attempt {attempt+1} failed: {e}")
+                    if attempt < 4:
+                        time.sleep(60 * (attempt + 1))  # back-off
+                    else:
+                        raise
         print("Upload done.")
         print("Finished birdset embedding script.")
         sys.exit(0)

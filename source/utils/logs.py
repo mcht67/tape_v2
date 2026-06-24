@@ -101,16 +101,25 @@ def prepare_classification_for_cm(y_true, y_pred):
     
     return yt, yp
 
+# def prepare_polyphony_for_cm(y_true, y_pred):
+#     """
+#     y_true: (N,) or (N, 1)
+#     y_pred: (N, 1)
+#     """
+#     y_true = np.asarray(y_true).squeeze().astype(int)
+#     y_pred = np.asarray(y_pred).squeeze()
+
+#     y_pred =np.round(y_pred).astype(int)
+
+#     return y_true, y_pred
+
 def prepare_polyphony_for_cm(y_true, y_pred):
     """
     y_true: (N,) or (N, 1)
-    y_pred: (N, 1)
+    y_pred: (N,) or (N, 1)
     """
-    y_true = np.asarray(y_true).squeeze().astype(int)
-    y_pred = np.asarray(y_pred).squeeze()
-
-    y_pred = np.round(y_pred).astype(int)
-
+    y_true = np.atleast_1d(np.asarray(y_true).squeeze()).astype(int)
+    y_pred = np.atleast_1d(np.round(np.asarray(y_pred).squeeze())).astype(int)
     return y_true, y_pred
 
 def prepare_event_logits_for_cm(y_true, y_pred_logits, threshold=0.5):
@@ -141,7 +150,7 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
         for j in range(cm.shape[1]):
             annot[i, j] = f"{cm[i, j]}\n({cm_percent[i, j]:.1f}%)"
 
-    fig = plt.figure(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(
         cm,
         annot=annot,
@@ -149,15 +158,20 @@ def plot_confusion_matrix_sklearn(y_true, y_pred, labels, title):
         cmap="Blues",
         xticklabels=labels,
         yticklabels=labels,
+        ax=ax,
     )
-
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title(title)
+    ax.invert_yaxis()
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    ax.set_title(title)
     plt.tight_layout()
     return fig
 
-class RoundedAccuracy(tf.keras.metrics.Metric):
+##############################
+# Custom Metrics
+#############################
+
+class RegressionAccuracy(tf.keras.metrics.Metric):
     """Accuracy after rounding predictions to nearest integer (for regression polyphony)."""
     def __init__(self, name="rounded_accuracy", **kwargs):
         super().__init__(name=name, **kwargs)
@@ -177,6 +191,171 @@ class RoundedAccuracy(tf.keras.metrics.Metric):
     def reset_state(self):
         self.correct.assign(0.0)
         self.total.assign(0.0)
+
+class RegressionPrecision(tf.keras.metrics.Metric):
+    def __init__(self, name="precision", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+
+class RegressionRecall(tf.keras.metrics.Metric):
+    def __init__(self, name="recall", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fn.assign(0.0)
+class RegressionF1(tf.keras.metrics.Metric):
+    def __init__(self, name="f1", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_rounded = tf.cast(tf.round(tf.maximum(y_pred, 0)), tf.float32)
+        y_true_flat    = tf.cast(y_true, tf.float32)
+        pred_present   = y_pred_rounded > 0
+        true_present   = y_true_flat > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+        self.fn.assign(0.0)
+
+class ClassificationAccuracy(tf.keras.metrics.Metric):
+    """Exact count match after argmax (per species slot)."""
+    def __init__(self, name="accuracy", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.correct = self.add_weight(name="correct", initializer="zeros")
+        self.total   = self.add_weight(name="total",   initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        # y_pred: [B, num_species, num_classes]
+        # y_true: [B, num_species]
+        y_pred_class = tf.cast(tf.argmax(y_pred, axis=-1), tf.int32)  # [B, num_species]
+        y_true_flat  = tf.cast(tf.reshape(y_true, [-1]), tf.int32)
+        y_pred_flat  = tf.reshape(y_pred_class, [-1])
+        matches = tf.cast(tf.equal(y_pred_flat, y_true_flat), tf.float32)
+        self.correct.assign_add(tf.reduce_sum(matches))
+        self.total.assign_add(tf.cast(tf.size(matches), tf.float32))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.correct, self.total)
+
+    def reset_state(self):
+        self.correct.assign(0.0)
+        self.total.assign(0.0)
+
+
+class ClassificationPrecision(tf.keras.metrics.Metric):
+    """Of species predicted present (argmax > 0), how many are truly present."""
+    def __init__(self, name="precision", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)          # [B, num_species]
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+
+
+class ClassificationRecall(tf.keras.metrics.Metric):
+    """Of species truly present, how many are predicted present (argmax > 0)."""
+    def __init__(self, name="recall", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        return tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fn.assign(0.0)
+
+
+class ClassificationF1(tf.keras.metrics.Metric):
+    def __init__(self, name="f1", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.tp = self.add_weight(name="tp", initializer="zeros")
+        self.fp = self.add_weight(name="fp", initializer="zeros")
+        self.fn = self.add_weight(name="fn", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class  = tf.argmax(y_pred, axis=-1)
+        pred_present  = y_pred_class > 0
+        true_present  = tf.cast(y_true, tf.int64) > 0
+        self.tp.assign_add(tf.reduce_sum(tf.cast(pred_present & true_present, tf.float32)))
+        self.fp.assign_add(tf.reduce_sum(tf.cast(pred_present & ~true_present, tf.float32)))
+        self.fn.assign_add(tf.reduce_sum(tf.cast(~pred_present & true_present, tf.float32)))
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+
+    def reset_state(self):
+        self.tp.assign(0.0)
+        self.fp.assign(0.0)
+        self.fn.assign(0.0)
+
+#########################
+# Custom Summary Writer
+#########################
 
 class CustomSummaryWriter(SummaryWriter):
     """
@@ -471,6 +650,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
 
             # Staircase curve in TensorBoard — every epoch, only if we have a best value
             if self._best_val.get(metric_key) is not None:
+                self.writer.add_scalar(f'best/{metric_key}_epoch', self._best_step[metric_key], epoch) if self._best_step.get(metric_key) is not None else None
                 self.writer.add_scalar(f'best/{metric_key}', self._best_val[metric_key], epoch)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -1770,24 +1950,25 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
 
             # Save current checkpoint
             val_loss = logs.get('val_loss')
-            self.model.save_weights(self.epoch_weights_dir / f'epoch_{epoch+1:03d}.weights.h5')
-            print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
+            # self.model.save_weights(self.epoch_weights_dir / f'epoch_{epoch+1:03d}.weights.h5')
+            # print(f"✓ Saved weights {val_loss:.4f} at epoch {epoch + 1}")
 
-            # Save best checkpoint
+            # Save best checkpoint and model
             if val_loss and val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
                 self.model.save_weights(self.best_weights_dir / f'best.weights.h5')
+                self.model.save(self.best_weights_dir / f'best.keras')
                 print(f"✓ New best val_loss {val_loss:.4f} at epoch {epoch + 1}. Saved new best weights.")
 
-            # Cleanup old checkpoints if configured
-            if self.keep_last_n:
-                self._cleanup_old_checkpoints(epoch)
+            # # Cleanup old checkpoints if configured
+            # if self.keep_last_n:
+            #     self._cleanup_old_checkpoints(epoch)
 
-            # Save model
-            if (epoch + 1) % self.save_model_every_n_epochs == 0:
-                self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
-                self._cleanup_old_models(epoch)
-                print(f"✓ Saved model at epoch {epoch + 1}")
+            # # Save model
+            # if (epoch + 1) % self.save_model_every_n_epochs == 0:
+            #     self.model.save(self.resumable_dir / f'epoch_{epoch+1:03d}.keras')
+            #     self._cleanup_old_models(epoch)
+            #     print(f"✓ Saved model at epoch {epoch + 1}")
                
                 
         def _cleanup_old_checkpoints(self, current_epoch):
