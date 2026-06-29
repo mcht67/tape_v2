@@ -3,5 +3,5 @@ species_polyphony_reg:
     _target_: tensorflow.keras.losses.MeanSquaredError
   weight: 1.0
   confusion_matrix:
-    type: regression_round
+    type: species_regression_round
     threshold: 0.5
