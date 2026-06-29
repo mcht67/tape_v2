@@ -112,7 +112,7 @@ def main():
     # Load best model from checkpoint
     checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
     # TODO: remove after testing
-    checkpoint_path = 'archive/Pooled-Embeddings-Comparison/20260505_075038_/checkpoints/best_weights/best.weights.h5'
+    checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260609_012305_bosom-byes/checkpoints/best.weights.h5'
 
     if not os.path.exists(checkpoint_path):
         raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
