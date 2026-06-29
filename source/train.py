@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RegressionAccuracy, RegressionPrecision, RegressionRecall, RegressionF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RegressionAccuracy, RegressionPrecision, RegressionRecall, RegressionF1, ClassificationAccuracy, ClassificationPrecision, ClassificationRecall, ClassificationF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
@@ -318,10 +318,22 @@ def build_compile_metrics(objectives_cfg):
             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
 
         elif objective == 'species_polyphony_reg':
-            compile_metrics[objective] = RegressionAccuracy(name='accuracy')
+            compile_metrics[objective] = [
+                RegressionAccuracy(name='accuracy'),
+                RegressionPrecision(name='precision'),
+                RegressionRecall(name='recall'),
+                RegressionF1(name='f1'),
+            ]
+            # compile_metrics[objective] = RegressionAccuracy(name='accuracy')
 
         elif objective == 'species_polyphony_class':
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+            compile_metrics[objective] = [
+                ClassificationAccuracy(name='accuracy'),
+                ClassificationPrecision(name='precision'),
+                ClassificationRecall(name='recall'),
+                ClassificationF1(name='f1'),
+            ]
+            # compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
 
         # elif objective == 'species_polyphony':
         #     compile_metrics[objective] = [
@@ -373,7 +385,7 @@ def build_log_metrics(objectives_to_log):
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None    
 
-        elif objective == 'species_polyphony':
+        elif objective in ['species_polyphony_reg', 'species_polyphony_class']:
             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
                 log_metrics[metric_key(objective, metric_name)] = None
             log_metrics[metric_key(objective, 'loss')] = None
@@ -489,7 +501,6 @@ def main():
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
     
-
     #####################################
     # Update model and objectives config
     #####################################
