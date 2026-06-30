@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RegressionAccuracy, RegressionPrecision, RegressionRecall, RegressionF1, ClassificationAccuracy, ClassificationPrecision, ClassificationRecall, ClassificationF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
@@ -318,22 +318,21 @@ def build_compile_metrics(objectives_cfg):
             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
 
         elif objective == 'species_polyphony_reg':
+            num_classes = obj_cfg['num_classes']
             compile_metrics[objective] = [
                 RegressionAccuracy(name='accuracy'),
-                RegressionPrecision(name='precision'),
-                RegressionRecall(name='recall'),
-                RegressionF1(name='f1'),
+                RegressionCountPrecision(num_classes=num_classes, name='precision'),
+                RegressionCountRecall(num_classes=num_classes, name='recall'),
+                RegressionCountF1(num_classes=num_classes, name='f1'),
             ]
-            # compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-
         elif objective == 'species_polyphony_class':
+            num_classes = obj_cfg['num_classes']
             compile_metrics[objective] = [
                 ClassificationAccuracy(name='accuracy'),
-                ClassificationPrecision(name='precision'),
-                ClassificationRecall(name='recall'),
-                ClassificationF1(name='f1'),
+                ClassificationCountPrecision(num_classes=num_classes, name='precision'),
+                ClassificationCountRecall(num_classes=num_classes, name='recall'),
+                ClassificationCountF1(num_classes=num_classes, name='f1'),
             ]
-            # compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
 
         # elif objective == 'species_polyphony':
         #     compile_metrics[objective] = [
@@ -519,16 +518,17 @@ def main():
     if 'polyphony_class' in objectives_cfg:
         objectives_cfg.polyphony_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
+    if 'framewise_polyphony_class' in objectives_cfg:
+        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
     if 'species_polyphony_reg' in objectives_cfg:
+        objectives_cfg.species_polyphony_reg.num_classes = num_classes
         objectives_cfg.species_polyphony_reg.num_species = num_species
         print(f"Using {num_species} species for species polyphony regression based on dataset.")
     if 'species_polyphony_class' in objectives_cfg:
         objectives_cfg.species_polyphony_class.num_classes = num_classes
         objectives_cfg.species_polyphony_class.num_species = num_species
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
-    if 'framewise_polyphony_class' in objectives_cfg:
-        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
-        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
 
     # Set objectives config in model config for easy access when building model and losses
     model_cfg.objectives_cfg = objectives_cfg

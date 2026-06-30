@@ -283,7 +283,6 @@ class ClassificationAccuracy(tf.keras.metrics.Metric):
         self.correct.assign(0.0)
         self.total.assign(0.0)
 
-
 class ClassificationPrecision(tf.keras.metrics.Metric):
     """Of species predicted present (argmax > 0), how many are truly present."""
     def __init__(self, name="precision", **kwargs):
@@ -352,6 +351,116 @@ class ClassificationF1(tf.keras.metrics.Metric):
         self.tp.assign(0.0)
         self.fp.assign(0.0)
         self.fn.assign(0.0)
+
+class _MacroCountStats(tf.keras.metrics.Metric):
+    """
+    Shared TP/FP/FN accumulation per count-class for macro precision/recall/F1
+    on exact-count correctness. Subclasses provide _get_pred_classes().
+    num_classes = max_polyphony + 1 (counts 0..max_polyphony).
+    """
+    def __init__(self, num_classes, name="macro_count_stats", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.num_classes = num_classes
+        self.tp = self.add_weight(name="tp", shape=(num_classes,), initializer="zeros")
+        self.fp = self.add_weight(name="fp", shape=(num_classes,), initializer="zeros")
+        self.fn = self.add_weight(name="fn", shape=(num_classes,), initializer="zeros")
+
+    def _get_pred_classes(self, y_pred):
+        raise NotImplementedError
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred_class = self._get_pred_classes(y_pred)                     # int, any shape
+        y_true_class = tf.cast(tf.round(y_true), tf.int32)                # exact count label
+        y_pred_class = tf.reshape(tf.cast(y_pred_class, tf.int32), [-1])
+        y_true_class = tf.reshape(y_true_class, [-1])
+
+        # Clip to valid range so stray predictions don't break one_hot indexing
+        y_pred_class = tf.clip_by_value(y_pred_class, 0, self.num_classes - 1)
+        y_true_class = tf.clip_by_value(y_true_class, 0, self.num_classes - 1)
+
+        pred_oh = tf.one_hot(y_pred_class, self.num_classes)   # [N, C]
+        true_oh = tf.one_hot(y_true_class, self.num_classes)   # [N, C]
+
+        tp = tf.reduce_sum(pred_oh * true_oh, axis=0)
+        fp = tf.reduce_sum(pred_oh * (1 - true_oh), axis=0)
+        fn = tf.reduce_sum((1 - pred_oh) * true_oh, axis=0)
+
+        self.tp.assign_add(tp)
+        self.fp.assign_add(fp)
+        self.fn.assign_add(fn)
+
+    def reset_state(self):
+        self.tp.assign(tf.zeros((self.num_classes,)))
+        self.fp.assign(tf.zeros((self.num_classes,)))
+        self.fn.assign(tf.zeros((self.num_classes,)))
+
+
+class _MacroCountStatsRegression(_MacroCountStats):
+    def _get_pred_classes(self, y_pred):
+        return tf.round(tf.maximum(y_pred, 0))
+
+
+class _MacroCountStatsClassification(_MacroCountStats):
+    def _get_pred_classes(self, y_pred):
+        return tf.argmax(y_pred, axis=-1)
+
+
+class RegressionCountPrecision(_MacroCountStatsRegression):
+    def __init__(self, num_classes, name="precision", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        per_class = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        return tf.reduce_mean(per_class)  # macro avg
+
+
+class RegressionCountRecall(_MacroCountStatsRegression):
+    def __init__(self, num_classes, name="recall", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        per_class = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.reduce_mean(per_class)
+
+
+class RegressionCountF1(_MacroCountStatsRegression):
+    def __init__(self, num_classes, name="f1", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        f1_per_class = tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+        return tf.reduce_mean(f1_per_class)
+
+
+class ClassificationCountPrecision(_MacroCountStatsClassification):
+    def __init__(self, num_classes, name="precision", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        per_class = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        return tf.reduce_mean(per_class)
+
+
+class ClassificationCountRecall(_MacroCountStatsClassification):
+    def __init__(self, num_classes, name="recall", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        per_class = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        return tf.reduce_mean(per_class)
+
+
+class ClassificationCountF1(_MacroCountStatsClassification):
+    def __init__(self, num_classes, name="f1", **kwargs):
+        super().__init__(num_classes=num_classes, name=name, **kwargs)
+
+    def result(self):
+        precision = tf.math.divide_no_nan(self.tp, self.tp + self.fp)
+        recall    = tf.math.divide_no_nan(self.tp, self.tp + self.fn)
+        f1_per_class = tf.math.divide_no_nan(2 * precision * recall, precision + recall)
+        return tf.reduce_mean(f1_per_class)
 
 #########################
 # Custom Summary Writer
@@ -1230,6 +1339,130 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         self.writer.add_figure(tb_tag, fig, epoch)
         plt.close(fig)
         print(f"Per-species confusion matrix grid logged for '{target}' at epoch {epoch + 1} -> {tb_tag}")
+
+    def _log_f1_breakdown(self, epoch, spec):
+        """
+        Log per-species and per-polyphony-degree F1 breakdowns as bar charts
+        to TensorBoard, plus per-species/per-degree scalars for trend tracking.
+        """
+        try:
+            import matplotlib.pyplot as plt
+            from sklearn.metrics import f1_score
+
+            target = spec["name"]
+            cm_type = spec["type"]
+
+            if cm_type not in ("species_regression_round", "species_classification"):
+                return  # F1 breakdown only applies to species-level objectives
+
+            y_pred, y_true = self._get_predictions_and_true_labels(
+                self.val_dataset, target
+            )
+            species_mapping = spec.get("species_mapping", None)
+            num_species = y_true.shape[1]
+
+            # --- Prepare per-species (yt, yp) pairs, in integer-class space ---
+            per_species_yt = []
+            per_species_yp = []
+            if cm_type == "species_regression_round":
+                for s in range(num_species):
+                    yt_s, yp_s = prepare_polyphony_for_cm(y_true[:, s], y_pred[:, s])
+                    per_species_yt.append(yt_s)
+                    per_species_yp.append(yp_s)
+                all_labels = sorted(np.unique(np.concatenate(per_species_yt + per_species_yp)).tolist())
+            else:  # species_classification
+                num_classes = spec.get("num_classes", None)
+                for s in range(num_species):
+                    yt_s, yp_s = prepare_classification_for_cm(y_true[:, s], y_pred[:, s, :])
+                    per_species_yt.append(yt_s)
+                    per_species_yp.append(yp_s)
+                all_labels = list(range(num_classes)) if num_classes else sorted(
+                    np.unique(np.concatenate(per_species_yt)).tolist()
+                )
+
+            # --- Per-species F1 (macro across that species' own classes present) ---
+            species_f1 = {}
+            species_labels_text = {}
+            for s in range(num_species):
+                yt_s, yp_s = per_species_yt[s], per_species_yp[s]
+                labels_present = sorted(set(yt_s.tolist()) | set(yp_s.tolist()))
+                if len(labels_present) == 0:
+                    f1 = 0.0
+                else:
+                    f1 = f1_score(yt_s, yp_s, labels=labels_present, average='macro', zero_division=0)
+                species_f1[s] = f1
+
+                if species_mapping and str(s) in species_mapping:
+                    _, label_str = species_mapping[str(s)]
+                elif species_mapping and s in species_mapping:
+                    _, label_str = species_mapping[s]
+                else:
+                    label_str = None
+                species_labels_text[s] = label_str if label_str else str(s)
+
+            # --- Per-polyphony-degree F1 (pooled across all species) ---
+            yt_pooled = np.concatenate(per_species_yt)
+            yp_pooled = np.concatenate(per_species_yp)
+            degree_f1 = {}
+            for degree in all_labels:
+                f1 = f1_score(
+                    (yt_pooled == degree).astype(int),
+                    (yp_pooled == degree).astype(int),
+                    average='binary', zero_division=0
+                )
+                degree_f1[degree] = f1
+
+            # --- Scalars for trend tracking across epochs ---
+            for s, f1 in species_f1.items():
+                self.writer.add_scalar(f"F1_per_species/{target}/{species_labels_text[s]}", f1, epoch)
+            for degree, f1 in degree_f1.items():
+                self.writer.add_scalar(f"F1_per_degree/{target}/degree_{degree}", f1, epoch)
+
+            macro_species_f1 = float(np.mean(list(species_f1.values()))) if species_f1 else 0.0
+            macro_degree_f1 = float(np.mean(list(degree_f1.values()))) if degree_f1 else 0.0
+            self.writer.add_scalar(f"F1_macro/{target}/per_species", macro_species_f1, epoch)
+            self.writer.add_scalar(f"F1_macro/{target}/per_degree", macro_degree_f1, epoch)
+
+            # --- Bar chart: per-species F1, sorted worst-first ---
+            sorted_species = sorted(species_f1.items(), key=lambda kv: kv[1])
+            species_names = [species_labels_text[s] for s, _ in sorted_species]
+            species_scores = [f1 for _, f1 in sorted_species]
+
+            fig_h = max(3, 0.25 * num_species)
+            fig1, ax1 = plt.subplots(figsize=(8, fig_h))
+            bars = ax1.barh(species_names, species_scores, color='steelblue')
+            ax1.set_xlabel("F1 score")
+            ax1.set_xlim(0, 1)
+            ax1.set_title(f"Per-Species F1 — {target} (epoch {epoch + 1}, macro avg: {macro_species_f1:.3f})")
+            ax1.invert_yaxis()  # worst at top
+            for bar, score in zip(bars, species_scores):
+                ax1.text(score + 0.01, bar.get_y() + bar.get_height() / 2,
+                        f"{score:.2f}", va='center', fontsize=7)
+            plt.tight_layout()
+            self.writer.add_figure(f"F1_breakdown/{target}/per_species", fig1, epoch)
+            plt.close(fig1)
+
+            # --- Bar chart: per-polyphony-degree F1 ---
+            fig2, ax2 = plt.subplots(figsize=(6, 4))
+            degree_names = [str(d) for d in all_labels]
+            degree_scores = [degree_f1[d] for d in all_labels]
+            bars2 = ax2.bar(degree_names, degree_scores, color='darkorange')
+            ax2.set_ylabel("F1 score")
+            ax2.set_xlabel("Polyphony degree")
+            ax2.set_ylim(0, 1)
+            ax2.set_title(f"Per-Degree F1 — {target} (epoch {epoch + 1}, macro avg: {macro_degree_f1:.3f})")
+            for bar, score in zip(bars2, degree_scores):
+                ax2.text(bar.get_x() + bar.get_width() / 2, score + 0.01,
+                        f"{score:.2f}", ha='center', fontsize=8)
+            plt.tight_layout()
+            self.writer.add_figure(f"F1_breakdown/{target}/per_degree", fig2, epoch)
+            plt.close(fig2)
+
+            print(f"F1 breakdown logged for '{target}' at epoch {epoch + 1} "
+                f"(macro per-species: {macro_species_f1:.3f}, macro per-degree: {macro_degree_f1:.3f})")
+
+        except Exception as e:
+            print(f"Failed to log F1 breakdown for '{spec['name']}': {e}")
 
     # def _log_confusion_matrix(self, epoch, spec):
     #     try:
