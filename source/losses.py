@@ -99,34 +99,121 @@ class DynamicWeightedLoss(tf.keras.losses.Loss):
 #     return losses
 
 # losses.py (cleaner version)
+
+def make_weighted_sparse_categorical_crossentropy(class_weights):
+    """
+    Wraps SparseCategoricalCrossentropy to apply per-element class weights
+    based on the true label.
+
+    class_weights: list/array of shape (num_classes,), e.g. from
+        compute_species_count_class_weights.
+    """
+    class_weights_tensor = tf.constant(class_weights, dtype=tf.float32)
+    base_loss = tf.keras.losses.SparseCategoricalCrossentropy(reduction='none')
+
+    def loss_fn(y_true, y_pred):
+        # y_true: (..., num_species) int labels
+        # y_pred: (..., num_species, num_classes) logits/probs
+        per_element_loss = base_loss(y_true, y_pred)  # shape (..., num_species)
+        y_true_int = tf.cast(y_true, tf.int32)
+        sample_weights = tf.gather(class_weights_tensor, y_true_int)  # same shape as y_true
+        weighted_loss = per_element_loss * sample_weights
+        return tf.reduce_mean(weighted_loss)
+
+    return loss_fn
+
+
+def make_weighted_mse_for_counts(class_weights):
+    """
+    Wraps MeanSquaredError to apply per-element class weights based on the
+    rounded true label (treats regression targets as belonging to their
+    nearest integer count class for weighting purposes).
+
+    class_weights: list/array of shape (num_classes,).
+    """
+    class_weights_tensor = tf.constant(class_weights, dtype=tf.float32)
+    num_classes = class_weights_tensor.shape[0]
+
+    def loss_fn(y_true, y_pred):
+        # y_true, y_pred: (..., num_species)
+        squared_error = tf.square(y_true - y_pred)
+        y_true_class = tf.cast(tf.round(y_true), tf.int32)
+        y_true_class = tf.clip_by_value(y_true_class, 0, num_classes - 1)
+        sample_weights = tf.gather(class_weights_tensor, y_true_class)
+        weighted_error = squared_error * sample_weights
+        return tf.reduce_mean(weighted_error)
+
+    return loss_fn
+
 from hydra.utils import instantiate
 
-def create_losses_from_objectives(objectives):
+# def create_losses_from_objectives(objectives):
+#     """
+#     Create losses directly from objectives config.
+    
+#     Args:
+#         objectives: Dict from model.objectives containing loss specs
+        
+#     Returns:
+#         Dict of DynamicWeightedLoss objects
+#     """
+#     losses = {}
+    
+#     for obj_name, obj_config in objectives.items():
+#         # Instantiate base loss via Hydra
+#         base_loss = instantiate(obj_config["loss"])
+        
+#         # Get weight
+#         weight = obj_config.get("weight", 1.0)
+        
+#         # Wrap in dynamic weighted loss
+#         losses[obj_name] = DynamicWeightedLoss(
+#             base_loss=base_loss,
+#             initial_weight=weight,
+#             name=obj_name
+#         )
+    
+#     return losses
+
+def create_losses_from_objectives(objectives, class_weights_by_objective=None):
     """
     Create losses directly from objectives config.
-    
+
     Args:
-        objectives: Dict from model.objectives containing loss specs
-        
+        objectives: Dict from model.objectives containing loss specs.
+        class_weights_by_objective: optional dict {objective_name: np.ndarray of
+            per-class weights}. If an objective name is present here, its loss
+            is overridden with a weighted version instead of the configured
+            Hydra loss target.
+
     Returns:
         Dict of DynamicWeightedLoss objects
     """
+    class_weights_by_objective = class_weights_by_objective or {}
     losses = {}
-    
+
     for obj_name, obj_config in objectives.items():
-        # Instantiate base loss via Hydra
-        base_loss = instantiate(obj_config["loss"])
-        
-        # Get weight
+        if obj_name in class_weights_by_objective:
+            weights = class_weights_by_objective[obj_name]
+            if obj_name.endswith("_class"):
+                base_loss = make_weighted_sparse_categorical_crossentropy(weights)
+            elif obj_name.endswith("_reg"):
+                base_loss = make_weighted_mse_for_counts(weights)
+            else:
+                raise ValueError(
+                    f"Cannot infer weighted loss type for objective '{obj_name}' "
+                    "(expected name ending in '_class' or '_reg')"
+                )
+        else:
+            base_loss = instantiate(obj_config["loss"])
+
         weight = obj_config.get("weight", 1.0)
-        
-        # Wrap in dynamic weighted loss
         losses[obj_name] = DynamicWeightedLoss(
             base_loss=base_loss,
             initial_weight=weight,
             name=obj_name
         )
-    
+
     return losses
 
 # callbacks.py

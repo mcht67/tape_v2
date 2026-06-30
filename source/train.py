@@ -14,7 +14,7 @@ from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionC
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
-from losses import create_losses_from_objectives, setup_loss_scheduler
+from losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 tf.keras.backend.clear_session()
 
@@ -444,7 +444,6 @@ def main():
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
     
-
     #################################
     # Load dataset
     #################################
@@ -631,7 +630,21 @@ def main():
     tf.keras.backend.clear_session()
 
     # Create loss objects based on objectives config
-    losses = create_losses_from_objectives(objectives_cfg) 
+    class_weights_by_objective = {}
+    num_classes = cfg.dataset.max_polyphony + 1
+
+    if "species_polyphony_class" in objectives_cfg:
+        class_weights_by_objective["species_polyphony_class"] = compute_species_count_class_weights(
+            dataset["train"], label_column="species_polyphony_class", num_classes=num_classes
+        )
+
+    if "species_polyphony_reg" in objectives_cfg:
+        class_weights_by_objective["species_polyphony_reg"] = compute_species_count_class_weights(
+            dataset["train"], label_column="species_polyphony_reg", num_classes=num_classes
+        )
+
+    losses = create_losses_from_objectives(objectives_cfg, class_weights_by_objective)
+    # losses = create_losses_from_objectives(objectives_cfg) 
 
     # Get model and history
     previous_history = None
