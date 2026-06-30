@@ -100,6 +100,52 @@ class DynamicWeightedLoss(tf.keras.losses.Loss):
 
 # losses.py (cleaner version)
 
+import numpy as np
+import tensorflow as tf
+
+
+def compute_species_count_class_weights(dataset_split, label_column, num_classes, smoothing=1.0):
+    """
+    Compute inverse-frequency class weights for per-species polyphony counts.
+
+    Args:
+        dataset_split: a HuggingFace Dataset split (e.g. train split) containing
+            the integer count labels per species, shape (num_species,) per example.
+        label_column: name of the column holding the label array, e.g. 'species_polyphony_class'.
+        num_classes: max_polyphony + 1 (counts 0..max_polyphony).
+        smoothing: additive smoothing to avoid div-by-zero / extreme weights for
+            classes with very few or zero examples. Higher = gentler weighting.
+
+    Returns:
+        np.ndarray of shape (num_classes,), weight per count class.
+        Weights are normalized so the average weight (over observed counts) is ~1.0,
+        which keeps the overall loss scale roughly comparable to the unweighted case.
+    """
+    class_counts = np.zeros(num_classes, dtype=np.float64)
+
+    for batch in dataset_split.iter(batch_size=500):
+        labels = batch[label_column]  # list of (num_species,) arrays/lists
+        for sample_labels in labels:
+            arr = np.asarray(sample_labels).astype(np.int64)
+            arr = np.clip(arr, 0, num_classes - 1)
+            for c in arr:
+                class_counts[c] += 1
+
+    print(f"Class counts for '{label_column}': {class_counts.tolist()}")
+
+    # Inverse frequency with smoothing
+    total = class_counts.sum()
+    freq = (class_counts + smoothing) / (total + smoothing * num_classes)
+    weights = 1.0 / freq
+
+    # Normalize so weighted average over the actual distribution is ~1.0
+    # (keeps loss magnitude comparable to unweighted training)
+    weighted_avg = np.sum(weights * class_counts) / total
+    weights = weights / weighted_avg
+
+    print(f"Computed class weights for '{label_column}': {weights.tolist()}")
+    return weights
+
 def make_weighted_sparse_categorical_crossentropy(class_weights):
     """
     Wraps SparseCategoricalCrossentropy to apply per-element class weights
