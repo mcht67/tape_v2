@@ -643,8 +643,8 @@ def main():
             dataset["train"], label_column="species_polyphony_reg", num_classes=num_classes
         )
 
-    losses = create_losses_from_objectives(objectives_cfg, class_weights_by_objective)
-    # losses = create_losses_from_objectives(objectives_cfg) 
+    # losses = create_losses_from_objectives(objectives_cfg, class_weights_by_objective)
+    losses = create_losses_from_objectives(objectives_cfg) 
 
     # Get model and history
     previous_history = None
