@@ -776,6 +776,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
         ):
             for spec in self.confusion_matrix_specs:
                 self._log_confusion_matrix(epoch, spec)
+                self._log_f1_breakdown(self, epoch, spec)   
 
         # 3. DVCLive — log all metrics every epoch
         if self.live:
