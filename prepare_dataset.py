@@ -115,7 +115,7 @@ if __name__ == "__main__":
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode == 2:
-            print("Embeddings already exist. Perch embedding script skipped did not add embeddings.")
+            print("Perch embedding script skipped, did not add embeddings.")
         else:
             raise RuntimeError(f"perch_embed_audio_stream.py failed with exit code {result.returncode}")
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         if result.returncode == 0:
             embeddings_uploaded = True
         elif result.returncode == 2:
-            print("Embeddings already exist. Birdset embedding script skipped did not add embeddings.")
+            print("Birdset embedding script skipped, did not add embeddings.")
         else:
             raise RuntimeError(f"birdset_embed_audio_stream.py failed with exit code {result.returncode}")
 
