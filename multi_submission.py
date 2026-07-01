@@ -237,7 +237,7 @@ if __name__ == "__main__":
     ##########################
     
     for subset in dataset_subsets:
-        train_config = subset + '_polyphonic_' + str(study_config['base_config']['dataset.max_polyphony'])
+        train_config = subset + '_polyphonic_' + str(study_config['base_config']['dataset.max_polyphony']) # TODO: chagnge to _poly_ later
         data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
         prep_job_id = None
         if embeddings:
