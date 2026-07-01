@@ -10,7 +10,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
 base_config:
   log.study_name: "Pooled-Embeddings"
   embeddings.dimension_type: pooled
-  dataset.huggingface_path: "mcht67/Polyphonic-BirdSet-train"
+  dataset.huggingface_path: "mcht67/Polyphonic-BirdSet"
   dataset.max_polyphony: 8
   train.epochs: 100
   train.learning_rate: 0.001
