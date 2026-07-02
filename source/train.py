@@ -418,6 +418,7 @@ def main():
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['train_log_dir']
     checkpoint_dir = log_paths['checkpoint_dir']
+    default_dir = os.environ.get('DEFAULT_DIR', '')
 
     print("Log dir:", log_dir)
     print("Checkpoint dir:", checkpoint_dir)
@@ -443,6 +444,7 @@ def main():
     objectives_to_log = cfg.log.objectives_to_log if 'objectives_to_log' in cfg.log else None
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
+
     
     # #################################
     # # Load dataset
@@ -472,7 +474,7 @@ def main():
     # })
 
     local_data_dir = get_local_data_dir(dataset_config=dataset_config, subset=subset)
-    dataset = load_from_disk(local_data_dir)
+    dataset = load_from_disk(os.path.join(default_dir, local_data_dir))
 
     # dataset.save_to_disk("test_data/HSN")
 
