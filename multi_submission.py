@@ -243,4 +243,4 @@ if __name__ == "__main__":
         if embeddings:
             if run_dataset_preparation:
                 prep_job_id = submit_dataset_prep_job(study_config, data_dir, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        submit_experiment_jobs(study_config, data_dir, train_config, dependency_job_id=prep_job_id)
+        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)
