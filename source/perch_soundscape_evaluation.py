@@ -10,7 +10,7 @@ from itertools import islice
 import torch
 
 from utils.logs import get_dvc_exp_name, plot_spectrogram_with_metrics, SummaryWriter
-from utils.dataset import load_dataset_with_retry, add_polyphony_range
+from utils.dataset import load_dataset_with_retry, add_min_max_polyphony
 
 #################################
 # Configuration

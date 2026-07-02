@@ -303,12 +303,12 @@ def get_data_dir(dataset_config, subset=None):
         subset = dataset_config.split('_')[0]
     return f"{subset}/{dataset_config}"
 
-def add_polyphony_range(example):
-    start_times = np.array(example['start_time'])
-    end_times = np.array(example['end_time'])
-    species = example['ebird_code_multilabel']  # list of int values
+def add_min_max_polyphony(example):
+    start_times = np.atleast_1d(np.array(example['start_time']))
+    end_times = np.atleast_1d(np.array(example['end_time']))
+    species = np.atleast_1d(example['ebird_code_multilabel']).tolist()  # list of int values
 
-    n_events = len(start_times)
+    n_events = start_times.size
 
     # --- Maximum polyphony (upper bound) ---
     # Total number of events in the soundscape
@@ -334,7 +334,9 @@ def add_polyphony_range(example):
     n_unique_species = len(set(species))
 
     min_polyphony = max(max_overlap, n_unique_species)
+    max_polyphony = max(max_polyphony, min_polyphony)
 
-    example['polyphony_range'] = [int(min_polyphony), int(max_polyphony)]
+    example['min_polyphony'] = int(min_polyphony)
+    example['max_polyphony'] = int(max_polyphony)
     return example
     

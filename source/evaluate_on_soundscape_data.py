@@ -10,7 +10,7 @@ from itertools import islice
 import torch
 
 from utils.logs import get_dvc_exp_name, plot_spectrogram_with_metrics, SummaryWriter
-from utils.dataset import load_dataset_with_retry, add_polyphony_range
+from utils.dataset import load_dataset_with_retry, add_min_max_polyphony
 import integrations.birdset as birdset
 import integrations.perch as perch
 
@@ -217,7 +217,7 @@ def main():
     # Polyphony degree can not be computed for soundscapes directly, but we can compute a minimum and maximum polyphony degree
 
     # Add polyphony range labels to soundscape dataset
-    # soundscape_dataset = soundscape_dataset.map(add_polyphony_range)
+    soundscape_dataset = soundscape_dataset.map(add_min_max_polyphony)
    
     # Minimum polyphony degree: get maximum number of overlapping events at any time
     # Minimum polyphony degree: get number of species active in soundscape
@@ -306,13 +306,15 @@ def main():
         predictions = model.predict(single_input)
         print(predictions)
 
+        # Get polyphony ground truth
+        gt_min_polyphony = example['min_polyphony']
+        gt_max_polyphony = example['max_polyphony']
+
         # Handle regression predictions
         if objectives_cfg.get('polyphony_reg', None) is not None:
             pred_polyphony_reg = predictions['polyphony_reg'][0][0]
 
             # Get polyphony logit
-            gt_min_polyphony = example['min_polyphony']
-            gt_max_polyphony = example['max_polyphony']
             polyphony_range_logit = int(gt_min_polyphony <= pred_polyphony_reg <= gt_max_polyphony)
             polyphony_range_logits_reg.append(polyphony_range_logit)
 
@@ -326,8 +328,6 @@ def main():
             pred_polyphony_class = np.argmax(predictions['polyphony_class'][0])
 
             # Get polyphony logit
-            gt_min_polyphony = example['min_polyphony']
-            gt_max_polyphony = example['max_polyphony']
             polyphony_range_logit = int(gt_min_polyphony <= pred_polyphony_class <= gt_max_polyphony)
             polyphony_range_logits_class.append(polyphony_range_logit)         
 
@@ -335,18 +335,23 @@ def main():
             distance_to_min_polyphony_class = abs(pred_polyphony_class - gt_min_polyphony)
             distances_to_min_polyphony_class.append(distance_to_min_polyphony_class)
 
+    if objectives_cfg.get('polyphony_reg', None) is not None:
+        # Get metrics for regression
+        polyphony_range_accuracy_reg = np.mean(polyphony_range_logits_reg)
+        mean_distance_to_min_polyphony_reg = np.mean(distances_to_min_polyphony_reg)
 
-    # Get metrics on soundscape data
-    polyphony_range_accuracy_reg = np.mean(polyphony_range_logits_reg)
-    mean_distance_to_min_polyphony_reg = np.mean(distances_to_min_polyphony_reg)
-    polyphony_range_accuracy_class = np.mean(polyphony_range_logits_class)
-    mean_distance_to_min_polyphony_class = np.mean(distances_to_min_polyphony_class)
+        # Write metrics to TensorBoard
+        writer.add_scalar('soundscape/polyphony_range_accuracy', polyphony_range_accuracy_reg, global_step=0)
+        writer.add_scalar('soundscape/mean_distance_to_min_polyphony', mean_distance_to_min_polyphony_reg, global_step=0)
 
-    # Write metrics to TensorBoard
-    writer.add_scalar('soundscape/polyphony_range_accuracy', polyphony_range_accuracy_reg, global_step=0)
-    writer.add_scalar('soundscape/mean_distance_to_min_polyphony', mean_distance_to_min_polyphony_reg, global_step=0)
-    writer.add_scalar('soundscape/polyphony_range_accuracy_class', polyphony_range_accuracy_class, global_step=0)
-    writer.add_scalar('soundscape/mean_distance_to_min_polyphony_class', mean_distance_to_min_polyphony_class, global_step=0)
+    if objectives_cfg.get('polyphony_class', None) is not None:
+        # Get metrics for classification
+        polyphony_range_accuracy_class = np.mean(polyphony_range_logits_class)
+        mean_distance_to_min_polyphony_class = np.mean(distances_to_min_polyphony_class)
+
+        # Write metrics to TensorBoard
+        writer.add_scalar('soundscape/polyphony_range_accuracy_class', polyphony_range_accuracy_class, global_step=0)
+        writer.add_scalar('soundscape/mean_distance_to_min_polyphony_class', mean_distance_to_min_polyphony_class, global_step=0)
 
 if __name__ == "__main__":
     main()
