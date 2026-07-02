@@ -514,17 +514,20 @@ def main():
     # Update model and objectives config
     #####################################
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+        
         # Get birdset ids
         birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(birdset_id2label)
+
         # Save mapping
         mapping = {i: (bird_id, birdset_id2label[bird_id]) for i, bird_id in enumerate(birdset_id2label)}
         path = os.path.join(log_dir, "species_polyphony_mapping.json")
         with open(path, "w") as f:
             json.dump(mapping, f, indent=2)
+        
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
-    num_species = len(birdset_id2label)
     if 'polyphony_class' in objectives_cfg:
         objectives_cfg.polyphony_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
