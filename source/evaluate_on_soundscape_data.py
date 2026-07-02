@@ -63,7 +63,7 @@ def main():
     #     raise ValueError(f"Validation dataset not found at {val_dataset_path}. Please make sure to run the training script first to save the validation dataset for later evaluation.")
 
     #################################
-    # Load dataset
+    # Load train dataset for model init
     #################################
 
     # Load environment variables from .env file

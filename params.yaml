@@ -7,25 +7,25 @@ dataset:
   soundscape_config: HSN_soundscape_test
   max_polyphony: 8
 embeddings:
-  name: Birdnet_V2.3
-  type: perch_v1
+  name: perch_v2_cpu
+  type: perch_v2
   dimension_type: pooled
 model:
-  # _target_: model.SimpleMLP # defines the model to be instantiated
-  # hidden_units: [512, 256]
-  # dropout_rate: 0.3
-  _target_: model.TemporalCNN
+  _target_: model.SimpleMLP # defines the model to be instantiated
+  hidden_units: [512, 256]
+  dropout_rate: 0.3
+  # _target_: model.TemporalCNN
 
 objectives:
 
-  polyphony_reg:
-    loss:
-      _target_: tensorflow.keras.losses.MeanSquaredError
-    weight: 1.0
-    confusion_matrix:
-      type: regression_round
-      threshold: 0.5
-    label: polyphony_reg
+  # polyphony_reg:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.MeanSquaredError
+  #   weight: 1.0
+  #   confusion_matrix:
+  #     type: regression_round
+  #     threshold: 0.5
+  #   label: polyphony_reg
 
   polyphony_class:
     loss:
@@ -35,60 +35,60 @@ objectives:
     confusion_matrix:
       type: classification
     label: polyphony_class
-    num_classes:
+    num_classes: 9
 
-  event_logits:
-    loss:
-      _target_: tensorflow.keras.losses.BinaryCrossentropy
-      from_logits: false
-      label_smoothing: 0.1
-    scheduler:
-      switch_epochs: [0, 10, 20, 30, 40]
-      weights: [10.0, 5.0, 1.0, 0.5, 0.1]
-    confusion_matrix:
-      type: binary
-    label: event_logits
+  # event_logits:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.BinaryCrossentropy
+  #     from_logits: false
+  #     label_smoothing: 0.1
+  #   scheduler:
+  #     switch_epochs: [0, 10, 20, 30, 40]
+  #     weights: [10.0, 5.0, 1.0, 0.5, 0.1]
+  #   confusion_matrix:
+  #     type: binary
+  #   label: event_logits
 
-  framewise_polyphony_reg:
-    loss:
-      _target_: tensorflow.keras.losses.MeanSquaredError
-    scheduler:
-      switch_epochs: [0, 10, 20, 30, 40]
-      weights: [5.0, 10.0, 5.0, 1.0, 0.5]
-    confusion_matrix:
-      type: regression_round
-      threshold: 0.5
-    label: framewise_polyphony_reg
+  # framewise_polyphony_reg:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.MeanSquaredError
+  #   scheduler:
+  #     switch_epochs: [0, 10, 20, 30, 40]
+  #     weights: [5.0, 10.0, 5.0, 1.0, 0.5]
+  #   confusion_matrix:
+  #     type: regression_round
+  #     threshold: 0.5
+  #   label: framewise_polyphony_reg
 
-  framewise_polyphony_class:
-    loss:
-      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-      from_logits: true
-    scheduler:
-      switch_epochs: [0, 10, 20, 30, 40]
-      weights: [5.0, 10.0, 5.0, 1.0, 0.5]
-    confusion_matrix:
-      type: classification
-    label: framewise_polyphony_class
-    num_classes: 
+  # framewise_polyphony_class:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+  #     from_logits: true
+  #   scheduler:
+  #     switch_epochs: [0, 10, 20, 30, 40]
+  #     weights: [5.0, 10.0, 5.0, 1.0, 0.5]
+  #   confusion_matrix:
+  #     type: classification
+  #   label: framewise_polyphony_class
+  #   num_classes: 
 
-  species_polyphony_reg:
-    loss:
-      _target_: tensorflow.keras.losses.MeanSquaredError
-    weight: 1.0
-    label: species_polyphony_reg
+  # species_polyphony_reg:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.MeanSquaredError
+  #   weight: 1.0
+  #   label: species_polyphony_reg
 
-  species_polyphony_class:
-    loss:
-      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-      from_logits: true 
-    weight: 1.0
-    label: species_polyphony_class
-    num_classes: 
+  # species_polyphony_class:
+  #   loss:
+  #     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
+  #     from_logits: true 
+  #   weight: 1.0
+  #   label: species_polyphony_class
+  #   num_classes: 
 
 train:
-  input_feature: null
-  input_feature_name: EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings
+  input_feature: audio
+  input_feature_name: perch_v2_cpu_audio_pooled_embeddings
   batch_size: 128
   learning_rate: 0.001
   epochs: 1
