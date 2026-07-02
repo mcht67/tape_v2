@@ -42,6 +42,6 @@ hyperparams:
     - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
-    - "polyphony_degree_reg"
+    - "polyphony_reg"
     # - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
