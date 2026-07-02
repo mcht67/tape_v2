@@ -411,7 +411,7 @@ def main():
     set_random_seeds(random_seed)
 
     huggingface_path = cfg.dataset.huggingface_path
-    dataset_config = cfg.dataset.train_config
+    train_config = cfg.dataset.train_config
     subset = cfg.dataset.subset
     keep_last_n_checkpoints = cfg.log.keep_last_n_checkpoints if 'keep_last_n_checkpoints' in cfg.log else 5
 
@@ -473,8 +473,14 @@ def main():
     #     for split, ds in dataset.items()
     # })
 
-    local_data_dir = get_local_data_dir(dataset_config=dataset_config, subset=subset)
-    dataset = load_from_disk(os.path.join(default_dir, local_data_dir))
+    print("default_dir:", default_dir)
+    print("train_config:", train_config)
+    print("subset:", subset)
+    local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
+    print("local_data_dir:", local_data_dir)
+    dataset_dir = os.path.join(default_dir, local_data_dir)
+    print("dataset_dir:", dataset_dir)
+    dataset = load_from_disk(dataset_dir)
 
     # dataset.save_to_disk("test_data/HSN")
 
@@ -539,7 +545,7 @@ def main():
 
     labels = list(objectives_cfg.keys()) #[objectives_cfg[x]['label'] for x in objectives_cfg]
 
-    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
+    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {train_config}.")
 
     #################################
     # Add labels

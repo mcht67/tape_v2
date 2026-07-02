@@ -228,7 +228,7 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = True
+    run_dataset_preparation = False
     recompute_embeddings = False
     force_redownload = False
 
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     ##########################
     
     for subset in dataset_subsets:
-        train_config = subset + '_polyphonic_' + str(study_config['base_config']['dataset.max_polyphony']) # TODO: chagnge to _poly_ later
+        train_config = subset + '_polyphonic_' + str(study_config['base_config']['dataset.max_polyphony'])
         data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
         prep_job_id = None
         if embeddings:
