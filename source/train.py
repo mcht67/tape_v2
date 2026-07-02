@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 
-from utils.logs import RegressionAccuracy, RegressionPrecision, RegressionRecall, RegressionF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
-from losses import create_losses_from_objectives, setup_loss_scheduler
+from losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 tf.keras.backend.clear_session()
 
@@ -318,10 +318,21 @@ def build_compile_metrics(objectives_cfg):
             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
 
         elif objective == 'species_polyphony_reg':
-            compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-
+            num_classes = obj_cfg['num_classes']
+            compile_metrics[objective] = [
+                RegressionAccuracy(name='accuracy'),
+                RegressionCountPrecision(num_classes=num_classes, name='precision'),
+                RegressionCountRecall(num_classes=num_classes, name='recall'),
+                RegressionCountF1(num_classes=num_classes, name='f1'),
+            ]
         elif objective == 'species_polyphony_class':
-            compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+            num_classes = obj_cfg['num_classes']
+            compile_metrics[objective] = [
+                ClassificationAccuracy(name='accuracy'),
+                ClassificationCountPrecision(num_classes=num_classes, name='precision'),
+                ClassificationCountRecall(num_classes=num_classes, name='recall'),
+                ClassificationCountF1(num_classes=num_classes, name='f1'),
+            ]
 
         # elif objective == 'species_polyphony':
         #     compile_metrics[objective] = [
@@ -373,7 +384,7 @@ def build_log_metrics(objectives_to_log):
             log_metrics[metric_key(objective, 'accuracy')] = None
             log_metrics[metric_key(objective, 'loss')] = None    
 
-        elif objective == 'species_polyphony':
+        elif objective in ['species_polyphony_reg', 'species_polyphony_class']:
             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
                 log_metrics[metric_key(objective, metric_name)] = None
             log_metrics[metric_key(objective, 'loss')] = None
@@ -433,7 +444,6 @@ def main():
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
     
-
     #################################
     # Load dataset
     #################################
@@ -446,9 +456,9 @@ def main():
     print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
     dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(100))
+    # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
+    # for split in dataset.keys():
+    #     dataset[split] = dataset[split].select(range(100))
     #  # TODO: reset after testing
     # from datasets import load_from_disk
     # dataset = load_from_disk("test_data/HSN")
@@ -489,7 +499,6 @@ def main():
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
     
-
     #####################################
     # Update model and objectives config
     #####################################
@@ -508,16 +517,17 @@ def main():
     if 'polyphony_class' in objectives_cfg:
         objectives_cfg.polyphony_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
+    if 'framewise_polyphony_class' in objectives_cfg:
+        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
     if 'species_polyphony_reg' in objectives_cfg:
+        objectives_cfg.species_polyphony_reg.num_classes = num_classes
         objectives_cfg.species_polyphony_reg.num_species = num_species
         print(f"Using {num_species} species for species polyphony regression based on dataset.")
     if 'species_polyphony_class' in objectives_cfg:
         objectives_cfg.species_polyphony_class.num_classes = num_classes
         objectives_cfg.species_polyphony_class.num_species = num_species
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
-    if 'framewise_polyphony_class' in objectives_cfg:
-        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
-        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
 
     # Set objectives config in model config for easy access when building model and losses
     model_cfg.objectives_cfg = objectives_cfg
@@ -620,6 +630,20 @@ def main():
     tf.keras.backend.clear_session()
 
     # Create loss objects based on objectives config
+    class_weights_by_objective = {}
+    num_classes = cfg.dataset.max_polyphony + 1
+
+    if "species_polyphony_class" in objectives_cfg:
+        class_weights_by_objective["species_polyphony_class"] = compute_species_count_class_weights(
+            dataset["train"], label_column="species_polyphony_class", num_classes=num_classes
+        )
+
+    if "species_polyphony_reg" in objectives_cfg:
+        class_weights_by_objective["species_polyphony_reg"] = compute_species_count_class_weights(
+            dataset["train"], label_column="species_polyphony_reg", num_classes=num_classes
+        )
+
+    # losses = create_losses_from_objectives(objectives_cfg, class_weights_by_objective)
     losses = create_losses_from_objectives(objectives_cfg) 
 
     # Get model and history
