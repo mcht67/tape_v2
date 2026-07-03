@@ -482,6 +482,22 @@ def main():
     print("dataset_dir:", dataset_dir)
     dataset = load_from_disk(dataset_dir)
 
+    # Filter dataset by polyphony degree if specified in the config
+    if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
+        max_polyphony = cfg.dataset.max_polyphony
+        print(f"Filtering dataset to include only examples with polyphony degree <= {max_polyphony}...")
+        for split in dataset.keys():
+            dataset[split] = dataset[split].filter(lambda x: x['polyphony_degree'] <= max_polyphony)
+            print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+
+    # Filter dataset by SNR if specified in the config
+    if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
+        min_snr = cfg.dataset.min_snr
+        print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")
+        for split in dataset.keys():
+            dataset[split] = dataset[split].filter(lambda x: x['snr_dB'] >= min_snr)
+            print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+
     # dataset.save_to_disk("test_data/HSN")
 
     # TODO: Remove after handling in model output processing
