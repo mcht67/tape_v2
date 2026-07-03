@@ -2,18 +2,17 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
-from datasets import concatenate_datasets
+from datasets import concatenate_datasets, load_from_disk
 from omegaconf import OmegaConf
 import os
 from hydra.utils import instantiate
 from dotenv import load_dotenv
 import json
-from datetime import datetime
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label
+from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label, get_local_data_dir
 from losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 tf.keras.backend.clear_session()
@@ -412,12 +411,14 @@ def main():
     set_random_seeds(random_seed)
 
     huggingface_path = cfg.dataset.huggingface_path
-    dataset_config = cfg.dataset.train_config
+    train_config = cfg.dataset.train_config
+    subset = cfg.dataset.subset
     keep_last_n_checkpoints = cfg.log.keep_last_n_checkpoints if 'keep_last_n_checkpoints' in cfg.log else 5
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['train_log_dir']
     checkpoint_dir = log_paths['checkpoint_dir']
+    default_dir = os.environ.get('DEFAULT_DIR', '')
 
     print("Log dir:", log_dir)
     print("Checkpoint dir:", checkpoint_dir)
@@ -443,19 +444,20 @@ def main():
     objectives_to_log = cfg.log.objectives_to_log if 'objectives_to_log' in cfg.log else None
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
+
     
-    #################################
-    # Load dataset
-    #################################
+    # #################################
+    # # Load dataset
+    # #################################
 
-    # Load environment variables from .env file
-    load_dotenv('local.env')
-    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+    # # Load environment variables from .env file
+    # load_dotenv('local.env')
+    # huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
 
-    # Load Dataset
-    print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
+    # # Load Dataset
+    # print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
    
-    dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
     # for split in dataset.keys():
     #     dataset[split] = dataset[split].select(range(100))
@@ -470,6 +472,15 @@ def main():
     #     split: Dataset.from_list(list(ds.take(2)))
     #     for split, ds in dataset.items()
     # })
+
+    print("default_dir:", default_dir)
+    print("train_config:", train_config)
+    print("subset:", subset)
+    local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
+    print("local_data_dir:", local_data_dir)
+    dataset_dir = os.path.join(default_dir, local_data_dir)
+    print("dataset_dir:", dataset_dir)
+    dataset = load_from_disk(dataset_dir)
 
     # dataset.save_to_disk("test_data/HSN")
 
@@ -503,17 +514,20 @@ def main():
     # Update model and objectives config
     #####################################
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+        
         # Get birdset ids
         birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(birdset_id2label)
+
         # Save mapping
         mapping = {i: (bird_id, birdset_id2label[bird_id]) for i, bird_id in enumerate(birdset_id2label)}
         path = os.path.join(log_dir, "species_polyphony_mapping.json")
         with open(path, "w") as f:
             json.dump(mapping, f, indent=2)
+        
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
-    num_species = len(birdset_id2label)
     if 'polyphony_class' in objectives_cfg:
         objectives_cfg.polyphony_class.num_classes = num_classes
         print(f"Using {num_classes} classes for polyphony degree classification based on config.")
@@ -534,7 +548,7 @@ def main():
 
     labels = list(objectives_cfg.keys()) #[objectives_cfg[x]['label'] for x in objectives_cfg]
 
-    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {dataset_config}.")
+    print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {train_config}.")
 
     #################################
     # Add labels

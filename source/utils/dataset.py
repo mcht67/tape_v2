@@ -6,6 +6,7 @@ import random
 from datasets import load_dataset
 import traceback
 from collections import Counter
+import os
 
 def build_event_logits(
     events,
@@ -302,6 +303,13 @@ def get_data_dir(dataset_config, subset=None):
     if subset is None:
         subset = dataset_config.split('_')[0]
     return f"{subset}/{dataset_config}"
+
+def get_local_data_dir(dataset_config=None, subset=None, data_dir=None):
+    if data_dir is not None:
+        return os.path.join("data", data_dir)
+    if subset is None:
+        subset = dataset_config.split('_')[0]
+    return f"data/{subset}/{dataset_config}"
 
 def add_min_max_polyphony(example):
     start_times = np.atleast_1d(np.array(example['start_time']))
