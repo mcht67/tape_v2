@@ -13,6 +13,7 @@ base_config:
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/Poly-BirdSet"
   dataset.max_polyphony: 12
+  dataset.min_snr: -10
   train.epochs: 100
   train.learning_rate: 0.001
   path.study_subfolder: ${embeddings.name}/
