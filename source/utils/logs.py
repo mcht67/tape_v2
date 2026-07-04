@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional, Union
 import datetime
 import json
 import shutil
+import filelock
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
@@ -34,6 +35,23 @@ if __name__ == "__main__":
     import config
 else:
     from utils import config
+
+def save_to_report(entry: dict, report_path: str = "mix_report.json"):
+    lock_path = report_path + ".lock"
+    with filelock.FileLock(lock_path):
+        report = []
+        if os.path.exists(report_path):
+            try:
+                with open(report_path, "r") as f:
+                    report = json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: {report_path} was corrupted, starting fresh.")
+                report = []
+
+        report.append(entry)
+        with open(report_path, "w") as f:
+            json.dump(report, f, indent=2)
+    
 
 def plot_confusion_matrix(y_pred, y_true):
     # Convert to flat NumPy arrays
@@ -2453,6 +2471,8 @@ class ModelAndHistorySaver(tf.keras.callbacks.Callback):
                 path = self.resumable_dir / f'epoch_{old_epoch+1:03d}.keras'
                 if os.path.exists(path):
                     os.remove(path)
+
+    
 
 def main():
     """Main function to copy SLURM and TensorBoard logs."""
