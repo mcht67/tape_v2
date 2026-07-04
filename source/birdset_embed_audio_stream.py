@@ -88,8 +88,10 @@ def main():
         print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
         dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
     else:
-        print(f"Dataset {dataset_config} found locally. Loading from disk...")
+        print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)
+
+    print({split: len(dataset[split]) for split in dataset.keys()})
     
     # ===================
     # Embed

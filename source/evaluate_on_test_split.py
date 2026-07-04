@@ -29,10 +29,12 @@ def main():
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
-    checkpoint_dir = log_paths['checkpoint_dir']
-    default_dir = os.environ.get('DEFAULT_DIR', '')
     os.makedirs(log_dir, exist_ok=True)
-
+    default_dir = os.environ.get('DEFAULT_DIR', '')
+    checkpoint_dir = log_paths['checkpoint_dir']
+    if not os.path.exists(checkpoint_dir):
+        checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
+    
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
 
@@ -337,18 +339,18 @@ def main():
         return flat
 
 
-    def update_metrics_table(subset_name, metrics_dict, csv_path):
+    def update_metrics_table(column_name, metrics_dict, csv_path):
         """
         Add or overwrite the column for `subset_name` in the experiment's metrics table.
         Creates the table if it doesn't exist yet.
         """
 
         flat_metrics = flatten_metrics(metrics_dict)
-        new_col = pd.Series(flat_metrics, name=subset_name)
+        new_col = pd.Series(flat_metrics, name=column_name)
 
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path, index_col=0)
-            df[subset_name] = new_col  # adds new column, or overwrites if it already exists
+            df[column_name] = new_col  # adds new column, or overwrites if it already exists
         else:
             df = new_col.to_frame()
 
@@ -358,10 +360,14 @@ def main():
 
     # Save to metrics overview table
     for objective in report:
+        if objective == "polyphony_reg":
+            obj_key = "reg"
+        elif objective == "polyphony_class":
+            obj_key = "class"
         metrics_dict = report[objective]
-        table_name = f"{objective}_metrics"
+        table_name = f"test_metrics"
         csv_path = os.path.join(out_dir, f"{table_name}.csv")
-        df, csv_path = update_metrics_table(subset, metrics_dict, csv_path)
+        df, csv_path = update_metrics_table(f"{subset}_{obj_key}", metrics_dict, csv_path)
         print(f"Saved {table_name} to {csv_path}")
 
     # for example in dataset['test']:
