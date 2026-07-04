@@ -7,7 +7,7 @@ from hydra.utils import instantiate
 from dotenv import load_dotenv
 from datasets import load_dataset, Audio, load_from_disk
 
-
+from utils.dataset import get_birdset_id2label, get_local_data_dir
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
 import integrations.birdset as birdset
@@ -23,7 +23,7 @@ def main():
     study_name = cfg.log.study_name
 
     huggingface_path = cfg.dataset.huggingface_path
-    train_dataset_config = cfg.dataset.train_config
+    train_config = cfg.dataset.train_config
     soundscape_dataset_config = cfg.dataset.soundscape_config
 
     log_paths = get_log_paths(cfg)
@@ -34,8 +34,7 @@ def main():
 
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
-    model_cfg.objectives_cfg = objectives_cfg
-    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
+
     input_feature_name = cfg.train.input_feature_name
     input_feature = cfg.train.input_feature
     embedding_type = cfg.embeddings.type
@@ -82,15 +81,56 @@ def main():
     # train_dataset = load_dataset(huggingface_path, train_dataset_config, token=huggingfce_token, streaming=True)
 
     
-    test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token)
+    test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
     # from datasets import Dataset
     # train_dataset = load_from_disk('data/HSN')
     # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
     # print("Dataset loaded. Converting to in-memory format for processing...")
     # test_dataset = Dataset.from_list(list(test_dataset.take(2)))
+    print("default_dir:", default_dir)
+    print("train_config:", train_config)
+    print("subset:", subset)
+    local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
+    print("local_data_dir:", local_data_dir)
+    dataset_dir = os.path.join(default_dir, local_data_dir)
+    print("dataset_dir:", dataset_dir)
+    dataset = load_from_disk(dataset_dir)
+    test_dataset = dataset['test']
 
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
+
+    #################################
+    # Update objectives config based on dataset
+    #################################
+
+    if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+        
+        #TODO: get from ClassLabels in dataset
+        # Get birdset ids
+        birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(birdset_id2label)
+
+    # Set number of classes for polyphony degree classification based on dataset config
+    num_classes = cfg.dataset.max_polyphony + 1
+    if 'polyphony_class' in objectives_cfg:
+        objectives_cfg.polyphony_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for polyphony degree classification based on config.")
+    if 'framewise_polyphony_class' in objectives_cfg:
+        objectives_cfg.framewise_polyphony_class.num_classes = num_classes
+        print(f"Using {num_classes} classes for framewise polyphony classification based on config.")
+    if 'species_polyphony_reg' in objectives_cfg:
+        objectives_cfg.species_polyphony_reg.num_classes = num_classes
+        objectives_cfg.species_polyphony_reg.num_species = num_species
+        print(f"Using {num_species} species for species polyphony regression based on dataset.")
+    if 'species_polyphony_class' in objectives_cfg:
+        objectives_cfg.species_polyphony_class.num_classes = num_classes
+        objectives_cfg.species_polyphony_class.num_species = num_species
+        print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
+
+    # Set objectives config in model config for easy access when building model and losses
+    model_cfg.objectives_cfg = objectives_cfg
+
 
     #################################
     # Load model
