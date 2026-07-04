@@ -25,6 +25,7 @@ def main():
     huggingface_path = cfg.dataset.huggingface_path
     train_config = cfg.dataset.train_config
     soundscape_dataset_config = cfg.dataset.soundscape_config
+    subset = cfg.dataset.subset
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
@@ -276,7 +277,6 @@ def main():
     print("variable_values:", variable_values)
 
     # Define ouput dir for metrics and results
-    subset = cfg.dataset.subset
     out_dir = os.path.join(default_dir, "archive", cfg.log.study_name, cfg.path.study_subfolder, "eval_results")
     os.makedirs(out_dir, exist_ok=True)
 
