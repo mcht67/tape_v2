@@ -71,8 +71,8 @@ stages:
     outs:
       # - ${path.val_dataset}:
       #     push: false        # cached locally, never pushed to remote
-      - ${path.train_output} #:
-          # persist: true      # pushed to remote
+      - ${path.train_output}:
+          persist: true      # pushed to remote
       # - ${path.train_log_dir}:
       #     persist: true      # pushed to remote
       # - ${path.checkpoint_dir}:
