@@ -79,11 +79,16 @@ stages:
       #     persist: true      # pushed to remote
 
   
-  # evaluate:
-  #   cmd: ${python.complete} source/evaluate.py
-  #   deps: 
-  #     - source/evaluate.py
-  #     - dataset
-  #   outs:
-  #     - ${path.eval_output}:
-  #         persist: true      # pushed to remote
+  evaluate:
+    cmd: ${python.complete} source/evaluate_on_test_split.py
+    deps: 
+      - source/evaluate_on_test_split.py
+    params:
+      - general.random_seed
+      - dataset
+      - model
+      - objectives
+      - train
+    outs:
+      - ${path.eval_output}:
+          persist: true      # pushed to remote
