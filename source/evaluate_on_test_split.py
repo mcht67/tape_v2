@@ -365,7 +365,7 @@ def main():
         elif objective == "polyphony_class":
             obj_key = "class"
         metrics_dict = report[objective]
-        table_name = f"{obj_key}_metrics"
+        table_name = f"test_metrics"
         csv_path = os.path.join(out_dir, f"{table_name}.csv")
         df, csv_path = update_metrics_table(f"{subset}_{obj_key}", metrics_dict, csv_path)
         print(f"Saved {table_name} to {csv_path}")
