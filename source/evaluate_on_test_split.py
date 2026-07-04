@@ -28,7 +28,7 @@ def main():
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
-    checkpoint_dir = cfg.path.checkpoint_dir
+    checkpoint_dir = log_paths['checkpoint_dir']
     default_dir = os.environ.get('DEFAULT_DIR', '')
     os.makedirs(log_dir, exist_ok=True)
 
