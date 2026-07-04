@@ -1,5 +1,5 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  - 'XCM'
+  # - 'XCM'
   - "HSN"
   # - "PER"
   # - "UHH"
@@ -19,7 +19,7 @@ base_config:
   path.study_subfolder: ${embeddings.name}/
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
-    - polyphony_class
+    # - polyphony_class
   # log.metrics:
   #   - val_loss
   #   - val_accuracy # use val_accuracy if only one objective is used
