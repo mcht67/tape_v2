@@ -82,37 +82,16 @@ def main():
     # print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
     # train_dataset = load_dataset(huggingface_path, train_dataset_config, token=huggingfce_token, streaming=True)
 
-    from datasets import Dataset
-    # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token)
+    
+    test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token)
+    # from datasets import Dataset
     # train_dataset = load_from_disk('data/HSN')
-    test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
-    print("Dataset loaded. Converting to in-memory format for processing...")
-    test_dataset = Dataset.from_list(list(test_dataset.take(2)))
+    # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
+    # print("Dataset loaded. Converting to in-memory format for processing...")
+    # test_dataset = Dataset.from_list(list(test_dataset.take(2)))
 
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
-
-    # train_split, val_split, test_split
-
-    #################################
-    # Add labels
-    #################################
-    # TODO: do per example to avoid downloading entire dataset / is already been done in train.py
-
-    # Get input dim
-    # input_dim = tf.squeeze(np.array(train_dataset['train'][0][input_feature_name])).shape
-
-    # Compute additional labels
-    # time_dim = input_dim[0] if len(input_dim) > 1 else None
-    # freq_dim = input_dim[1] if len(input_dim) > 2 else None
-    # train_dataset, added_labels = add_labels(train_dataset, labels, time_dim=time_dim, freq_dim=freq_dim)
-
-    # print("Added labels: ", added_labels)
-
-    # existing_labels = added_labels + ['polyphony_degree']
-    # missing_labels = set(labels) ^ set(existing_labels)
-    # if missing_labels:
-    #     raise Exception("Not all requested labels could be computed.")
 
     #################################
     # Load model
@@ -122,7 +101,7 @@ def main():
     checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
     # TODO: remove after testing
     # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260703_172045_level-arcs/checkpoints/best.weights.h5'
-    checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260703_172515_brood-weld/checkpoints/best.weights.h5'
+    # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260703_172515_brood-weld/checkpoints/best.weights.h5'
     # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260609_012305_bosom-byes/checkpoints/best.weights.h5'
 
     if not os.path.exists(checkpoint_path):
@@ -144,150 +123,47 @@ def main():
     print("Model loaded successfully.")
 
     ###########################################
-    # Example visualization in TensorBoard
-    # ###########################################
-
-    # for split_name in train_dataset.keys():
-
-    #     for example_idx in range(num_examples):
-
-    #         example = train_dataset[split_name][example_idx]
-    #         embedding = example[input_feature_name]
-            
-    #         # Make prediction
-    #         single_input = np.expand_dims(embedding, axis=0)
-    #         single_input = tf.constant(single_input, dtype=tf.float32)
-    #         predictions = model.predict(single_input)
-
-    #         # Extract data
-    #         objectives_list = list(objectives_cfg.keys())
-    #         if 'polyphony_degree' in objectives_list:
-    #             gt_polyphony = example['polyphony_degree']
-    #             pred_polyphony = predictions['polyphony_degree'][0][0]
-    #         else:
-    #             gt_polyphony = pred_polyphony = None
-                
-    #         if 'event_logits' in objectives_list:
-    #             gt_event_logits = example['event_logits']
-    #             pred_event_logits = predictions['event_logits'][0]
-    #         else:
-    #             gt_event_logits = pred_event_logits = None
-
-    #         if 'framewise_polyphony' in objectives_list:
-    #             gt_framewise_polyphony = example['framewise_polyphony']
-    #             pred_framewise_polyphony = predictions['framewise_polyphony'][0]
-    #         else:
-    #             gt_framewise_polyphony = pred_framewise_polyphony = None
-
-    #         # Get audio and events
-    #         audio_array = example['audio']['array']
-    #         sampling_rate = example['audio']['sampling_rate']
-
-    #         # Get all events
-    #         all_events = []
-    #         for events in example['sources_time_freq_bounds']:
-    #             for event in events:
-    #                 all_events.append(event)
-            
-    #         # Create combined figure
-    #         fig = plot_spectrogram_with_metrics(
-    #             audio_array=audio_array,
-    #             sampling_rate=sampling_rate,
-    #             split_name=split_name,
-    #             example_idx=example_idx,
-    #             gt_polyphony=gt_polyphony,
-    #             pred_polyphony=pred_polyphony,
-    #             gt_event_logits=gt_event_logits,
-    #             pred_event_logits=pred_event_logits,
-    #             events=all_events,
-    #             filename=example.get('filename', None)
-    #         )
-            
-    #         writer.add_figure(f'{split_name}', fig, global_step=example_idx) # 'example_{idx}'
-    #         plt.close(fig)
-
-    # # Flush to ensure all figures are written
-    # writer.flush()
-
-    ###########################################
     # Metrics computation on test split
     ###########################################
 
-    def records_to_arrays(records, variables=None, species_names=None):
-        """Convert list of per-example records into arrays for metric computation."""
-        variables = variables or []
-        
-        predictions = np.stack([r["prediction"] for r in records])  # (N, num_species) or (N, 1)
-        
-        if species_names:
-            y_true = np.stack([
-                [r["y_true"].get(sp, 0) for sp in species_names] for r in records
-            ])
-        else:
-            y_true = np.array([r["y_true"]["polyphony"] for r in records]).reshape(-1, 1)
-        
-        variable_values = {
-            var: np.array([r["variable_values"][var] for r in records])
-            for var in variables
-        }
-        
-        return y_true, predictions, variable_values
-
-
-    def arrays_to_records(y_true, predictions, variable_values, species_names=None):
-        """Convert arrays back into self-contained per-example records for storage."""
-        n = len(predictions)
-        variable_rows = [
-            {var: variable_values[var][i] for var in variable_values}
-            for i in range(n)
-        ]
-        
-        if species_names:
-            y_true_dicts = [dict(zip(species_names, row)) for row in y_true]
-        else:
-            y_true_dicts = [{"polyphony": val} for val in y_true.flatten()]
-        
-        records = [
-            {"y_true": yt, "prediction": pred, "variable_values": var_row}
-            for yt, pred, var_row in zip(y_true_dicts, predictions, variable_rows)
-        ]
-        return records
-    
-    def collect_predictions(model, dataset, input_feature_name, variables=None, 
-                         species_names=None, batch_size=64):
+    def collect_predictions(model, dataset, input_feature_name, variables=None,
+                            species_names=None, batch_size=64):
         """
         Run inference over `dataset` and return arrays ready for metric computation.
 
         Returns:
-            y_true: (N, num_species) if species_names given, else (N, 1)
-            predictions: (N, num_species) or (N, 1), matching model output
+            y_true: {"polyphony": (N,) or None, "species_polyphony": (N, num_species) or None}
+            predictions: {objective_name: array}, matching model's named outputs
             variable_values: dict of {var_name: array of shape (N,)}
         """
         variables = variables or []
-        embeddings, gt_rows, variable_rows = [], [], []
-
-        predictions = []
+        embeddings, variable_rows = [], []
+        gt_total, gt_species = [], []
 
         for example in dataset:
-            embedding = example[input_feature_name]
-            embeddings.append(embedding)
+            embeddings.append(example[input_feature_name])
             variable_rows.append({var: example[var] for var in variables})
-
+            gt_total.append(example["polyphony_degree"])
             if species_names:
-                gt_rows.append([example[sp] for sp in species_names])
-            else:
-                gt_rows.append([example["polyphony_degree"]])
-
-            # # Make prediction
-            # single_input = np.expand_dims(embedding, axis=0)
-            # single_input = tf.constant(single_input, dtype=tf.float32)
-            # predictions = model.predict(single_input)
-            # predictions.append(predictions)
+                gt_species.append([example[sp] for sp in species_names])
 
         X = tf.constant(np.stack(embeddings), dtype=tf.float32)
-        predictions = model.predict(X, batch_size=batch_size)  # single batched call
+        raw_predictions = model(X, training=False)
 
-        y_true = np.array(gt_rows)  # (N, num_species) or (N, 1)
+        # raw_predictions is a dict of {output_name: tensor} since the model has
+        # multiple named heads. Convert to numpy and squeeze trailing singleton
+        # dims only where main() expects 1D (the total-polyphony regression head).
+        predictions = {}
+        for k, v in raw_predictions.items():
+            arr = v.numpy()
+            if k == "polyphony_reg" and arr.ndim == 2 and arr.shape[1] == 1:
+                arr = arr[:, 0]
+            predictions[k] = arr
+
+        y_true = {
+            "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
+            "species_polyphony": np.array(gt_species) if species_names else None,
+        }
 
         variable_values = {
             var: np.array([row[var] for row in variable_rows])
@@ -296,7 +172,69 @@ def main():
 
         return y_true, predictions, variable_values
 
-    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name)
+
+    def arrays_to_records(y_true, predictions, variable_values, species_names=None):
+        """Convert arrays back into self-contained per-example records for storage."""
+        n = next(iter(predictions.values())).shape[0]
+
+        variable_rows = [
+            {var: variable_values[var][i] for var in variable_values}
+            for i in range(n)
+        ]
+
+        records = []
+        for i in range(n):
+            rec_y_true = {}
+            if y_true.get("polyphony") is not None:
+                rec_y_true["polyphony"] = float(y_true["polyphony"][i])
+            if y_true.get("species_polyphony") is not None and species_names:
+                rec_y_true["species_polyphony"] = dict(zip(species_names, y_true["species_polyphony"][i].tolist()))
+
+            rec_predictions = {}
+            for obj, arr in predictions.items():
+                val = arr[i]
+                rec_predictions[obj] = val.tolist() if hasattr(val, "tolist") else val
+
+            records.append({
+                "y_true": rec_y_true,
+                "predictions": rec_predictions,
+                "variable_values": variable_rows[i],
+            })
+        return records
+
+
+    def records_to_arrays(records, variables=None, species_names=None):
+        """Convert list of per-example records back into arrays for metric computation."""
+        variables = variables or []
+        n = len(records)
+        if n == 0:
+            return {"polyphony": None, "species_polyphony": None}, {}, {}
+
+        predictions = {
+            obj: np.stack([np.array(r["predictions"][obj]) for r in records])
+            for obj in records[0]["predictions"]
+        }
+
+        y_true = {"polyphony": None, "species_polyphony": None}
+        if "polyphony" in records[0]["y_true"]:
+            y_true["polyphony"] = np.array([r["y_true"]["polyphony"] for r in records])
+        if species_names and "species_polyphony" in records[0]["y_true"]:
+            y_true["species_polyphony"] = np.stack([
+                [r["y_true"]["species_polyphony"][sp] for sp in species_names] for r in records
+            ])
+
+        variable_values = {
+            var: np.array([r["variable_values"][var] for r in records])
+            for var in variables
+        }
+
+        return y_true, predictions, variable_values
+    
+    print(tf.config.list_physical_devices('GPU'))
+    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'])
+    print("y_true:", y_true)
+    print("predictions:", predictions)
+    print("variable_values:", variable_values)
 
     # Define ouput dir for metrics and results
     subset = cfg.dataset.subset
@@ -384,7 +322,7 @@ def main():
         metrics_dict = report[objective]
         table_name = f"{objective}_metrics"
         csv_path = os.path.join(out_dir, f"{table_name}.csv")
-        df, csv_path = update_metrics_table("test", metrics_dict, csv_path)
+        df, csv_path = update_metrics_table(subset, metrics_dict, csv_path)
         print(f"Saved {table_name} to {csv_path}")
 
     # for example in dataset['test']:

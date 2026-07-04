@@ -83,6 +83,8 @@ stages:
     cmd: ${python.complete} source/evaluate_on_test_split.py
     deps: 
       - source/evaluate_on_test_split.py
+    params:
+      - general.random_seed
       - dataset
       - model
       - objectives
