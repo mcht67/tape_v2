@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from datasets import load_dataset, Audio, load_from_disk
 
 
-from utils.logs import SummaryWriter, save_to_report
+from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
@@ -26,7 +26,8 @@ def main():
     train_dataset_config = cfg.dataset.train_config
     soundscape_dataset_config = cfg.dataset.soundscape_config
 
-    log_dir = cfg.path.eval_log_dir
+    log_paths = get_log_paths(cfg)
+    log_dir = log_paths['eval_log_dir']
     checkpoint_dir = cfg.path.checkpoint_dir
     default_dir = os.environ.get('DEFAULT_DIR', '')
     os.makedirs(log_dir, exist_ok=True)
