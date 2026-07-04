@@ -29,10 +29,12 @@ def main():
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
-    checkpoint_dir = log_paths['checkpoint_dir']
-    default_dir = os.environ.get('DEFAULT_DIR', '')
     os.makedirs(log_dir, exist_ok=True)
-
+    default_dir = os.environ.get('DEFAULT_DIR', '')
+    checkpoint_dir = log_paths['checkpoint_dir']
+    if not os.path.exists(checkpoint_dir):
+        checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
+    
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
 
