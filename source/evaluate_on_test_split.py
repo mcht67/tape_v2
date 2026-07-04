@@ -41,8 +41,6 @@ def main():
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
 
-    num_examples = cfg.evaluation.num_examples
-
     #################################
     # Setup
     #################################
