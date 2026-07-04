@@ -1,6 +1,6 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  # - 'XCM'
-  - "HSN"
+  - 'XCM'
+  # - "HSN"
   # - "PER"
   # - "UHH"
   # - "NES"
@@ -11,8 +11,8 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
 base_config:
   log.study_name: "Pooled-Embeddings"
   embeddings.dimension_type: pooled
-  dataset.huggingface_path: "mcht67/PolyBirdMix"
-  dataset.max_polyphony: 8
+  dataset.huggingface_path: "mcht67/Poly-BirdSet"
+  dataset.max_polyphony: 12
   dataset.min_snr: -10
   train.epochs: 100
   train.learning_rate: 0.001
