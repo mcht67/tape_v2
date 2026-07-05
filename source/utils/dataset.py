@@ -7,6 +7,26 @@ from datasets import load_dataset
 import traceback
 from collections import Counter
 import os
+import shutil
+
+def overwrite_dataset(dataset, dataset_path, store_backup=True):
+    # Save to temporary location
+    temp_path = dataset_path + "_temp"
+    os.makedirs(temp_path, exist_ok=True)
+    dataset.save_to_disk(temp_path)
+
+    # Move old data to backup
+    backup_path = dataset_path + "_backup"
+    os.makedirs(backup_path, exist_ok=True)
+    if os.path.exists(dataset_path):
+        shutil.move(dataset_path, backup_path)
+
+    # Move temp data into place
+    shutil.move(temp_path, dataset_path)
+
+    # Optionally remove backup
+    if not store_backup:
+        shutil.rmtree(backup_path)
 
 def build_event_logits(
     events,

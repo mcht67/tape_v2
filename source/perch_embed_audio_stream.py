@@ -7,7 +7,7 @@ import argparse
 import sys
 from datasets import load_from_disk
 
-from utils.dataset import load_dataset_with_retry, get_local_data_dir
+from utils.dataset import load_dataset_with_retry, get_local_data_dir, overwrite_dataset
 
 from integrations.perch import get_embedding_type, add_embeddings_batchwise
 
@@ -128,7 +128,8 @@ def main():
         # SAVE TO DISK
         os.makedirs(local_data_dir, exist_ok=True)
         print(f"Saving dataset with embeddings to {local_data_dir}...")
-        dataset.save_to_disk(local_data_dir)
+        overwrite_dataset(dataset, local_data_dir, store_backup=False)
+        # dataset.save_to_disk(local_data_dir)
         print("Save done.")
 
         # UPLOAD TO HUGGINGFACE
