@@ -72,32 +72,41 @@ stages:
       md5: edea1e974dfc50eb749c562725624182
       size: 148
   train:
-    cmd: complete-venv/bin/python source/train.py
+    cmd: /opt/complete-venv/bin/python source/train.py
     deps:
     - path: source/train.py
       hash: md5
-      md5: 3315db533645457195c21f5adbc3cfab
-      size: 29629
+      md5: d31ba9a6cbe3b6c0807c585b339748b6
+      size: 33730
     params:
       params.yaml:
         dataset:
-          huggingface_path: mcht67/Polyphonic-BirdSet-train
-          subset: HSN
-          train_config: HSN_polyphonic_8
-          soundscape_config: HSN_soundscape_test
+          huggingface_path: mcht67/PolyBirdMix
+          subset: PER
           max_polyphony: 8
+          min_snr: -10
+          train_config: PER_polyphonic
+          soundscape_config: PER_soundscape_test
         general.random_seed: 42
         log:
-          study_name: test-study
+          study_name: Pooled-Embeddings
+          keep_last_n_checkpoints: 5
           hyperparameters:
+          - model
+          - train.input_feature
+          - embeddings
+          - objectives
+          - dataset.subset
+          - dataset.train_config
           objectives_to_log:
           - polyphony_reg
           - polyphony_class
-          - event_logits
-          - framewise_polyphony_reg
-          - framewise_polyphony_class
         model:
-          _target_: model.TemporalCNN
+          _target_: model.SimpleMLP
+          hidden_units:
+          - 512
+          - 256
+          dropout_rate: 0.3
         objectives:
           polyphony_reg:
             loss:
@@ -107,105 +116,23 @@ stages:
               type: regression_round
               threshold: 0.5
             label: polyphony_reg
-          polyphony_class:
-            loss:
-              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-              from_logits: true
-            weight: 1.0
-            confusion_matrix:
-              type: classification
-            label: polyphony_class
-            num_classes:
-          event_logits:
-            loss:
-              _target_: tensorflow.keras.losses.BinaryCrossentropy
-              from_logits: false
-              label_smoothing: 0.1
-            scheduler:
-              switch_epochs:
-              - 0
-              - 10
-              - 20
-              - 30
-              - 40
-              weights:
-              - 10.0
-              - 5.0
-              - 1.0
-              - 0.5
-              - 0.1
-            confusion_matrix:
-              type: binary
-            label: event_logits
-          framewise_polyphony_reg:
-            loss:
-              _target_: tensorflow.keras.losses.MeanSquaredError
-            scheduler:
-              switch_epochs:
-              - 0
-              - 10
-              - 20
-              - 30
-              - 40
-              weights:
-              - 5.0
-              - 10.0
-              - 5.0
-              - 1.0
-              - 0.5
-            confusion_matrix:
-              type: regression_round
-              threshold: 0.5
-            label: framewise_polyphony_reg
-          framewise_polyphony_class:
-            loss:
-              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-              from_logits: true
-            scheduler:
-              switch_epochs:
-              - 0
-              - 10
-              - 20
-              - 30
-              - 40
-              weights:
-              - 5.0
-              - 10.0
-              - 5.0
-              - 1.0
-              - 0.5
-            confusion_matrix:
-              type: classification
-            label: framewise_polyphony_class
-            num_classes:
-          species_polyphony_reg:
-            loss:
-              _target_: tensorflow.keras.losses.MeanSquaredError
-            weight: 1.0
-            label: species_polyphony_reg
-          species_polyphony_class:
-            loss:
-              _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-              from_logits: true
-            weight: 1.0
-            label: species_polyphony_class
-            num_classes:
         train:
-          input_feature:
-          input_feature_name: 
-            EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings
-          batch_size: 128
+          input_feature: audio
+          input_feature_name: perch_v2_cpu_audio_pooled_embeddings
+          batch_size: 32
           learning_rate: 0.001
-          epochs: 1
+          early_stopping_patience: 10
+          early_stopping_delay_epochs: 0
+          epochs: 100
           initial_epoch:
-          num_batches_train: 1
-          num_batches_val: 1
+          num_batches_train:
+          num_batches_val:
     outs:
-    - path: train_output/
+    - path: train_output/Pooled-Embeddings/perch_v2_cpu/
       hash: md5
-      md5: 98e345d775c66bdf24e513ec33b21017.dir
-      size: 64769520
-      nfiles: 10
+      md5: d67c7b296a9bacd8267b672ec0bc05ac.dir
+      size: 23631206
+      nfiles: 6
   embed_audio_with_perch:
     cmd: stage-venvs/perch-venv/bin/python source/embed_audio.py
     deps:
@@ -262,3 +189,52 @@ stages:
       params.yaml:
         dataset.subset: PER
         path.dataset: data/PER/
+  evaluate:
+    cmd: /opt/complete-venv/bin/python source/evaluate_on_test_split.py
+    deps:
+    - path: source/evaluate_on_test_split.py
+      hash: md5
+      md5: 7b4ec66927f2cbdb53d0353cdf5edd84
+      size: 16830
+    params:
+      params.yaml:
+        dataset:
+          huggingface_path: mcht67/PolyBirdMix
+          subset: PER
+          max_polyphony: 8
+          min_snr: -10
+          train_config: PER_polyphonic
+          soundscape_config: PER_soundscape_test
+        general.random_seed: 42
+        model:
+          _target_: model.SimpleMLP
+          hidden_units:
+          - 512
+          - 256
+          dropout_rate: 0.3
+        objectives:
+          polyphony_reg:
+            loss:
+              _target_: tensorflow.keras.losses.MeanSquaredError
+            weight: 1.0
+            confusion_matrix:
+              type: regression_round
+              threshold: 0.5
+            label: polyphony_reg
+        train:
+          input_feature: audio
+          input_feature_name: perch_v2_cpu_audio_pooled_embeddings
+          batch_size: 32
+          learning_rate: 0.001
+          early_stopping_patience: 10
+          early_stopping_delay_epochs: 0
+          epochs: 100
+          initial_epoch:
+          num_batches_train:
+          num_batches_val:
+    outs:
+    - path: eval_output/Pooled-Embeddings/perch_v2_cpu/
+      hash: md5
+      md5: 006f24ed3fefdbe37d80053ebbf73bf9.dir
+      size: 80903
+      nfiles: 4
