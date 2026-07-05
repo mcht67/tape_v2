@@ -5,5 +5,5 @@ polyphony_class:
   weight: 1.0
   confusion_matrix:
     type: classification
-  label: polyphony_reg
+  label: polyphony_class
   num_classes: 

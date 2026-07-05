@@ -84,7 +84,7 @@ def main():
     # train_dataset = load_dataset(huggingface_path, train_dataset_config, token=huggingfce_token, streaming=True)
 
     
-    test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
+    # test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
     # from datasets import Dataset
     # train_dataset = load_from_disk('data/HSN')
     # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
@@ -103,16 +103,33 @@ def main():
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
+    # Filter dataset by polyphony degree if specified in the config
+    if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
+        max_polyphony = cfg.dataset.max_polyphony
+        print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
+        test_dataset = test_dataset.filter(lambda x: x['polyphony_degree'] <= max_polyphony)
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
+
+    # Filter dataset by SNR if specified in the config
+    if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
+        min_snr = cfg.dataset.min_snr
+        print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
+        test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
+    
     #################################
     # Update objectives config based on dataset
     #################################
 
+    ebird_class_labels = None
+
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
+        ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
-        birdset_id2label = get_birdset_id2label(dataset)
-        num_species = len(birdset_id2label)
+        # birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(ebird_class_labels)
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
@@ -273,7 +290,7 @@ def main():
         return y_true, predictions, variable_values
     
     print(tf.config.list_physical_devices('GPU'))
-    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'])
+    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], species_names=ebird_class_labels)
     print("y_true:", y_true)
     print("predictions:", predictions)
     print("variable_values:", variable_values)
@@ -300,18 +317,18 @@ def main():
     report = {}
 
     num_classes = cfg.dataset.max_polyphony + 1
-    species_mapping = None # TODO: load from dataset if available
+    species_mapping = {i: (i, name) for i, name in enumerate(ebird_class_labels)}
 
     if "species_polyphony_reg" in predictions:
         report["species_polyphony_reg"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_reg"],
-            cm_type="species_regression_round", species_mapping=species_mapping)
+            cm_type="species_regression_round", species_mapping=species_mapping, per_species=True)
 
     if "species_polyphony_class" in predictions:
         report["species_polyphony_class"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_class"],
             cm_type="species_classification", species_mapping=species_mapping,
-            num_classes=num_classes)
+            num_classes=num_classes, per_species=True)
 
     if "polyphony_reg" in predictions:
         report["polyphony_reg"] = compute_polyphony_metrics(

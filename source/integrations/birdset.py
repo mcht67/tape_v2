@@ -46,19 +46,20 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
         device=device
     )
 
-    # Single .map() call — HuggingFace handles batching and streams to Arrow cache
-    cache_file = os.path.join(
-        datasets.config.HF_DATASETS_CACHE,
-        f"{model_key}_{input_feature}_{split_key}_cache.arrow"
-    )
-    if force_recompute and os.path.exists(cache_file):
-        os.remove(cache_file)
+    # # Single .map() call — HuggingFace handles batching and streams to Arrow cache
+    # cache_file = os.path.join(
+    #     datasets.config.HF_DATASETS_CACHE,
+    #     f"{model_key}_{input_feature}_{split_key}_cache.arrow"
+    # )
+    # if force_recompute and os.path.exists(cache_file):
+    #     os.remove(cache_file)
 
     dataset = dataset.map(
         embedding_fn,
         batched=True,
         batch_size=batch_size,
-        cache_file_name=cache_file
+        load_from_cache_file=not force_recompute,
+        # cache_file_name=cache_file
     )
 
     embeddings_name = model_key + "_" + input_feature
