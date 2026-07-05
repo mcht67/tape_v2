@@ -311,13 +311,13 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
     elif embedding_type == 'perch_v2':
         model, sampling_rate = load_perch2_model(model_key)
     elif embedding_type == 'birdset':
-        load_birdset_model = load_birdset_model(model_key)
+        model, sampling_rate = load_birdset_model(model_key)
     else:
         #print(f"Model family unknown. Can not load model {model_key}. Skipping.")
         return dataset, None
     
     # If embedding key is not in dataset compute
-    print(f"Processing {dataset} {dataset_split} split with {embeddings_key} in batches of {batch_size}...")
+    print(f"Processing {dataset_split} split with {embeddings_key} in batches of {batch_size}...")
 
     dataset = dataset.cast_column(input_feature, Audio())
     
