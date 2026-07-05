@@ -1,125 +1,65 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/Polyphonic-BirdSet-train
-  subset: HSN
-  train_config: HSN_polyphonic_8
-  soundscape_config: HSN_soundscape_test
+  huggingface_path: mcht67/PolyBirdMix
+  subset: PER
   max_polyphony: 8
+  min_snr: -10
+  train_config: PER_polyphonic
+  soundscape_config: PER_soundscape_test
 embeddings:
-  name: perch_v2_cpu
-  type: perch_v2
+  name: Bird-MAE-Huge
+  type: birdset
   dimension_type: pooled
+  model_cfg:
+    _target_: torch_models.BirdSetBirdMAE
+    pretrained_model_path: DBD-research-group/Bird-MAE-Huge
 model:
-  _target_: model.SimpleMLP # defines the model to be instantiated
-  hidden_units: [512, 256]
+  _target_: model.SimpleMLP
+  hidden_units:
+  - 512
+  - 256
   dropout_rate: 0.3
-  # _target_: model.TemporalCNN
-
 objectives:
-
-  # polyphony_reg:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.MeanSquaredError
-  #   weight: 1.0
-  #   confusion_matrix:
-  #     type: regression_round
-  #     threshold: 0.5
-  #   label: polyphony_reg
-
-  polyphony_class:
+  polyphony_reg:
     loss:
-      _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-      from_logits: true
+      _target_: tensorflow.keras.losses.MeanSquaredError
     weight: 1.0
     confusion_matrix:
-      type: classification
-    label: polyphony_class
-    num_classes: 9
-
-  # event_logits:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.BinaryCrossentropy
-  #     from_logits: false
-  #     label_smoothing: 0.1
-  #   scheduler:
-  #     switch_epochs: [0, 10, 20, 30, 40]
-  #     weights: [10.0, 5.0, 1.0, 0.5, 0.1]
-  #   confusion_matrix:
-  #     type: binary
-  #   label: event_logits
-
-  # framewise_polyphony_reg:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.MeanSquaredError
-  #   scheduler:
-  #     switch_epochs: [0, 10, 20, 30, 40]
-  #     weights: [5.0, 10.0, 5.0, 1.0, 0.5]
-  #   confusion_matrix:
-  #     type: regression_round
-  #     threshold: 0.5
-  #   label: framewise_polyphony_reg
-
-  # framewise_polyphony_class:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-  #     from_logits: true
-  #   scheduler:
-  #     switch_epochs: [0, 10, 20, 30, 40]
-  #     weights: [5.0, 10.0, 5.0, 1.0, 0.5]
-  #   confusion_matrix:
-  #     type: classification
-  #   label: framewise_polyphony_class
-  #   num_classes: 
-
-  # species_polyphony_reg:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.MeanSquaredError
-  #   weight: 1.0
-  #   label: species_polyphony_reg
-
-  # species_polyphony_class:
-  #   loss:
-  #     _target_: tensorflow.keras.losses.SparseCategoricalCrossentropy
-  #     from_logits: true 
-  #   weight: 1.0
-  #   label: species_polyphony_class
-  #   num_classes: 
-
+      type: regression_round
+      threshold: 0.5
+    label: polyphony_reg
 train:
   input_feature: audio
-  input_feature_name: perch_v2_cpu_audio_pooled_embeddings
-  batch_size: 128
+  input_feature_name: Bird-MAE-Huge_audio_pooled_embeddings
+  batch_size: 32
   learning_rate: 0.001
-  epochs: 1
+  early_stopping_patience: 10
+  early_stopping_delay_epochs: 0
+  epochs: 100
   initial_epoch: null
-  num_batches_train: 1
-  num_batches_val: 1
+  num_batches_train: null
+  num_batches_val: null
 log:
-  study_name: test-study
-  hyperparameters: null
-  objectives_to_log: 
-    - polyphony_reg
-    - polyphony_class
-    - event_logits
-    - framewise_polyphony_reg
-    - framewise_polyphony_class
-evaluation:
-  example_indices:
-  - 0
-  - 1
-  - 2
-  num_examples: 3
-datetime: '20260511_140603'
+  study_name: Pooled-Embeddings
+  keep_last_n_checkpoints: 5
+  hyperparameters:
+  - model
+  - train.input_feature
+  - embeddings
+  - objectives
+  - dataset.subset
+  - dataset.train_config
+  objectives_to_log:
+  - polyphony_reg
+  - polyphony_class
+datetime: '20260705_030154'
 path:
-  train_output: train_output/
-  eval_output: eval_output/
-  study_subfolder: study_subfolder/
-  train_log_dir: train_output/test-study/local-test-experiment/logs/
-  eval_log_dir: eval_output/test-study/local-test-experiment/logs/
-  checkpoint_dir: train_output/test-study/local-test-experiment/checkpoints/
+  study_subfolder: Bird-MAE-Huge/
+  train_output: train_output/Pooled-Embeddings/Bird-MAE-Huge/
+  eval_output: eval_output/Pooled-Embeddings/Bird-MAE-Huge/
 python:
   base: venv/bin/python
   perch: perch-venv/bin/python
   train: train-venv/bin/python
-  complete: complete-venv/bin/python
+  complete: /opt/complete-venv/bin/python
