@@ -1,12 +1,12 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - 'XCM'
   # - "HSN"
-  # - "PER"
+  - "PER"
   - "UHH"
-  # - "NES"
-  # - "SSW"
-  # - "POW"
-  # - "SNE"
+  - "NES"
+  - "SSW"
+  - "POW"
+  - "SNE"
 
 base_config:
   log.study_name: "Pooled-Embeddings"
@@ -45,5 +45,5 @@ hyperparams:
     # - "perch_v2"
   objectives:
     - "polyphony_reg"
-    # - "polyphony_class"
+    - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
