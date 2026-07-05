@@ -1,6 +1,6 @@
 [core]
-remote = Spatial-Embeddings
-
+    remote = Pooled-Embeddings
 [hydra]
-enabled = True
-
+    enabled = True
+[cache]
+    dir = /beegfs/scratch/cohrt/tape_v2/.dvc/cache
