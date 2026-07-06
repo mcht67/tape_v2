@@ -10,6 +10,8 @@ from datasets import load_dataset, Audio, load_from_disk
 from utils.dataset import get_birdset_id2label, get_local_data_dir
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
+from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
+
 import integrations.birdset as birdset
 import integrations.perch as perch
 
@@ -133,7 +135,10 @@ def main():
         # birdset_id2label = get_birdset_id2label(scape_ds)
         # ebird_class_labels = [k for k in birdset_id2label.values()]
         ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+        print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
         num_species = len(ebird_code_class_labels)
+        num_species = 18
+
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
@@ -171,7 +176,6 @@ def main():
         raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
     
     # Define model
-    # model_cfg.objectives_cfg = objectives_cfg
     model = instantiate(cfg.model)
 
     # Build model by calling it on a sample input
@@ -188,110 +192,6 @@ def main():
     ###########################################
     # Metrics computation on test split
     ###########################################
-
-    def collect_predictions(model, dataset, input_feature_name, variables=None,
-                            species_names=None, batch_size=64):
-        """
-        Run inference over `dataset` and return arrays ready for metric computation.
-
-        Returns:
-            y_true: {"polyphony": (N,) or None, "species_polyphony": (N, num_species) or None}
-            predictions: {objective_name: array}, matching model's named outputs
-            variable_values: dict of {var_name: array of shape (N,)}
-        """
-        variables = variables or []
-        embeddings, variable_rows = [], []
-        gt_total, gt_species = [], []
-
-        for example in dataset:
-            embeddings.append(example[input_feature_name])
-            variable_rows.append({var: example[var] for var in variables})
-            gt_total.append(example["polyphony_degree"])
-            if species_names:
-                gt_species.append([example[sp] for sp in species_names])
-
-        X = tf.constant(np.stack(embeddings), dtype=tf.float32)
-        raw_predictions = model(X, training=False)
-
-        # raw_predictions is a dict of {output_name: tensor} since the model has
-        # multiple named heads. Convert to numpy and squeeze trailing singleton
-        # dims only where main() expects 1D (the total-polyphony regression head).
-        predictions = {}
-        for k, v in raw_predictions.items():
-            arr = v.numpy()
-            if k == "polyphony_reg" and arr.ndim == 2 and arr.shape[1] == 1:
-                arr = arr[:, 0]
-            predictions[k] = arr
-
-        y_true = {
-            "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
-            "species_polyphony": np.array(gt_species) if species_names else None,
-        }
-
-        variable_values = {
-            var: np.array([row[var] for row in variable_rows])
-            for var in variables
-        }
-
-        return y_true, predictions, variable_values
-
-
-    def arrays_to_records(y_true, predictions, variable_values, species_names=None):
-        """Convert arrays back into self-contained per-example records for storage."""
-        n = next(iter(predictions.values())).shape[0]
-
-        variable_rows = [
-            {var: variable_values[var][i] for var in variable_values}
-            for i in range(n)
-        ]
-
-        records = []
-        for i in range(n):
-            rec_y_true = {}
-            if y_true.get("polyphony") is not None:
-                rec_y_true["polyphony"] = float(y_true["polyphony"][i])
-            if y_true.get("species_polyphony") is not None and species_names:
-                rec_y_true["species_polyphony"] = dict(zip(species_names, y_true["species_polyphony"][i].tolist()))
-
-            rec_predictions = {}
-            for obj, arr in predictions.items():
-                val = arr[i]
-                rec_predictions[obj] = val.tolist() if hasattr(val, "tolist") else val
-
-            records.append({
-                "y_true": rec_y_true,
-                "predictions": rec_predictions,
-                "variable_values": variable_rows[i],
-            })
-        return records
-
-
-    def records_to_arrays(records, variables=None, species_names=None):
-        """Convert list of per-example records back into arrays for metric computation."""
-        variables = variables or []
-        n = len(records)
-        if n == 0:
-            return {"polyphony": None, "species_polyphony": None}, {}, {}
-
-        predictions = {
-            obj: np.stack([np.array(r["predictions"][obj]) for r in records])
-            for obj in records[0]["predictions"]
-        }
-
-        y_true = {"polyphony": None, "species_polyphony": None}
-        if "polyphony" in records[0]["y_true"]:
-            y_true["polyphony"] = np.array([r["y_true"]["polyphony"] for r in records])
-        if species_names and "species_polyphony" in records[0]["y_true"]:
-            y_true["species_polyphony"] = np.stack([
-                [r["y_true"]["species_polyphony"][sp] for sp in species_names] for r in records
-            ])
-
-        variable_values = {
-            var: np.array([r["variable_values"][var] for r in records])
-            for var in variables
-        }
-
-        return y_true, predictions, variable_values
     
     print(tf.config.list_physical_devices('GPU'))
     y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], species_names=ebird_class_labels)
@@ -345,39 +245,6 @@ def main():
             cm_type="species_classification", num_classes=num_classes, per_species=False)
         
     save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
-
-    def flatten_metrics(metrics_dict):
-        """
-        Flatten compute_polyphony_metrics() output into a flat {row_name: value} dict.
-        """
-        flat = dict(metrics_dict["overall"])
-
-        if "per_species" in metrics_dict:
-            for species, species_metrics in metrics_dict["per_species"].items():
-                for metric_name, value in species_metrics.items():
-                    flat[f"{species}/{metric_name}"] = value
-
-        return flat
-
-
-    def update_metrics_table(column_name, metrics_dict, csv_path):
-        """
-        Add or overwrite the column for `subset_name` in the experiment's metrics table.
-        Creates the table if it doesn't exist yet.
-        """
-
-        flat_metrics = flatten_metrics(metrics_dict)
-        new_col = pd.Series(flat_metrics, name=column_name)
-
-        if os.path.exists(csv_path):
-            df = pd.read_csv(csv_path, index_col=0)
-            df[column_name] = new_col  # adds new column, or overwrites if it already exists
-        else:
-            df = new_col.to_frame()
-
-        df.to_csv(csv_path, float_format="%.4f")
-
-        return df, csv_path
 
     # Save to metrics overview table
     for objective in report:
