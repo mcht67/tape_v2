@@ -129,6 +129,7 @@ def main():
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         birdset_id2label = get_birdset_id2label(dataset)
+        # ebird_class_labels = [k for k in birdset_id2label.values()]
         num_species = len(birdset_id2label)
 
     # Set number of classes for polyphony degree classification based on dataset config
@@ -317,7 +318,7 @@ def main():
     report = {}
 
     num_classes = cfg.dataset.max_polyphony + 1
-    species_mapping = {i: (i, name) for i, name in enumerate(ebird_class_labels)}
+    species_mapping = None #birdset_id2label #{i: (i, name) for i, name in enumerate(ebird_class_labels)}
 
     if "species_polyphony_reg" in predictions:
         report["species_polyphony_reg"] = compute_polyphony_metrics(
