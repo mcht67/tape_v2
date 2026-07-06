@@ -6,7 +6,7 @@ import tensorflow as tf
 from collections import Counter
 
 
-def collect_predictions(model, dataset, input_feature_name, variables=None, batch_size=64):
+def collect_predictions(model, dataset, input_feature_name, variables=None, birdset_id2label=None, batch_size=64):
     """
     Run inference over `dataset` and return arrays ready for metric computation.
 
@@ -31,8 +31,10 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, batc
             counts = Counter(example['birdset_id_multilabel'])
         elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
             counts = Counter(example['ebird_code_multilabel'])
+
+        labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
         
-        gt_species.append(counts)
+        gt_species.append(labels)
             
     X = tf.constant(np.stack(embeddings), dtype=tf.float32)
     raw_predictions = model(X, training=False)
