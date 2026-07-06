@@ -87,9 +87,10 @@ def main():
     # test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
     # from datasets import Dataset
     # train_dataset = load_from_disk('data/HSN')
-    # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
+    # test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token, streaming=True)
     # print("Dataset loaded. Converting to in-memory format for processing...")
     # test_dataset = Dataset.from_list(list(test_dataset.take(2)))
+
     print("default_dir:", default_dir)
     print("train_config:", train_config)
     print("subset:", subset)
@@ -128,9 +129,11 @@ def main():
         #TODO: get from ClassLabels in dataset
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
-        birdset_id2label = get_birdset_id2label(dataset)
+        scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
+        # birdset_id2label = get_birdset_id2label(scape_ds)
         # ebird_class_labels = [k for k in birdset_id2label.values()]
-        num_species = len(birdset_id2label)
+        ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+        num_species = len(ebird_code_class_labels)
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
