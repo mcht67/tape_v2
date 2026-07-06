@@ -204,29 +204,42 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
 #         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
 #         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
-def get_birdset_id2label(dataset):
+def get_birdset_id2label(subset):
     # dataset_split = next(iter(dataset.keys()))
     # info = dataset[dataset_split].info
     # metadata = getattr(info, "metadata", None)
     # if metadata and "birdset_id2label" in metadata:
     #     return metadata["birdset_id2label"]
-    dataset_split = next(iter(dataset.keys()))
-    if 'ebird_code_multilabel' in dataset[dataset_split].features:
-        ebird_class_labels = dataset[dataset_split].features['ebird_code_multilabel'].feature.names
-        birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_class_labels)}
-        return birdset_id2label
-    else:
-        unique_birdset_ids = set()
-        for split in dataset.values():
-            for example in split:
-                if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
-                    unique_birdset_ids.update(example['birdset_id_multilabel'])
-                elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
-                    unique_birdset_ids.update(example['birdset_code_multilabel'])
-                else:
-                    raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
-        print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
-        return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
+    # TODO remove
+    # Load environment variables from .env file
+    from dotenv import load_dotenv
+    load_dotenv('local.env')
+    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+    from datasets import load_dataset
+    scape_ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
+    ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+    print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
+    birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
+    return birdset_id2label
+
+
+    # dataset_split = next(iter(dataset.keys()))
+    # if 'ebird_code_multilabel' in dataset[dataset_split].features:
+    #     ebird_class_labels = dataset[dataset_split].features['ebird_code_multilabel'].feature.names
+    #     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_class_labels)}
+    #     return birdset_id2label
+    # else:
+    #     unique_birdset_ids = set()
+    #     for split in dataset.values():
+    #         for example in split:
+    #             if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+    #                 unique_birdset_ids.update(example['birdset_id_multilabel'])
+    #             elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+    #                 unique_birdset_ids.update(example['birdset_code_multilabel'])
+    #             else:
+    #                 raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
+    #     print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
+    #     return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
 
 def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None):
     added_labels = []

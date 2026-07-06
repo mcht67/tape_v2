@@ -532,7 +532,8 @@ def main():
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         # Get birdset ids
-        birdset_id2label = get_birdset_id2label(dataset)
+        # TODO: remove and use ClassLabels from dataset instead of hardcoding
+        birdset_id2label = get_birdset_id2label(subset)
         num_species = len(birdset_id2label)
 
         # Save mapping
