@@ -121,12 +121,15 @@ def main():
     # Update objectives config based on dataset
     #################################
 
+    ebird_class_labels = None
+
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
+        ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
-        birdset_id2label = get_birdset_id2label(dataset)
-        num_species = len(birdset_id2label)
+        # birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(ebird_class_labels)
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
@@ -287,7 +290,7 @@ def main():
         return y_true, predictions, variable_values
     
     print(tf.config.list_physical_devices('GPU'))
-    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'])
+    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], species_names=ebird_class_labels)
     print("y_true:", y_true)
     print("predictions:", predictions)
     print("variable_values:", variable_values)
@@ -314,18 +317,18 @@ def main():
     report = {}
 
     num_classes = cfg.dataset.max_polyphony + 1
-    species_mapping = None # TODO: load from dataset if available
+    species_mapping = {i: (i, name) for i, name in enumerate(ebird_class_labels)}
 
     if "species_polyphony_reg" in predictions:
         report["species_polyphony_reg"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_reg"],
-            cm_type="species_regression_round", species_mapping=species_mapping)
+            cm_type="species_regression_round", species_mapping=species_mapping, per_species=True)
 
     if "species_polyphony_class" in predictions:
         report["species_polyphony_class"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_class"],
             cm_type="species_classification", species_mapping=species_mapping,
-            num_classes=num_classes)
+            num_classes=num_classes, per_species=True)
 
     if "polyphony_reg" in predictions:
         report["polyphony_reg"] = compute_polyphony_metrics(
