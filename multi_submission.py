@@ -16,7 +16,7 @@ import configparser
 from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
-def submit_dataset_prep_job(study_config, data_dir, dataset_config, recompute_embeddings=False, force_redownload=False):
+def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embeddings=False, force_redownload=False):
 
     huggingface_path = study_config['base_config']['dataset.huggingface_path']
     input_features = study_config['hyperparams']['train.input_feature']
@@ -29,7 +29,7 @@ def submit_dataset_prep_job(study_config, data_dir, dataset_config, recompute_em
 
     args = [
         "--huggingface_path", huggingface_path,
-        "--data_dir", data_dir,
+        "--subset", subset,
         "--dataset_config", dataset_config,
         "--input_features", json.dumps(input_features),
         "--embeddings", json.dumps(embeddings),
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = True
+    run_dataset_preparation = False
     recompute_embeddings = False
     force_redownload = False
 
@@ -238,9 +238,9 @@ if __name__ == "__main__":
     
     for subset in dataset_subsets:
         train_config = subset + '_polyphonic' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
-        data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
+        # data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
-                prep_job_id = submit_dataset_prep_job(study_config, data_dir, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
+                prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
         submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)
