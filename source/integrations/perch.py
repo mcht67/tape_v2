@@ -49,7 +49,7 @@ def load_perch1_model(model_key):
 
 def load_perch2_model(model_key):
     if model_key == 'perch_v2_cpu':
-        model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu')
+        model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1')
         sampling_rate = 32000
     else:
          raise Exception(f"Model {model_key} is not a supported perch_v2 model or loading this model is not supported yet!")
