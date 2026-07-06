@@ -97,6 +97,13 @@ if __name__ == "__main__":
         "source/update_dataset.py",
     ]
 
+    result = subprocess.run(cmd)
+     
+    if result.returncode == 0:
+        print("Dataset updated successfully.")
+    else:
+        raise RuntimeError(f"Dataset update failed with exit code {result.returncode}")
+
     ##########################
     # Embed audio with perch
     ##########################
