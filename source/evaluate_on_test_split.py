@@ -103,6 +103,20 @@ def main():
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
+    # Filter dataset by polyphony degree if specified in the config
+    if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
+        max_polyphony = cfg.dataset.max_polyphony
+        print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
+        test_dataset = test_dataset.filter(lambda x: x['polyphony_degree'] <= max_polyphony)
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
+
+    # Filter dataset by SNR if specified in the config
+    if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
+        min_snr = cfg.dataset.min_snr
+        print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
+        test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
+    
     #################################
     # Update objectives config based on dataset
     #################################
