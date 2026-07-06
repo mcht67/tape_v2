@@ -92,6 +92,11 @@ if __name__ == "__main__":
     # print(cmd)
     # subprocess.run(cmd, check=True)
 
+    cmd = [
+        complete_python, #base_python, 
+        "source/update_dataset.py",
+    ]
+
     ##########################
     # Embed audio with perch
     ##########################
