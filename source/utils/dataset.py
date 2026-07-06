@@ -216,7 +216,7 @@ def get_birdset_id2label(subset):
     load_dotenv('local.env')
     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
     from datasets import load_dataset
-    scape_ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token, download_mode='force_redownload')
+    scape_ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
     ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
