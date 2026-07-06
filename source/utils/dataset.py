@@ -160,6 +160,8 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
         counts = Counter(example['birdset_code_multilabel'])
     elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
         counts = Counter(example['birdset_id_multilabel'])
+    elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
+        counts = Counter(example['ebird_code_multilabel'])
     
     if counts is not None:
         # total_polyphony = sum(counts.values())
