@@ -49,11 +49,6 @@ def load_perch1_model(model_key):
 
 def load_perch2_model(model_key):
     if model_key == 'perch_v2_cpu':
-        # DEBUG: Print TFHUB_CACHE_DIR
-        from tensorflow_hub import resolver
-        print("TFHUB_CACHE_DIR:", resolver.tfhub_cache_dir())
-        import socket
-        print("Running on node:", socket.gethostname())
         model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1')
         sampling_rate = 32000
     else:
