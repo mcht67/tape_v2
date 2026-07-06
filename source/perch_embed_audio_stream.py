@@ -76,7 +76,7 @@ def main():
     local_data_dir = get_local_data_dir(dataset_config, data_dir=data_dir)
     if not os.path.exists(local_data_dir):
         print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
-        dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+        dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)#, download_mode='force_redownload')
     else:
         print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)

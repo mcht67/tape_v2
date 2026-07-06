@@ -41,6 +41,16 @@ echo "Running dataset preparation slurm job"
 
 whoami
 
+# DEBUG
+# Test if hit rate limits on kaggle
+curl -sL -w "\nHTTP_STATUS:%{http_code}\n" -o /tmp/kaggle_test_output \
+  https://www.kaggle.com/api/v1/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1/download
+
+echo "---"
+file /tmp/kaggle_test_output
+echo "---"
+head -c 300 /tmp/kaggle_test_output
+
 #################################
 # Handle options
 #################################

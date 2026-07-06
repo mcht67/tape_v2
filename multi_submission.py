@@ -229,7 +229,7 @@ if __name__ == "__main__":
     
     # Dataset preparation options
     run_dataset_preparation = True
-    recompute_embeddings = False
+    recompute_embeddings = True
     force_redownload = False
 
     ##########################

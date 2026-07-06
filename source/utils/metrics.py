@@ -6,7 +6,7 @@ from scipy.stats import pearsonr
 import numpy as np
 
 def compute_polyphony_metrics(y_true, y_pred, cm_type, species_mapping=None,
-                                num_classes=None, per_species=True):
+                                num_classes=None, per_species=False):
     """
     Unified metrics for polyphony objectives, regardless of reg/class framing.
     y_true, y_pred: shape (N, num_species) for species-level objectives,
