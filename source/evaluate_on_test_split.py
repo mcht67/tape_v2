@@ -84,7 +84,7 @@ def main():
     # train_dataset = load_dataset(huggingface_path, train_dataset_config, token=huggingfce_token, streaming=True)
 
     
-    test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
+    # test_dataset = load_dataset(huggingface_path, train_config, split='test', token=huggingface_token)
     # from datasets import Dataset
     # train_dataset = load_from_disk('data/HSN')
     # test_dataset = load_dataset(huggingface_path, train_dataset_config, split='test', token=huggingface_token, streaming=True)
