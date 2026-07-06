@@ -197,11 +197,6 @@ def main():
     #  Load the parameters from the config file
     cfg = OmegaConf.load("params.yaml")
 
-    # dataset_source = cfg.dataset.source
-    # dataset_subset = cfg.dataset.subset
-
-    soundscape_test_data_path = cfg.paths.soundscape_test_data
-
      # Load environment variables from .env file
     load_dotenv('local.env')
 
