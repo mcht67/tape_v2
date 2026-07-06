@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf 
 
+from collections import Counter
 
-def collect_predictions(model, dataset, input_feature_name, variables=None,
-                            species_names=None, batch_size=64):
+
+def collect_predictions(model, dataset, input_feature_name, variables=None, batch_size=64):
     """
     Run inference over `dataset` and return arrays ready for metric computation.
 
@@ -22,9 +23,17 @@ def collect_predictions(model, dataset, input_feature_name, variables=None,
         embeddings.append(example[input_feature_name])
         variable_rows.append({var: example[var] for var in variables})
         gt_total.append(example["polyphony_degree"])
-        if species_names:
-            gt_species.append([example[sp] for sp in species_names])
-
+        # if species_names:
+        counts = None
+        if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+            counts = Counter(example['birdset_code_multilabel'])
+        elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+            counts = Counter(example['birdset_id_multilabel'])
+        elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
+            counts = Counter(example['ebird_code_multilabel'])
+        
+        gt_species.append(counts)
+            
     X = tf.constant(np.stack(embeddings), dtype=tf.float32)
     raw_predictions = model(X, training=False)
 
@@ -40,7 +49,7 @@ def collect_predictions(model, dataset, input_feature_name, variables=None,
 
     y_true = {
         "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
-        "species_polyphony": np.array(gt_species) if species_names else None,
+        "species_polyphony": np.array(gt_species) #if species_names else None,
     }
 
     variable_values = {

@@ -193,7 +193,7 @@ def main():
     ###########################################
     
     print(tf.config.list_physical_devices('GPU'))
-    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], species_names=ebird_class_labels)
+    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'])
     print("y_true:", y_true)
     print("predictions:", predictions)
     print("variable_values:", variable_values)
