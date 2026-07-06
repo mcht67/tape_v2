@@ -377,9 +377,9 @@ def main():
 
     # Save to metrics overview table
     for objective in report:
-        if objective == "polyphony_reg":
+        if objective == "polyphony_reg" or objective == "species_polyphony_reg":
             obj_key = "reg"
-        elif objective == "polyphony_class":
+        elif objective == "polyphony_class" or objective == "species_polyphony_class":
             obj_key = "class"
         metrics_dict = report[objective]
         table_name = f"test_metrics"
