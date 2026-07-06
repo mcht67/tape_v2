@@ -65,6 +65,16 @@ def compute_embedding(audio, model, model_key, embedding_type, sampling_rate, de
     audio_array = resample_audio(audio['array'], audio['sampling_rate'], sampling_rate)
     audio_array = normalize_audio_array(audio_array)
 
+    # TODO: hot fix -> remove
+    # # Early return if audio is empty or shorter or longar than 5s
+    # if audio_array is None or len(audio_array) < 16000 or len(audio_array) > 160000:
+    #     return None, None
+    # Pad/Truncate audio to 5s if shorter
+    if len(audio_array) < 160000:
+        audio_array = np.pad(audio_array, (0, 160000 - len(audio_array)), mode='constant')
+    elif len(audio_array) > 160000:
+        audio_array = audio_array[:160000]
+
     if embedding_type == 'perch_v1':
         pooled_embeddings, spatial_embeddings = embed_with_perch1(
             model, model_key, audio_array, device=device

@@ -15,7 +15,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--huggingface_path", type=str)
-    parser.add_argument("--data_dir", type=str)
+    parser.add_argument("--subset", type=str)
     parser.add_argument("--dataset_config", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     ########################
     huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
-    data_dir = args.data_dir
+    subset = args.subset
 
     input_features = args.input_features
     embeddings = args.embeddings
@@ -114,7 +114,7 @@ if __name__ == "__main__":
             complete_python,
             "source/perch_embed_audio_stream.py",
             "--huggingface_path", huggingface_path,
-            "--data_dir", data_dir,
+            "--subset", subset,
             "--dataset_config", dataset_config,
             "--input_features", json.dumps(input_features),
             "--embeddings", json.dumps(embeddings),
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             complete_python,
             "source/birdset_embed_audio_stream.py",
             "--huggingface_path", huggingface_path,
-            "--data_dir", data_dir,
+            "--subset", subset,
             "--dataset_config", dataset_config,
             "--input_features", json.dumps(input_features),
             "--embeddings", json.dumps(embeddings),

@@ -26,7 +26,7 @@ def main():
 
     parser.add_argument("--huggingface_path", type=str)
     parser.add_argument("--dataset_config", type=str)
-    parser.add_argument("--data_dir", type=str)
+    parser.add_argument("--subset", type=str)
     parser.add_argument("--input_features", type=json.loads)
     parser.add_argument("--embeddings", type=json.loads)
     parser.add_argument('--force_recompute', action='store_true')
@@ -34,7 +34,7 @@ def main():
 
     huggingface_path = args.huggingface_path
     dataset_config = args.dataset_config
-    data_dir = args.data_dir
+    subset = args.subset
     input_features = args.input_features
     embedding_models = args.embeddings
     force_recompute = args.force_recompute
@@ -72,66 +72,70 @@ def main():
 
     # Load Dataset 
     # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
+    train_config = subset + '_polyphonic' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
+    scape_test_config = subset + '_soundscape_test' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
+    
+    for dataset_config in [train_config, scape_test_config]:
 
-    # Check if dataset exists locally
-    local_data_dir = get_local_data_dir(dataset_config, data_dir=data_dir)
-    if not os.path.exists(local_data_dir):
-        print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
-        dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload')
-    else:
-        print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
-        dataset = load_from_disk(local_data_dir)
+        # Check if dataset exists locally
+        local_data_dir = get_local_data_dir(dataset_config=dataset_config, subset=subset)
+        if not os.path.exists(local_data_dir):
+            print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
+            dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload')
+        else:
+            print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
+            dataset = load_from_disk(local_data_dir)
 
-    print({split: len(dataset[split]) for split in dataset.keys()})
+        print({split: len(dataset[split]) for split in dataset.keys()})
 
-    #######################
-    # Request GPU
-    #######################
+        #######################
+        # Request GPU
+        #######################
 
-    # Auto detect gpu
-    gpus = tf.config.list_physical_devices('GPU')
-    device = '/GPU:0' if gpus else '/CPU:0'
-    print(f"Using device: {device}")
+        # Auto detect gpu
+        gpus = tf.config.list_physical_devices('GPU')
+        device = '/GPU:0' if gpus else '/CPU:0'
+        print(f"Using device: {device}")
 
-    # Prevent TF from grabbing all GPU memory at once
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
+        # Prevent TF from grabbing all GPU memory at once
+        if gpus:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
 
-    # ===================
-    # Embeddings
-    # ===================
+        # ===================
+        # Embeddings
+        # ===================
 
-    print("Running perch embedding script...")
+        print("Running perch embedding script...")
 
-    # Compute embeddings
-    if force_recompute:
-        print("force_recompute is set to True. Recompute all embeddings!")
+        # Compute embeddings
+        if force_recompute:
+            print("force_recompute is set to True. Recompute all embeddings!")
 
-    embeddings_names = []
-    embeddings_added = False
-    for model_key in embedding_models:
-        for input_feature in input_features:
-            for split in dataset.keys():
-                dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, 
-                                                                           input_feature, 
-                                                                           dataset[split], 
-                                                                           force_recompute=force_recompute,
-                                                                           device=device,
-                                                                           batch_size=batch_size
-                                                                           )
-                if embeddings_name:
-                    embeddings_names.append(embeddings_name)
-                    embeddings_added = True
-    print("Embedding completed.")
+        embeddings_names = []
+        embeddings_added = False
+        for model_key in embedding_models:
+            for input_feature in input_features:
+                for split in dataset.keys():
+                    dataset[split], embeddings_name = add_embeddings_batchwise(model_key, split, 
+                                                                            input_feature, 
+                                                                            dataset[split], 
+                                                                            force_recompute=force_recompute,
+                                                                            device=device,
+                                                                            batch_size=batch_size
+                                                                            )
+                    if embeddings_name:
+                        embeddings_names.append(embeddings_name)
+                        embeddings_added = True
+        print("Embedding completed.")
 
-    if embeddings_added:
-        # SAVE TO DISK
-        os.makedirs(local_data_dir, exist_ok=True)
-        print(f"Saving dataset with embeddings to {local_data_dir}...")
-        overwrite_dataset(dataset, local_data_dir, store_backup=False)
-        # dataset.save_to_disk(local_data_dir)
-        print("Save done.")
+        if embeddings_added:
+            # SAVE TO DISK
+            os.makedirs(local_data_dir, exist_ok=True)
+            print(f"Saving dataset with embeddings to {local_data_dir}...")
+            overwrite_dataset(dataset, local_data_dir, store_backup=False)
+            # dataset.save_to_disk(local_data_dir)
+            print("Save done.")
 
         # UPLOAD TO HUGGINGFACE
         # print("Upload embeddings...")
@@ -150,12 +154,10 @@ def main():
         # print("Upload done.")
         # print("Finished embedding with perch.") 
         # sys.exit(0)
-    else:
+    if not embeddings_added:
         print("No embeddings added. Skip upload.")
         print("Finished embedding with perch.")
-        sys.exit(2) 
-
-     
+        sys.exit(2)  
 
 if __name__ == "__main__":
     main()
