@@ -13,7 +13,7 @@ from integrations.perch import get_embedding_type, add_embeddings_batchwise
 
 def main():
 
-    print("Running perch embedding script...")
+    print("Running perch embedding script...")   
 
     # ===================
     # Configuration
@@ -57,6 +57,7 @@ def main():
     if not perch_embeddings_models:
         print("No perch model keys found. Skipping.")
         sys.exit(2)
+        
 
     ########################
     # Load data
@@ -76,7 +77,7 @@ def main():
     local_data_dir = get_local_data_dir(dataset_config, data_dir=data_dir)
     if not os.path.exists(local_data_dir):
         print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
-        dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)#, download_mode='force_redownload')
+        dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload')
     else:
         print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)

@@ -205,11 +205,16 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
 #         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
 def get_birdset_id2label(dataset):
+    # dataset_split = next(iter(dataset.keys()))
+    # info = dataset[dataset_split].info
+    # metadata = getattr(info, "metadata", None)
+    # if metadata and "birdset_id2label" in metadata:
+    #     return metadata["birdset_id2label"]
     dataset_split = next(iter(dataset.keys()))
-    info = dataset[dataset_split].info
-    metadata = getattr(info, "metadata", None)
-    if metadata and "birdset_id2label" in metadata:
-        return metadata["birdset_id2label"]
+    if 'ebird_code_multilabel' in dataset[dataset_split].features:
+        ebird_class_labels = dataset[dataset_split].features['ebird_code_multilabel'].feature.names
+        birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_class_labels)}
+        return birdset_id2label
     else:
         unique_birdset_ids = set()
         for split in dataset.values():

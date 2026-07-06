@@ -126,10 +126,10 @@ def main():
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
-        ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
+        # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
-        # birdset_id2label = get_birdset_id2label(dataset)
-        num_species = len(ebird_class_labels)
+        birdset_id2label = get_birdset_id2label(dataset)
+        num_species = len(birdset_id2label)
 
     # Set number of classes for polyphony degree classification based on dataset config
     num_classes = cfg.dataset.max_polyphony + 1
