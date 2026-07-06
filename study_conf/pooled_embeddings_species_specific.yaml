@@ -33,7 +33,7 @@ hyperparams:
     # - "yamnet"
     # - "beans_baseline"
     # - "EfficientNet-B1-BirdSet-XCL"
-    # - "Bird-MAE-Huge"
+    - "Bird-MAE-Huge"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
@@ -41,5 +41,5 @@ hyperparams:
     # - "perch_v2"
   objectives:
     - "species_polyphony_reg"
-    # - "species_polyphony_class"
+    - "species_polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
