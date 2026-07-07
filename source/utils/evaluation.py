@@ -17,17 +17,19 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     """
     variables = variables or []
     embeddings, variable_rows = [], []
-    gt_total, gt_min, gt_max, gt_species = [], [], [], []
+    gt_total, gt_min, gt_max, gt_species = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
 
-    for example in dataset:
+    for i, example in enumerate(dataset):
         embeddings.append(example[input_feature_name])
         variable_rows.append({var: example[var] for var in variables})
         if "polyphony_degree" in example:
-            gt_total.append(example["polyphony_degree"])
+            gt_total[i] = example["polyphony_degree"]
+        if "polyphony" in example:
+            gt_total[i] = example["polyphony"]
         if "min_polyphony" in example:
-            gt_min.append(example["min_polyphony"])
+            gt_min[i] = example["min_polyphony"]
         if "max_polyphony" in example:
-            gt_max.append(example["max_polyphony"])
+            gt_max[i] = example["max_polyphony"]
 
         # if species_names:
         counts = None
@@ -40,7 +42,7 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
 
         labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
         
-        gt_species.append(labels)
+        gt_species[i] = labels
             
     X = tf.constant(np.stack(embeddings), dtype=tf.float32)
     raw_predictions = model(X, training=False)
@@ -86,7 +88,11 @@ def arrays_to_records(y_true, predictions, variable_values=None, species_names=N
     for i in range(n):
         rec_y_true = {}
         if y_true.get("polyphony") is not None:
-            rec_y_true["polyphony"] = float(y_true["polyphony"][i])
+            rec_y_true["polyphony"] = float(y_true["polyphony"][i]) if y_true.get("polyphony") is not None else None
+        if y_true.get("min_polyphony") is not None:
+            rec_y_true["min_polyphony"] = float(y_true["min_polyphony"][i]) if y_true.get("min_polyphony") is not None else None
+        if y_true.get("max_polyphony") is not None:
+            rec_y_true["max_polyphony"] = float(y_true["max_polyphony"][i]) if y_true.get("max_polyphony") is not None else None
         if y_true.get("species_polyphony") is not None and species_names:
             rec_y_true["species_polyphony"] = dict(zip(species_names, y_true["species_polyphony"][i].tolist()))
 
@@ -118,6 +124,10 @@ def records_to_arrays(records, variables=None, species_names=None):
     y_true = {"polyphony": None, "species_polyphony": None}
     if "polyphony" in records[0]["y_true"]:
         y_true["polyphony"] = np.array([r["y_true"]["polyphony"] for r in records])
+    if "min_polyphony" in records[0]["y_true"]:
+        y_true["min_polyphony"] = np.array([r["y_true"]["min_polyphony"] for r in records])
+    if "max_polyphony" in records[0]["y_true"]:
+        y_true["max_polyphony"] = np.array([r["y_true"]["max_polyphony"] for r in records])
     if species_names and "species_polyphony" in records[0]["y_true"]:
         y_true["species_polyphony"] = np.stack([
             [r["y_true"]["species_polyphony"][sp] for sp in species_names] for r in records
