@@ -79,8 +79,17 @@ def load_full_audio(filepath, target_sr=TARGET_SR):
 
 def build_segments_for_file(filepath, events, target_sr=TARGET_SR,
                              segment_len=SEGMENT_LEN, min_overlap=MIN_OVERLAP,
-                             pad_last=PAD_LAST_SEGMENT):
-    """Yield one dict per 5s segment for a single soundscape file."""
+                             handle_last="drop"):
+    """Yield one dict per 5s segment for a single soundscape file.
+
+    handle_last controls what happens to a final segment shorter than
+    segment_len:
+      - "pad":  zero-pad it up to seg_n_samples and yield it
+      - "drop": skip it entirely (no dict yielded)
+      - "keep": yield it at its native, shorter length
+    """
+    assert handle_last in ("pad", "drop", "keep"), f"Invalid handle_last: {handle_last!r}"
+
     audio, sr = load_full_audio(filepath, target_sr)
     duration = len(audio) / sr
     n_segments = max(1, math.ceil(duration / segment_len))
@@ -94,8 +103,12 @@ def build_segments_for_file(filepath, events, target_sr=TARGET_SR,
         frame_end = int(round(seg_end * sr))
         seg_audio = audio[frame_start:frame_end]
 
-        if pad_last and seg_audio.shape[0] < seg_n_samples:
-            seg_audio = np.pad(seg_audio, (0, seg_n_samples - seg_audio.shape[0]))
+        if seg_audio.shape[0] < seg_n_samples:
+            if handle_last == "pad":
+                seg_audio = np.pad(seg_audio, (0, seg_n_samples - seg_audio.shape[0]))
+            elif handle_last == "drop":
+                continue
+            # "keep" falls through and yields the short segment as-is
 
         starts, ends, lows, highs, codes = [], [], [], [], []
         labels = set()
@@ -121,7 +134,6 @@ def build_segments_for_file(filepath, events, target_sr=TARGET_SR,
             # "ebird_code": codes,
             "ebird_code_multilabel": codes, #sorted(labels),
         }
-
 
 def segment_generator(hf_dataset, **kwargs):
     """Generator over ALL segments of ALL files -> feeds Dataset.from_generator."""
@@ -241,7 +253,7 @@ def main():
         })
 
 
-        test_5s = build_test_5s_split(soundscape_dataset, features=FEATURES, target_sr=TARGET_SR, segment_len=SEGMENT_LEN, min_overlap=MIN_OVERLAP, pad_last=PAD_LAST_SEGMENT)
+        test_5s = build_test_5s_split(soundscape_dataset, features=FEATURES, target_sr=TARGET_SR, segment_len=SEGMENT_LEN, min_overlap=MIN_OVERLAP, handle_last="drop")
 
         dataset_dict = DatasetDict({"test_5s": test_5s})
         print(dataset_dict)
