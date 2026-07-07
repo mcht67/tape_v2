@@ -18,12 +18,12 @@ def compute_polyphony_metrics(y_true, y_pred, cm_type, species_mapping=None,
     num_entities = y_true.shape[1]
     per_entity_yt, per_entity_yp = [], []
 
-    if cm_type == "species_regression_round" or "regression_round":
+    if cm_type == "species_regression_round" or cm_type == "regression_round":
         for s in range(num_entities):
             yt_s, yp_s = prepare_polyphony_for_cm(y_true[:, s], y_pred[:, s])
             per_entity_yt.append(yt_s); per_entity_yp.append(yp_s)
         all_labels = sorted(np.unique(np.concatenate(per_entity_yt + per_entity_yp)).tolist())
-    elif cm_type == "species_classification" or "classification":  # species_classification
+    elif cm_type == "species_classification" or cm_type == "classification":  # species_classification
         for s in range(num_entities):
             yt_s, yp_s = prepare_classification_for_cm(y_true[:, s], y_pred[:, s, :])
             per_entity_yt.append(yt_s); per_entity_yp.append(yp_s)

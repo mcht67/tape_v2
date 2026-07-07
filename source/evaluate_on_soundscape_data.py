@@ -47,6 +47,12 @@ def main():
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
 
+    if subset == "XCM" or subset == "XCL":
+        print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
+        # Create empty test directory for consistent dvc tracking
+        os.makedirs(log_dir, exist_ok=True)
+        return
+    
     #################################
     # Setup
     #################################
