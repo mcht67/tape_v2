@@ -1,19 +1,17 @@
 from omegaconf import OmegaConf
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from hydra.utils import instantiate
 from dotenv import load_dotenv
-from datasets import load_dataset, Audio, load_from_disk
-from itertools import islice
+from datasets import Audio, load_from_disk
 import torch
 import pandas as pd
 
-from utils.logs import get_dvc_exp_name, plot_spectrogram_with_metrics, SummaryWriter, get_log_paths, save_to_report
-from utils.dataset import load_dataset_with_retry, add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
-from utils.evaluation import collect_predictions, arrays_to_records
-from utils.metrics import compute_polyphony_range_metrics, update_metrics_table
+from utils.logs import SummaryWriter, get_log_paths, save_to_report
+from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
+from utils.evaluation import collect_predictions, arrays_to_records, update_metrics_table
+from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
 
@@ -47,8 +45,6 @@ def main():
     input_feature = cfg.train.input_feature
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
-
-    num_examples = cfg.evaluation.num_examples
 
     #################################
     # Setup
