@@ -114,6 +114,11 @@ def main():
         print(f"After filtering, test split has {len(test_dataset)} examples.")
 
     # Filter dataset by SNR if specified in the config
+    if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
+        snr_range = cfg.dataset.snr_range
+        print(f"Filtering test dataset to include only examples with SNR in range {snr_range}...")
+        test_dataset = test_dataset.filter(lambda x: snr_range[0] <= x['snr_dB'] <= snr_range[1])
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
     if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
         min_snr = cfg.dataset.min_snr
         print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
@@ -126,17 +131,17 @@ def main():
 
     ebird_class_labels = None
 
-    if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+    # if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-        birdset_id2label = get_birdset_id2label(subset)
-        ebird_class_labels = [k for k in birdset_id2label.values()]
-        # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
-        print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
-        num_species = len(ebird_class_labels)
+    birdset_id2label = get_birdset_id2label(subset)
+    ebird_class_labels = [k for k in birdset_id2label.values()]
+    # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+    print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
+    num_species = len(ebird_class_labels)
 
 
     # Set number of classes for polyphony degree classification based on dataset config
@@ -253,8 +258,18 @@ def main():
             obj_key = "class"
         metrics_dict = report[objective]
         table_name = f"test_metrics"
+
+        if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+        elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+        elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+        else:
+            column_name = f"{subset}_{obj_key}"
+
         csv_path = os.path.join(out_dir, f"{table_name}.csv")
-        df, csv_path = update_metrics_table(f"{subset}_{obj_key}", metrics_dict, csv_path)
+        df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
         print(f"Saved {table_name} to {csv_path}")
 
     # for example in dataset['test']:

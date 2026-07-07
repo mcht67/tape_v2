@@ -219,7 +219,7 @@ def get_birdset_id2label(subset):
     if not subset=='XCM' and not subset=='XCL':
         ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
     else:
-        ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_polyphonic', split='test', token=huggingface_token)
+        ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_polyphonic', split='test', token=huggingface_token, download_mode="force_redownload")
     ebird_code_class_labels = ds.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}

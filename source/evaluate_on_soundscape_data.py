@@ -41,12 +41,17 @@ def main():
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
     model_cfg.objectives_cfg = objectives_cfg
-    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
     input_feature_name = cfg.train.input_feature_name
     input_feature = cfg.train.input_feature
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
 
+    if subset == "XCM" or subset == "XCL":
+        print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
+        # Create empty test directory for consistent dvc tracking
+        os.makedirs(log_dir, exist_ok=True)
+        return
+    
     #################################
     # Setup
     #################################
@@ -228,7 +233,17 @@ def main():
             metrics_dict = report[objective]
             table_name = f"soundscape_test_metrics"
             csv_path = os.path.join(out_dir, f"{table_name}.csv")
-            df, csv_path = update_metrics_table(f"{subset}_{obj_key}", metrics_dict, csv_path)
+
+            if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+                column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+            elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+                column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+            elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+                column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+            else:
+                column_name = f"{subset}_{obj_key}"
+
+            df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
             print(f"Saved {table_name} to {csv_path}")
      
     else:

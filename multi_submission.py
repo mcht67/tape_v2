@@ -112,15 +112,32 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
 #         exp_params_str += f"-S  {key}={str(value)} "
 #     return exp_params_str
 
+# def create_exp_params_str(config_dict):
+#     exp_params_str = ''
+#     for key, value in config_dict.items():
+#         if isinstance(value, list):
+#             formatted = "[" + ",".join(str(v) for v in value) + "]"
+#         else:
+#             formatted = str(value)
+#         exp_params_str += f"-S  {key}={formatted} "
+#     return exp_params_str
+
+def format_value(value):
+    if isinstance(value, dict):
+        items = ",".join(f"{k}:{format_value(v)}" for k, v in value.items())
+        return "{" + items + "}"
+    elif isinstance(value, list):
+        items = ",".join(format_value(v) for v in value)
+        return "[" + items + "]"
+    else:
+        return str(value)
+
 def create_exp_params_str(config_dict):
-    exp_params_str = ''
+    parts = []
     for key, value in config_dict.items():
-        if isinstance(value, list):
-            formatted = "[" + ",".join(str(v) for v in value) + "]"
-        else:
-            formatted = str(value)
-        exp_params_str += f"-S  {key}={formatted} "
-    return exp_params_str
+        formatted = format_value(value)
+        parts.append(f"-S {key}={formatted}")
+    return " ".join(parts)
 
 def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id):      
 
@@ -215,7 +232,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/pooled_embeddings_species_specific.yaml'
+    study_config_path = 'study_conf/pooled_embeddings_max_polyphony_effects.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
