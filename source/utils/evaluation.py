@@ -70,9 +70,12 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     return y_true, predictions, variable_values
 
 
-def arrays_to_records(y_true, predictions, variable_values, species_names=None):
+def arrays_to_records(y_true, predictions, variable_values=None, species_names=None):
     """Convert arrays back into self-contained per-example records for storage."""
     n = next(iter(predictions.values())).shape[0]
+
+    if variable_values is None:
+        variable_values = []
 
     variable_rows = [
         {var: variable_values[var][i] for var in variable_values}

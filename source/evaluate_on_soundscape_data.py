@@ -169,7 +169,7 @@ def main():
 
     if embeddings_precomputed:
         print(f"Embeddings have been precomputed and stored in feature '{input_feature_name}'. Using precomputed embeddings for evaluation.")
-        y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, variables=['snr_dB'], birdset_id2label=birdset_id2label)
+        y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, birdset_id2label=birdset_id2label)
 
         # Store predictions
         print("y_true:", y_true)
