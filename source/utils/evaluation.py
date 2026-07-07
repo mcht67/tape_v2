@@ -88,11 +88,11 @@ def arrays_to_records(y_true, predictions, variable_values=None, species_names=N
     for i in range(n):
         rec_y_true = {}
         if y_true.get("polyphony") is not None:
-            rec_y_true["polyphony"] = float(y_true["polyphony"][i]) if y_true.get("polyphony") is not None else None
+            rec_y_true["polyphony"] = None if y_true["polyphony"][i] is None else float(y_true["polyphony"][i])
         if y_true.get("min_polyphony") is not None:
-            rec_y_true["min_polyphony"] = float(y_true["min_polyphony"][i]) if y_true.get("min_polyphony") is not None else None
+            rec_y_true["min_polyphony"] = None if y_true["min_polyphony"][i] is None else float(y_true["min_polyphony"][i])
         if y_true.get("max_polyphony") is not None:
-            rec_y_true["max_polyphony"] = float(y_true["max_polyphony"][i]) if y_true.get("max_polyphony") is not None else None
+            rec_y_true["max_polyphony"] = None if y_true["max_polyphony"][i] is None else float(y_true["max_polyphony"][i])
         if y_true.get("species_polyphony") is not None and species_names:
             rec_y_true["species_polyphony"] = dict(zip(species_names, y_true["species_polyphony"][i].tolist()))
 
