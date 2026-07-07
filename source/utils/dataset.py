@@ -351,40 +351,112 @@ def get_local_data_dir(dataset_config=None, subset=None, data_dir=None):
         subset = dataset_config.split('_')[0]
     return f"data/{subset}/{dataset_config}"
 
-def add_min_max_polyphony(example):
-    start_times = np.atleast_1d(np.array(example['start_time']))
-    end_times = np.atleast_1d(np.array(example['end_time']))
-    species = np.atleast_1d(example['ebird_code_multilabel']).tolist()  # list of int values
+# def add_min_max_polyphony(example):
+#     start_times = np.atleast_1d(np.array(example['start_time']))
+#     end_times = np.atleast_1d(np.array(example['end_time']))
+#     species = np.atleast_1d(example['ebird_code_multilabel']).tolist()  # list of int values
 
-    n_events = start_times.size
+#     n_events = start_times.size
 
-    # --- Maximum polyphony (upper bound) ---
-    # Total number of events in the soundscape
-    max_polyphony = n_events
+#     # --- Maximum polyphony (upper bound) ---
+#     # Total number of events in the soundscape
+#     max_polyphony = n_events
 
-    # --- Minimum polyphony (lower bound) ---
-    # Candidate 1: max overlapping events at any point in time
-    # Use an event-sweep approach: collect all start/end endpoints
+#     # --- Minimum polyphony (lower bound) ---
+#     # Candidate 1: max overlapping events at any point in time
+#     # Use an event-sweep approach: collect all start/end endpoints
+#     events = []
+#     for s, e in zip(start_times, end_times):
+#         events.append((s, +1))  # start: +1
+#         events.append((e, -1))  # end:   -1
+#     # Sort by time; on ties, process ends (-1) before starts (+1)
+#     events.sort(key=lambda x: (x[0], x[1]))
+
+#     max_overlap = 0
+#     current_overlap = 0
+#     for _, delta in events:
+#         current_overlap += delta
+#         max_overlap = max(max_overlap, current_overlap)
+
+#     # Candidate 2: number of unique species active in the soundscape
+#     n_unique_species = len(set(species))
+
+#     min_polyphony = max(max_overlap, n_unique_species)
+#     max_polyphony = max(max_polyphony, min_polyphony)
+
+#     example['min_polyphony'] = int(min_polyphony)
+#     example['max_polyphony'] = int(max_polyphony)
+    # return example
+    
+def _max_overlap(starts, ends):
+    """Event-sweep max simultaneous overlap for a set of (start, end) intervals."""
+    if len(starts) == 0:
+        return 0
     events = []
-    for s, e in zip(start_times, end_times):
+    for s, e in zip(starts, ends):
         events.append((s, +1))  # start: +1
         events.append((e, -1))  # end:   -1
-    # Sort by time; on ties, process ends (-1) before starts (+1)
-    events.sort(key=lambda x: (x[0], x[1]))
+    events.sort(key=lambda x: (x[0], x[1]))  # ties: ends before starts
 
     max_overlap = 0
     current_overlap = 0
     for _, delta in events:
         current_overlap += delta
         max_overlap = max(max_overlap, current_overlap)
+    return max_overlap
 
-    # Candidate 2: number of unique species active in the soundscape
+
+def add_min_max_polyphony(example):
+    """
+    num_species: size of the species vocabulary (e.g. len(birdset_id2label)).
+        Required to produce fixed-length min/max_species_polyphony vectors
+        aligned with species indices. If None, returns dicts keyed by
+        species id instead (sparse — only species present in this example).
+    """
+    start_times = np.atleast_1d(np.array(example['start_time']))
+    end_times = np.atleast_1d(np.array(example['end_time']))
+    species = np.atleast_1d(example['ebird_code_multilabel']).tolist()  # list of int values
+    species_arr = np.array(species)
+    num_species = len(set(species)) if species else 0
+
+    n_events = start_times.size
+
+    # --- Total polyphony (unchanged) ---
+    max_polyphony = n_events
+    max_overlap = _max_overlap(start_times, end_times)
     n_unique_species = len(set(species))
-
     min_polyphony = max(max_overlap, n_unique_species)
     max_polyphony = max(max_polyphony, min_polyphony)
 
     example['min_polyphony'] = int(min_polyphony)
     example['max_polyphony'] = int(max_polyphony)
+
+    # --- Per-species polyphony ---
+    # min: max overlapping calls of that species at any instant (event sweep)
+    # max: total number of calls of that species in the segment
+    if num_species is not None:
+        min_species_polyphony = np.zeros(num_species, dtype=int)
+        max_species_polyphony = np.zeros(num_species, dtype=int)
+    else:
+        min_species_polyphony = {}
+        max_species_polyphony = {}
+
+    for sp in set(species):
+        mask = species_arr == sp
+        sp_starts = start_times[mask]
+        sp_ends = end_times[mask]
+
+        min_sp = _max_overlap(sp_starts, sp_ends)
+        max_sp = int(mask.sum())
+
+        min_species_polyphony[sp] = min_sp
+        max_species_polyphony[sp] = max_sp
+
+    example['min_species_polyphony'] = (
+        min_species_polyphony.tolist() if num_species is not None else min_species_polyphony
+    )
+    example['max_species_polyphony'] = (
+        max_species_polyphony.tolist() if num_species is not None else max_species_polyphony
+    )
+
     return example
-    

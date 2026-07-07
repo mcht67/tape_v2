@@ -215,7 +215,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/pooled_embeddings_species_specific.yaml'
+    study_config_path = 'study_conf/pooled_embeddings.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = True
+    run_dataset_preparation = False
     recompute_embeddings = False
     force_redownload = False
 
@@ -243,4 +243,4 @@ if __name__ == "__main__":
         if embeddings:
             if run_dataset_preparation:
                 prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        # submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)
+        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)
