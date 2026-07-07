@@ -406,7 +406,7 @@ def _max_overlap(starts, ends):
     return max_overlap
 
 
-def add_min_max_polyphony(example):
+def add_min_max_polyphony(example, num_species=None):
     """
     num_species: size of the species vocabulary (e.g. len(birdset_id2label)).
         Required to produce fixed-length min/max_species_polyphony vectors
@@ -417,7 +417,6 @@ def add_min_max_polyphony(example):
     end_times = np.atleast_1d(np.array(example['end_time']))
     species = np.atleast_1d(example['ebird_code_multilabel']).tolist()  # list of int values
     species_arr = np.array(species)
-    num_species = len(set(species)) if species else 0
 
     n_events = start_times.size
 
@@ -453,10 +452,10 @@ def add_min_max_polyphony(example):
         max_species_polyphony[sp] = max_sp
 
     example['min_species_polyphony'] = (
-        min_species_polyphony.tolist() if num_species is not None else min_species_polyphony
+        min_species_polyphony if num_species is not None else min_species_polyphony
     )
     example['max_species_polyphony'] = (
-        max_species_polyphony.tolist() if num_species is not None else max_species_polyphony
+        max_species_polyphony if num_species is not None else max_species_polyphony
     )
 
     return example

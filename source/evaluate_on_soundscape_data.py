@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from datasets import Audio, load_from_disk
 import torch
 import pandas as pd
+from functools import partial
 
 from utils.logs import SummaryWriter, get_log_paths, save_to_report
 from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
@@ -161,7 +162,7 @@ def main():
     soundscape_test5s_split = soundscape_test5s_split.cast_column(input_feature, Audio())
 
     # Add min/max polyphony labels to soundscape dataset
-    soundscape_test5s_split = soundscape_test5s_split.map(add_min_max_polyphony)
+    soundscape_test5s_split = soundscape_test5s_split.map(partial(add_min_max_polyphony, num_species=num_species))
 
     embeddings_precomputed = input_feature_name in soundscape_test5s_split.features
 
