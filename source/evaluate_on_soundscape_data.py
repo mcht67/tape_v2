@@ -85,18 +85,19 @@ def main():
     #################################
 
     ebird_class_labels = None
+    num_species = None
 
-    if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+    # if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-        birdset_id2label = get_birdset_id2label(subset)
-        ebird_class_labels = [k for k in birdset_id2label.values()]
-        # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
-        print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
-        num_species = len(ebird_class_labels)
+    birdset_id2label = get_birdset_id2label(subset)
+    ebird_class_labels = [k for k in birdset_id2label.values()]
+    # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+    print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
+    num_species = len(ebird_class_labels)
 
 
     # Set number of classes for polyphony degree classification based on dataset config
