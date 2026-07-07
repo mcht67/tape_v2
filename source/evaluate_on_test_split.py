@@ -236,12 +236,12 @@ def main():
     if "polyphony_reg" in predictions:
         report["polyphony_reg"] = compute_polyphony_metrics(
             y_true["polyphony"][:, None], predictions["polyphony_reg"][:, None],
-            cm_type="species_regression_round", per_species=False)
+            cm_type="regression_round", per_species=False)
 
     if "polyphony_class" in predictions:
         report["polyphony_class"] = compute_polyphony_metrics(
             y_true["polyphony"][:, None], predictions["polyphony_class"][:, None, :],
-            cm_type="species_classification", num_classes=num_classes, per_species=False)
+            cm_type="classification", num_classes=num_classes, per_species=False)
         
     save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
 

@@ -7,6 +7,7 @@ path:
   study_subfolder:
   train_output: train_output/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in train_output/ to the archive
   eval_output: eval_output/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in eval_output/ to the archive
+  soundscape_eval_output: soundscape_eval_output/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in soundscape_eval_output/ to the archive
 # ==============================================
 
 # ==============================================  

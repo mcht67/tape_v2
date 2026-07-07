@@ -175,6 +175,13 @@ else
   echo "eval_output directory not found, skipping..."
 fi
 
+# Check if soundscape_eval_output exists and rsync if it does
+if [ -d "soundscape_eval_output" ]; then
+  rsync -rv soundscape_eval_output/ ${ARCHIVE_DIR}
+else
+  echo "soundscape_eval_output directory not found, skipping..."
+fi
+
 #################################
 # Pushing results
 #################################

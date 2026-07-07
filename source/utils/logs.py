@@ -2393,6 +2393,7 @@ def get_log_paths(cfg) -> dict[str, Path]:
     return {
         "train_log_dir": Path(cfg.path.train_output) / run_dir / "logs",
         "eval_log_dir": Path(cfg.path.eval_output) / run_dir / "logs",
+        "soundscape_eval_log_dir": Path(cfg.path.soundscape_eval_output) / run_dir / "logs",
         "checkpoint_dir": Path(cfg.path.train_output) / run_dir / "checkpoints",
     }
 
