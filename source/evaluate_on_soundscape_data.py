@@ -74,10 +74,10 @@ def main():
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
     soundscape_test_dataset = load_from_disk(dataset_dir)
-    # soundscape_dataset = soundscape_dataset['test_5s']
+    soundscape_test5s_split = soundscape_test_dataset['test_5s']
 
     # TODO: Add labels
-    print(soundscape_test_dataset['test_5s'])
+    print(soundscape_test5s_split)
 
     #################################
     # Update objectives config based on dataset
@@ -153,12 +153,12 @@ def main():
     # Maximum polyphony degree: get total number of events that occur in the soundscape
 
     # Check if embeddings have been precomputed
-    if not input_feature in soundscape_test5s_split['test_5s'].features:
+    if not input_feature in soundscape_test5s_split.features:
         print(f"Feature '{input_feature}' not found in soundscape dataset. Can not run evaluation.")
         return
     
     # Cast input_feature to Audio
-    soundscape_test5s_split = soundscape_test_dataset['test_5s'].cast_column(input_feature, Audio())
+    soundscape_test5s_split = soundscape_test5s_split.cast_column(input_feature, Audio())
 
     # Add min/max polyphony labels to soundscape dataset
     soundscape_test5s_split = soundscape_test5s_split.map(add_min_max_polyphony)
