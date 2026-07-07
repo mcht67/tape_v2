@@ -41,9 +41,9 @@ hyperparams:
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    # - "perch_v2_cpu"
+    - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
     - "polyphony_reg"
-    # - "polyphony_class"
+    - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration

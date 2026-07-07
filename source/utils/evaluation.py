@@ -17,12 +17,18 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     """
     variables = variables or []
     embeddings, variable_rows = [], []
-    gt_total, gt_species = [], []
+    gt_total, gt_min, gt_max, gt_species = [], [], [], []
 
     for example in dataset:
         embeddings.append(example[input_feature_name])
         variable_rows.append({var: example[var] for var in variables})
-        gt_total.append(example["polyphony_degree"])
+        if "polyphony_degree" in example:
+            gt_total.append(example["polyphony_degree"])
+        if "min_polyphony" in example:
+            gt_min.append(example["min_polyphony"])
+        if "max_polyphony" in example:
+            gt_max.append(example["max_polyphony"])
+
         # if species_names:
         counts = None
         if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
@@ -51,6 +57,8 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
 
     y_true = {
         "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
+        "min_polyphony": np.array(gt_min),
+        "max_polyphony": np.array(gt_max),
         "species_polyphony": np.array(gt_species) #if species_names else None,
     }
 
@@ -62,9 +70,12 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     return y_true, predictions, variable_values
 
 
-def arrays_to_records(y_true, predictions, variable_values, species_names=None):
+def arrays_to_records(y_true, predictions, variable_values=None, species_names=None):
     """Convert arrays back into self-contained per-example records for storage."""
     n = next(iter(predictions.values())).shape[0]
+
+    if variable_values is None:
+        variable_values = []
 
     variable_rows = [
         {var: variable_values[var][i] for var in variable_values}
@@ -151,3 +162,4 @@ def update_metrics_table(column_name, metrics_dict, csv_path):
     df.to_csv(csv_path, float_format="%.4f")
 
     return df, csv_path
+
