@@ -78,19 +78,19 @@ stages:
       # - ${path.checkpoint_dir}:
       #     persist: true      # pushed to remote
 
-  soundscape_evaluate:
-    cmd: ${python.complete} source/evaluate_on_soundscape_data.py
-    deps: 
-      - source/evaluate_on_soundscape_data.py
-    params:
-      - general.random_seed
-      - dataset
-      - model
-      - objectives
-      - train
-    outs:
-      - ${path.soundscape_eval_output}:
-          persist: true      # pushed to remot
+  # soundscape_evaluate:
+  #   cmd: ${python.complete} source/evaluate_on_soundscape_data.py
+  #   deps: 
+  #     - source/evaluate_on_soundscape_data.py
+  #   params:
+  #     - general.random_seed
+  #     - dataset
+  #     - model
+  #     - objectives
+  #     - train
+  #   outs:
+  #     - ${path.soundscape_eval_output}:
+  #         persist: true      # pushed to remot
 
   
   evaluate:
