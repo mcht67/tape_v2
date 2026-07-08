@@ -258,8 +258,18 @@ def main():
             obj_key = "class"
         metrics_dict = report[objective]
         table_name = f"test_metrics"
+
+        if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+        elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+        elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+        else:
+            column_name = f"{subset}_{obj_key}"
+
         csv_path = os.path.join(out_dir, f"{table_name}.csv")
-        df, csv_path = update_metrics_table(f"{subset}_{obj_key}", metrics_dict, csv_path)
+        df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
         print(f"Saved {table_name} to {csv_path}")
 
     # for example in dataset['test']:
