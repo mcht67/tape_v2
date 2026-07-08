@@ -539,7 +539,7 @@ def main():
         
         # Get birdset ids
         # TODO: remove and use ClassLabels from dataset instead of hardcoding
-        birdset_id2label = get_birdset_id2label(subset)
+        birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
         num_species = len(birdset_id2label)
 
         # Save mapping

@@ -137,7 +137,7 @@ def main():
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-    birdset_id2label = get_birdset_id2label(subset)
+    birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
     ebird_class_labels = [k for k in birdset_id2label.values()]
     # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
