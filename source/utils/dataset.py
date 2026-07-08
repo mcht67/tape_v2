@@ -204,7 +204,7 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
 #         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
 #         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
-def get_birdset_id2label(subset):
+def get_birdset_id2label(subset, dataset=None):
     # dataset_split = next(iter(dataset.keys()))
     # info = dataset[dataset_split].info
     # metadata = getattr(info, "metadata", None)
@@ -218,8 +218,23 @@ def get_birdset_id2label(subset):
     from datasets import load_dataset
     if not subset=='XCM' and not subset=='XCL':
         ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
+    elif subset=='XCM' or subset=='XCL':
+        ds = load_dataset("DBD-research-group/BirdSet", f'{subset}', split='train', token=huggingface_token)
     else:
-        ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_polyphonic', split='test', token=huggingface_token, download_mode="force_redownload")
+        if not dataset:
+            raise ValueError("Dataset must be provided for unknown subset")
+        unique_birdset_ids = set()
+        for split in dataset.values():
+            for example in split:
+                if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+                    unique_birdset_ids.update(example['birdset_id_multilabel'])
+                elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+                    unique_birdset_ids.update(example['birdset_code_multilabel'])
+                else:
+                    raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
+        print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
+        return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
+    
     ebird_code_class_labels = ds.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
@@ -273,7 +288,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
         feature_names = [x for x in ['species_polyphony_reg', 'species_polyphony_class'] if x in labels]
 
         if not birdset_id2label:
-            birdset_id2label = get_birdset_id2label(dataset)
+            birdset_id2label = get_birdset_id2label('', dataset=dataset)
 
         for feature_name in feature_names:
             print(f'Add {feature_name} labels...')

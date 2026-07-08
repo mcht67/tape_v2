@@ -19,15 +19,15 @@ hyperparams:
   train.input_feature:
     - "audio"
   embeddings:
-    - "Bird-MAE-Huge"
+    # - "Bird-MAE-Huge"
     - "perch_v2_cpu"
   objectives:
-    - "polyphony_reg"
+    # - "polyphony_reg"
     - "polyphony_class"
   dataset.snr_range:
         - [-20,-10]
-        - [-10,0]
-        - [0,10]
-        - [10,20]
+        # - [-10,0]
+        # - [0,10]
+        # - [10,20]
 
   # dataset.config is added automatically per dataset_config iteration
