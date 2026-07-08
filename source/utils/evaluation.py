@@ -17,11 +17,14 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     """
     variables = variables or []
     embeddings, variable_rows = [], []
-    gt_total, gt_min, gt_max, gt_species = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
+    gt_total, gt_min, gt_max = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
+    gt_species, gt_min_species, gt_max_species = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
 
     for i, example in enumerate(dataset):
         embeddings.append(example[input_feature_name])
         variable_rows.append({var: example[var] for var in variables})
+
+        # Get species agnostic polyphony values (total, min, max) and species-specific polyphony counts
         if "polyphony_degree" in example:
             gt_total[i] = example["polyphony_degree"]
         if "polyphony" in example:
@@ -31,18 +34,27 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
         if "max_polyphony" in example:
             gt_max[i] = example["max_polyphony"]
 
-        # if species_names:
-        counts = None
-        if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
-            counts = Counter(example['birdset_code_multilabel'])
-        elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
-            counts = Counter(example['birdset_id_multilabel'])
-        elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
-            counts = Counter(example['ebird_code_multilabel'])
+        # Get per-species polyphony counts if available
+        if "species_polyphony" in example:
+            gt_species[i] = example["species_polyphony"]
+        if "min_species_polyphony" in example:
+            gt_min_species[i] = example["min_species_polyphony"]
+        if "max_species_polyphony" in example:
+            gt_max_species[i] = example["max_species_polyphony"]
 
-        labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
-        
-        gt_species[i] = labels
+        # if species_names:
+        if not "species_polyphony" in example and birdset_id2label is not None:
+            counts = None
+            if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+                counts = Counter(example['birdset_code_multilabel'])
+            elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+                counts = Counter(example['birdset_id_multilabel'])
+            elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
+                counts = Counter(example['ebird_code_multilabel'])
+
+            labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
+            
+            gt_species[i] = labels
             
     X = tf.constant(np.stack(embeddings), dtype=tf.float32)
     raw_predictions = model(X, training=False)
@@ -61,7 +73,9 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
         "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
         "min_polyphony": np.array(gt_min),
         "max_polyphony": np.array(gt_max),
-        "species_polyphony": np.array(gt_species) #if species_names else None,
+        "species_polyphony": np.array(gt_species), #if species_names else None,
+        "min_species_polyphony": np.array(gt_min_species),
+        "max_species_polyphony": np.array(gt_max_species),
     }
 
     variable_values = {
@@ -95,6 +109,10 @@ def arrays_to_records(y_true, predictions, variable_values=None, species_names=N
             rec_y_true["max_polyphony"] = None if y_true["max_polyphony"][i] is None else float(y_true["max_polyphony"][i])
         if y_true.get("species_polyphony") is not None and species_names:
             rec_y_true["species_polyphony"] = dict(zip(species_names, y_true["species_polyphony"][i].tolist()))
+        if y_true.get("min_species_polyphony") is not None and species_names:
+            rec_y_true["min_species_polyphony"] = dict(zip(species_names, y_true["min_species_polyphony"][i].tolist()))
+        if y_true.get("max_species_polyphony") is not None and species_names:
+            rec_y_true["max_species_polyphony"] = dict(zip(species_names, y_true["max_species_polyphony"][i].tolist()))
 
         rec_predictions = {}
         for obj, arr in predictions.items():
@@ -128,6 +146,15 @@ def records_to_arrays(records, variables=None, species_names=None):
         y_true["min_polyphony"] = np.array([r["y_true"]["min_polyphony"] for r in records])
     if "max_polyphony" in records[0]["y_true"]:
         y_true["max_polyphony"] = np.array([r["y_true"]["max_polyphony"] for r in records])
+        
+    if "min_species_polyphony" in records[0]["y_true"]:
+        y_true["min_species_polyphony"] = np.stack([
+            [r["y_true"]["min_species_polyphony"][sp] for sp in species_names] for r in records
+        ])
+    if "max_species_polyphony" in records[0]["y_true"]:
+        y_true["max_species_polyphony"] = np.stack([
+            [r["y_true"]["max_species_polyphony"][sp] for sp in species_names] for r in records
+        ])
     if species_names and "species_polyphony" in records[0]["y_true"]:
         y_true["species_polyphony"] = np.stack([
             [r["y_true"]["species_polyphony"][sp] for sp in species_names] for r in records
