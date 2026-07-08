@@ -22,10 +22,10 @@ hyperparams:
     # - "Bird-MAE-Huge"
     - "perch_v2_cpu"
   objectives:
-    - "polyphony_reg"
-    # - "polyphony_class"
+    # - "polyphony_reg"
+    - "polyphony_class"
   dataset.snr_range:
-        # - [-20,-10]
+        - [-20,-10]
         - [-10,0]
         - [0,10]
         - [10,20]
