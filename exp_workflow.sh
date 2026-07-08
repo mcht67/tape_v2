@@ -182,17 +182,17 @@ else
   echo "soundscape_eval_output directory not found, skipping..."
 fi
 
-#################################
-# Pushing results
-#################################
+# #################################
+# # Pushing results
+# #################################
 
-# Push the results to the DVC remote repository
-echo "Pushing experiment..."
-if ! dvc exp push origin; then
-    echo "❌ Push failed!"
-    exit 1
-fi
-echo "✅ Push successful!"
+# # Push the results to the DVC remote repository
+# echo "Pushing experiment..."
+# if ! dvc exp push origin; then
+#     echo "❌ Push failed!"
+#     exit 1
+# fi
+# echo "✅ Push successful!"
 
 # Clean up the temporary sub-directory
 echo "Cleaning up..." &&
