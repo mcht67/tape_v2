@@ -41,7 +41,6 @@ def main():
     model_cfg = cfg.model
     objectives_cfg = cfg.objectives
     model_cfg.objectives_cfg = objectives_cfg
-    labels = [objectives_cfg[x]['label'] for x in objectives_cfg]
     input_feature_name = cfg.train.input_feature_name
     input_feature = cfg.train.input_feature
     embedding_type = cfg.embeddings.type

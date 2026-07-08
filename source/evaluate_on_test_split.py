@@ -114,6 +114,11 @@ def main():
         print(f"After filtering, test split has {len(test_dataset)} examples.")
 
     # Filter dataset by SNR if specified in the config
+    if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
+        snr_range = cfg.dataset.snr_range
+        print(f"Filtering test dataset to include only examples with SNR in range {snr_range}...")
+        test_dataset = test_dataset.filter(lambda x: snr_range[0] <= x['snr_dB'] <= snr_range[1])
+        print(f"After filtering, test split has {len(test_dataset)} examples.")
     if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
         min_snr = cfg.dataset.min_snr
         print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
