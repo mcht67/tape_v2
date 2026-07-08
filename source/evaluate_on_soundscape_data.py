@@ -9,7 +9,7 @@ import torch
 import pandas as pd
 from functools import partial
 
-from utils.logs import SummaryWriter, get_log_paths, save_to_report
+from utils.logs import SummaryWriter, get_log_paths, save_to_report, plot_polyphony_distribution
 from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
 from utils.evaluation import collect_predictions, arrays_to_records, update_metrics_table
 from utils.metrics import compute_polyphony_range_metrics
@@ -169,6 +169,10 @@ def main():
 
     # Add min/max polyphony labels to soundscape dataset
     soundscape_test5s_split = soundscape_test5s_split.map(partial(add_min_max_polyphony, num_species=num_species))
+
+    plot_save_dir = os.path.join(cfg.path.soundscape_eval_output, f"{subset}_soundscape_polyphony_distribution.png")
+    os.makedirs(os.path.dirname(plot_save_dir), exist_ok=True)
+    plot_polyphony_distribution(soundscape_test5s_split, save_path=plot_save_dir)
 
     embeddings_precomputed = input_feature_name in soundscape_test5s_split.features
 

@@ -18,6 +18,7 @@ import filelock
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
 
+import Pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -51,6 +52,37 @@ def save_to_report(entry: dict, report_path: str = "mix_report.json"):
         report.append(entry)
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
+
+
+def plot_polyphony_distribution(ds, save_path=None):
+    """
+    Plot the distribution of min_polyphony, max_polyphony, and their range in the dataset.
+    Args:
+        ds: The dataset to plot.
+    """
+    print("Plotting polyphony distribution...")
+    df = ds.to_pandas()[["min_polyphony", "max_polyphony"]].copy()
+    df["range"] = df["max_polyphony"] - df["min_polyphony"]
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    for ax, col, title in zip(
+        axes,
+        ["min_polyphony", "max_polyphony", "range"],
+        ["Min polyphony", "Max polyphony", "Range (max - min)"],
+    ):
+        counts = df[col].value_counts().sort_index()
+        ax.bar(counts.index, counts.values)
+        ax.set_title(title)
+        ax.set_xlabel(col)
+        ax.set_ylabel("number of clips")
+        ax.set_yscale("log")  # long tail -> log scale keeps small bars visible
+
+    plt.tight_layout()
+    if save_path:
+        print(f"Saving polyphony distribution plot to {save_path}")
+        plt.savefig(save_path, dpi=200, bbox_inches="tight")
+    # plt.show()
     
 
 def plot_confusion_matrix(y_pred, y_true):
