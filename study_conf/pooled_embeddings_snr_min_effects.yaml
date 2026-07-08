@@ -24,11 +24,10 @@ hyperparams:
   objectives:
     - "polyphony_reg"
     - "polyphony_class"
-  dataset:
-    - snr_min:
+  dataset.snr_min:
         - -20
         - -10
         - 0
         - 10
-        
+
   # dataset.config is added automatically per dataset_config iteration
