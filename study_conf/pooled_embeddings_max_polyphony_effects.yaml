@@ -1,0 +1,41 @@
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  - 'XCM'
+
+base_config:
+  log.study_name: "Pooled-Embeddings-SNR-Range-Effects"
+  embeddings.dimension_type: pooled
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  train.epochs: 100
+  train.learning_rate: 0.001
+  path.study_subfolder: ${embeddings.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+
+hyperparams:
+  model:
+    - "SimpleMLP"
+  train.input_feature:
+    - "audio"
+  embeddings:
+    # - "Bird-MAE-Huge"
+    - "perch_v2_cpu"
+  objectives:
+    - "polyphony_reg"
+    # - "polyphony_class"
+  dataset:
+   - max_polyphony:
+      - 1
+      # - 2
+      # - 3
+      # - 4
+      # # - 5
+      # - 6
+      # # - 7
+      # - 8
+      # # - 9
+      # - 10
+      # # - 11
+      # - 12
+        
+  # dataset.config is added automatically per dataset_config iteration
