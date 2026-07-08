@@ -112,15 +112,35 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
 #         exp_params_str += f"-S  {key}={str(value)} "
 #     return exp_params_str
 
+# def create_exp_params_str(config_dict):
+#     exp_params_str = ''
+#     for key, value in config_dict.items():
+#         if isinstance(value, list):
+#             formatted = "[" + ",".join(str(v) for v in value) + "]"
+#         else:
+#             formatted = str(value)
+#         exp_params_str += f"-S  {key}={formatted} "
+#     return exp_params_str
+
+import shlex
+
+def format_value(value):
+    if isinstance(value, dict):
+        items = ",".join(f"'{k}':{format_value(v)}" for k, v in value.items())
+        return "{" + items + "}"
+    elif isinstance(value, list):
+        items = ",".join(format_value(v) for v in value)
+        return "[" + items + "]"
+    else:
+        return str(value)
+
 def create_exp_params_str(config_dict):
-    exp_params_str = ''
+    parts = []
     for key, value in config_dict.items():
-        if isinstance(value, list):
-            formatted = "[" + ",".join(str(v) for v in value) + "]"
-        else:
-            formatted = str(value)
-        exp_params_str += f"-S  {key}={formatted} "
-    return exp_params_str
+        formatted = format_value(value)
+        arg = f"{key}={formatted}"
+        parts.append(f"-S {shlex.quote(arg)}")
+    return " ".join(parts)
 
 def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id):      
 

@@ -23,8 +23,7 @@ hyperparams:
   objectives:
     - "polyphony_reg"
     # - "polyphony_class"
-  dataset:
-   - max_polyphony:
+  dataset.max_polyphony:
       - 1
       # - 2
       # - 3
