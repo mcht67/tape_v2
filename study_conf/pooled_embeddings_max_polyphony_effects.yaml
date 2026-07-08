@@ -3,7 +3,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   - 'UHH'
 
 base_config:
-  log.study_name: "Pooled-Embeddings-SNR-Range-Effects"
+  log.study_name: "Pooled-Embeddings-Max-Polyphony-Effects"
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/PolyBirdMix"
   train.epochs: 100
