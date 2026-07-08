@@ -19,11 +19,11 @@ hyperparams:
   train.input_feature:
     - "audio"
   embeddings:
-    # - "Bird-MAE-Huge"
-    - "perch_v2_cpu"
+    - "Bird-MAE-Huge"
+    # - "perch_v2_cpu"
   objectives:
     - "polyphony_reg"
-    # - "polyphony_class"
+    - "polyphony_class"
   dataset.max_polyphony:
       - 1
       - 2
