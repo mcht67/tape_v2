@@ -487,7 +487,7 @@ def main():
         max_polyphony = cfg.dataset.max_polyphony
         print(f"Filtering dataset to include only examples with polyphony degree <= {max_polyphony}...")
         for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda x: x['polyphony_degree'] <= max_polyphony)
+            dataset[split] = dataset[split].filter(lambda x: x['polyphony'] <= max_polyphony)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # Filter dataset by SNR if specified in the config
@@ -585,7 +585,7 @@ def main():
 
     # Add labels if more than polyphony degree is requested
     if labels == ['polyphony_reg'] or labels == ['polyphony_class']:
-        labels = ['polyphony_degree']
+        labels = ['polyphony']
     else:        
         # Compute additional labels
         time_dim = input_dim[0] if len(input_dim) > 1 else None
