@@ -205,11 +205,9 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
 #         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
 def get_birdset_id2label(subset, dataset=None):
-    # dataset_split = next(iter(dataset.keys()))
-    # info = dataset[dataset_split].info
-    # metadata = getattr(info, "metadata", None)
-    # if metadata and "birdset_id2label" in metadata:
-    #     return metadata["birdset_id2label"]
+    if dataset is not None:
+        return get_birdset_id2label_from_dataset(dataset)
+
     # TODO remove
     # Load environment variables from .env file
     from dotenv import load_dotenv
@@ -240,6 +238,23 @@ def get_birdset_id2label(subset, dataset=None):
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
     return birdset_id2label
 
+from datasets import Dataset, DatasetDict
+
+def get_birdset_id2label_from_dataset(dataset):
+    if isinstance(dataset, DatasetDict):
+        first_split = next(iter(dataset.keys()))
+        dataset = dataset[first_split]
+    elif not isinstance(dataset, Dataset):
+        raise TypeError(
+            f"Expected a Hugging Face Dataset or DatasetDict, got {type(dataset)}"
+        )
+
+    ebird_code_class_labels = dataset.features['ebird_code_multilabel'].feature.names
+    print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
+    birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
+    return birdset_id2label
+
+
 
     # dataset_split = next(iter(dataset.keys()))
     # if 'ebird_code_multilabel' in dataset[dataset_split].features:
@@ -268,7 +283,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
         feature_name = 'polyphony_reg'
 
         for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda example: {feature_name: float(example["polyphony_degree"])},keep_in_memory=False)
+            dataset[split] = dataset[split].map(lambda example: {feature_name: float(example["polyphony"])},keep_in_memory=False)
         
         added_labels.append(feature_name)
         print('Done!')
@@ -278,7 +293,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
         feature_name = 'polyphony_class'
 
         for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony_degree"])},keep_in_memory=False)
+            dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony"])},keep_in_memory=False)
         
         added_labels.append(feature_name)
         print('Done!')
@@ -291,13 +306,16 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             birdset_id2label = get_birdset_id2label('', dataset=dataset)
 
         for feature_name in feature_names:
-            print(f'Add {feature_name} labels...')
-            add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
-            species_polyphony_feature = Sequence(Value("int32"))
+            # print(f'Add {feature_name} labels...')
+            # add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
+            # species_polyphony_feature = Sequence(Value("int32"))
+
+            # for split in dataset.keys():
+            #     dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
+            #     dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
 
             for split in dataset.keys():
-                dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
-                dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+                dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
 
             added_labels.append(feature_name)
             print('Done!')

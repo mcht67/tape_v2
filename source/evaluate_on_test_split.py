@@ -110,7 +110,7 @@ def main():
     if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
         print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
-        test_dataset = test_dataset.filter(lambda x: x['polyphony_degree'] <= max_polyphony)
+        test_dataset = test_dataset.filter(lambda x: x['polyphony'] <= max_polyphony)
         print(f"After filtering, test split has {len(test_dataset)} examples.")
 
     # Filter dataset by SNR if specified in the config
@@ -283,7 +283,7 @@ def main():
 
     #     # Extract data
     #     objectives_list = list(objectives_cfg.keys())
-    #     gt_polyphony = example['polyphony_degree']
+    #     gt_polyphony = example['polyphony']
 
     # # Handle regression predictions
     # if objectives_cfg.get('polyphony_reg', None) is not None:

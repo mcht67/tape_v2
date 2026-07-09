@@ -299,7 +299,8 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
             sampling_rate=sampling_rate,
         )
         cache_file = os.path.join(cache_dir, f"{model_key}_cache.arrow")
-        dataset = dataset.map(embedding_fn, cache_file_name=cache_file)
+        dataset = dataset.map(embedding_fn, cache_file_name=cache_file, num_proc=32, batched=True,
+        batch_size=50)
         modified = True
     return dataset, modified
 
