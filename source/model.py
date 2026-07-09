@@ -279,7 +279,7 @@ class TemporalCNNMultiTask(tf.keras.Model):
         count = self.count_head(features, training=training)
 
         return {
-            "polyphony_degree": count,
+            "polyphony": count,
             "perch2_event_logits": event_logits,
             
         }
