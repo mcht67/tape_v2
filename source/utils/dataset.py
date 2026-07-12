@@ -238,8 +238,17 @@ def get_birdset_id2label(subset, dataset=None):
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
     return birdset_id2label
 
+from datasets import Dataset, DatasetDict
+
 def get_birdset_id2label_from_dataset(dataset):
-    
+    if isinstance(dataset, DatasetDict):
+        first_split = next(iter(dataset.keys()))
+        dataset = dataset[first_split]
+    elif not isinstance(dataset, Dataset):
+        raise TypeError(
+            f"Expected a Hugging Face Dataset or DatasetDict, got {type(dataset)}"
+        )
+
     ebird_code_class_labels = dataset.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
