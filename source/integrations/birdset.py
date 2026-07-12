@@ -59,7 +59,6 @@ def add_embeddings_batchwise(input_feature, model_key, model_configs, dataset, s
         batched=True,
         batch_size=batch_size,
         load_from_cache_file=not force_recompute,
-        num_proc=32,
         # cache_file_name=cache_file
     )
 
