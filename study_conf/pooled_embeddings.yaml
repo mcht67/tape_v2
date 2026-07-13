@@ -1,9 +1,9 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - 'XCM'
-  # - "HSN"
-  # - "PER"
-  # - "UHH"
-  # - "NES"
+  - "HSN"
+  - "PER"
+  - "UHH"
+  - "NES"
   - "SSW"
   # - "POW"
   # - "SNE"
@@ -31,7 +31,7 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    # - "birdnet_V2.3"
+    # - "brirdnet_V2.3"
     # - "vggish"
     # - "perch_8"
     # - "yamnet"
@@ -41,9 +41,9 @@ hyperparams:
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    # - "perch_v2_cpu"
+    - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
-    - "polyphony_reg"
+    # - "polyphony_reg"
     - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
