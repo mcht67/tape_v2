@@ -81,6 +81,7 @@ Optionally use --sif-container flag to use .sif container instead of sandbox.
 ## GoogleDrive reauthentication
 Because authentiation is done inside the browser. You have do the authentication locally. To reset authentication delete dvc-token.json on your local machine. This will open authentication in the browser on the next dvc pull.
 The refresh token is valid for 7 days. If you want it to persist, you have to publish the Google Cloud App.
+The refresh token is valid for 7 days. If you want it to persist, you have to publish the Google Cloud App.
 
 ```bash
 dvc pull
