@@ -1,2 +1,3 @@
-_target_: models_torch.PretrainedBirdSetEfficientNet
-pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCM
+
+_target_: source.utils.torch_models.BirdSetEfficientNet
+pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL

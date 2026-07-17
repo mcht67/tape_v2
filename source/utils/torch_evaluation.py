@@ -40,7 +40,7 @@ from torch.utils.data.dataloader import default_collate
 from datasets import Audio
 from hydra.utils import instantiate
 
-from torch_multitask_head import MultiTaskHead
+from torch_multitask_head import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 
 
 MULTILABEL_COLUMN_CANDIDATES = ("birdset_code_multilabel", "birdset_id_multilabel", "ebird_code_multilabel")
@@ -107,10 +107,10 @@ class _EvalDataset(Dataset):
         return x, truth, extra
 
 
-def load_torch_model_for_eval(model_cfg, objectives_cfg, checkpoint_path, device):
+def load_torch_model_for_eval(model_cfg, objectives_cfg, checkpoint_path, device, head_type="temporal_cnn"):
     """
     Instantiates the torch backbone from `model_cfg` (same hydra config used
-    by torch_train.py), attaches a MultiTaskHead matching `objectives_cfg`,
+    by torch_train.py), attaches a MultiTaskTemporalCNNHead matching `objectives_cfg`,
     and loads weights from a checkpoint written by ModelAndHistorySaverTorch
     (`{"model_state_dict": ..., ...}`, e.g. checkpoint_dir/best.pt).
     """
@@ -120,7 +120,14 @@ def load_torch_model_for_eval(model_cfg, objectives_cfg, checkpoint_path, device
         model.set_sampling_rate(32000)
 
     input_size = model.get_head_input_size()
-    model.replace_head(MultiTaskHead(input_size, objectives_cfg))
+    head_type = model_cfg.get("head_type", "temporal_cnn")
+    if head_type == "temporal_cnn":
+        head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)
+    elif head_type == "mlp":
+        head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)
+    else:
+        raise ValueError(f"Unknown model_cfg.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
+    model.replace_head(head)
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])

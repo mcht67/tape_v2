@@ -16,7 +16,7 @@ from utils.evaluation import arrays_to_records, collect_predictions, update_metr
 import integrations.birdset as birdset
 import integrations.perch as perch
 
-from torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+from source.utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
 def main():
 

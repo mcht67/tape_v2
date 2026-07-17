@@ -16,7 +16,7 @@ from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
 
-from torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+from source.utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
 def main():
 
@@ -131,7 +131,7 @@ def main():
     # Load model
     #################################
 
-    backend = cfg.model.get("backend", "tensorflow")
+    backend = cfg.train.get("backend", "tensorflow")
 
     if backend == "torch":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -141,7 +141,11 @@ def main():
         if not os.path.exists(checkpoint_path):
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run torch_train.py first to save the best checkpoint for later evaluation.")
 
-        model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
+        # model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
+        model = load_torch_model_for_eval(
+            cfg.model, objectives_cfg, checkpoint_path, device,
+            head_type=cfg.train.get("head_type", "temporal_cnn"),
+        )
         print(f"Loaded torch checkpoint from {checkpoint_path}")
 
     else:

@@ -43,6 +43,355 @@ class SimpleRegressionHead(torch.nn.Module):
     def forward(self, x):
         return self.regression_head(x)
 
+# torch_multitask_head.py
+#
+# MultiTaskTemporalCNNHead now mirrors model.py's TemporalCNN exactly: it owns the same
+# shared conv trunk (conv1/bn1/dropout1/conv2/bn2) and consumes the
+# frame-wise/spatial embedding sequence, not a single pooled vector. This is
+# the change from the previous version -- see torch_models_integration.py for
+# the (small) wiring change each BirdSet* wrapper needs so `spatial_embeddings`
+# reaches the head instead of `pooled_embeddings`.
+#
+# All six TemporalCNN objectives are supported now, including the frame-wise
+# ones (event_logits, framewise_polyphony_reg/class), since the head has
+# access to the time axis again.
+
+import torch
+import torch.nn as nn
+
+
+class MultiTaskTemporalCNNHead(nn.Module):
+    """
+    objectives_cfg: same shape as cfg.objectives / model.py's TemporalCNN,
+    keyed by one of:
+        polyphony_reg, polyphony_class, event_logits,
+        framewise_polyphony_reg, framewise_polyphony_class,
+        species_polyphony_reg, species_polyphony_class
+
+    forward(spatial_embeddings) -> dict[str, Tensor]
+        spatial_embeddings: (batch, time, freq, embedding) or (batch, time, embedding).
+            A freq axis (if present) is averaged out first, exactly like
+            TemporalCNN's `tf.reduce_mean(inputs, axis=2)`.
+
+    Output shapes (channel-last, matching the TF model):
+        polyphony_reg                -> (batch,)
+        polyphony_class               -> (batch, num_classes)
+        event_logits                  -> (batch, time)
+        framewise_polyphony_reg       -> (batch, time)
+        framewise_polyphony_class     -> (batch, time, num_classes)
+        species_polyphony_reg         -> (batch, num_species)
+        species_polyphony_class       -> (batch, num_species, num_classes)
+    """
+
+    SUPPORTED = {
+        "polyphony_reg",
+        "polyphony_class",
+        "event_logits",
+        "framewise_polyphony_reg",
+        "framewise_polyphony_class",
+        "species_polyphony_reg",
+        "species_polyphony_class",
+    }
+
+    # Marks this head as wanting the spatial/frame-wise embedding sequence
+    # rather than a single pooled vector -- see torch_models_integration.py.
+    takes_spatial_embeddings = True
+
+    def __init__(self, input_size, objectives_cfg, conv_channels=(512, 256), dropout_rate=0.3):
+        super().__init__()
+
+        if isinstance(input_size, (torch.Size, tuple, list)):
+            feature_dim = input_size[-1]
+        else:
+            feature_dim = input_size
+
+        self.in_features = feature_dim  # embedding channels of the incoming spatial_embeddings
+
+        unsupported = set(objectives_cfg.keys()) - self.SUPPORTED
+        if unsupported:
+            raise ValueError(f"Unknown objective(s) {unsupported}. Supported: {sorted(self.SUPPORTED)}")
+
+        self.objectives_cfg = dict(objectives_cfg)
+        self.conv_channels = list(conv_channels)
+        trunk_dim = self.conv_channels[1]
+
+        # ---- shared encoder, mirrors TemporalCNN.conv1/bn1/dropout1/conv2/bn2 ----
+        self.conv1 = nn.Conv1d(feature_dim, self.conv_channels[0], kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm1d(self.conv_channels[0])
+        self.dropout1 = nn.Dropout(dropout_rate)
+        self.conv2 = nn.Conv1d(self.conv_channels[0], trunk_dim, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm1d(trunk_dim)
+
+        # ---- per-objective heads ----
+        if "polyphony_reg" in self.objectives_cfg:
+            self.segment_dense1 = nn.Linear(trunk_dim, 128)
+            self.segment_dropout = nn.Dropout(dropout_rate)
+            self.segment_dense2 = nn.Linear(128, 1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg["polyphony_class"].get("num_classes", 9)
+            self.segment_dense1_class = nn.Linear(trunk_dim, 128)
+            self.segment_dropout_class = nn.Dropout(dropout_rate)
+            self.polyphony_class_head = nn.Linear(128, self.polyphony_num_classes)
+
+        if "event_logits" in self.objectives_cfg:
+            self.event_head = nn.Conv1d(trunk_dim, 1, kernel_size=1)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            self.frame_polyphony_reg_head = nn.Conv1d(trunk_dim, 1, kernel_size=1)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            self.frame_polyphony_num_classes = self.objectives_cfg["framewise_polyphony_class"].get("num_classes", 9)
+            self.frame_polyphony_class_head = nn.Conv1d(trunk_dim, self.frame_polyphony_num_classes, kernel_size=1)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            self.num_species_reg = self.objectives_cfg["species_polyphony_reg"]["num_species"]
+            self.species_polyphony_reg_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_reg_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_reg_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_reg_head = nn.Linear(128, self.num_species_reg)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            self.num_classes_global = self.objectives_cfg["species_polyphony_class"]["num_classes"]
+            self.num_species_global = self.objectives_cfg["species_polyphony_class"]["num_species"]
+            self.species_polyphony_class_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_class_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_class_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_class_head = nn.Linear(
+                128, self.num_species_global * self.num_classes_global
+            )
+
+    def forward(self, spatial_embeddings):
+        x = spatial_embeddings
+        if x.dim() == 4:
+            # (batch, time, freq, embedding) -> average out freq, like
+            # TemporalCNN's `tf.reduce_mean(inputs, axis=2)`
+            x = x.mean(dim=2)
+        elif x.dim() != 3:
+            raise ValueError(
+                f"Expected spatial_embeddings with 3 or 4 dims (batch[, time, freq], embedding), "
+                f"got shape {tuple(x.shape)}"
+            )
+
+        # torch Conv1d wants (batch, channels, time); TF Conv1D is channel-last
+        x = x.transpose(1, 2)
+        x = torch.relu(self.conv1(x))
+        x = self.bn1(x)
+        x = self.dropout1(x)
+        x = torch.relu(self.conv2(x))
+        features = self.bn2(x)  # (batch, trunk_dim, time)
+
+        pooled = features.mean(dim=2)  # GlobalAveragePooling1D equivalent -> (batch, trunk_dim)
+
+        outputs = {}
+
+        if "polyphony_reg" in self.objectives_cfg:
+            h = torch.relu(self.segment_dense1(pooled))
+            h = self.segment_dropout(h)
+            outputs["polyphony_reg"] = self.segment_dense2(h).squeeze(-1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            h = torch.relu(self.segment_dense1_class(pooled))
+            h = self.segment_dropout_class(h)
+            outputs["polyphony_class"] = self.polyphony_class_head(h)
+
+        if "event_logits" in self.objectives_cfg:
+            outputs["event_logits"] = self.event_head(features).squeeze(1)  # (batch, time)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = self.frame_polyphony_reg_head(features).squeeze(1)  # (batch, time)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            out = self.frame_polyphony_class_head(features)  # (batch, num_classes, time)
+            outputs["framewise_polyphony_class"] = out.transpose(1, 2)  # -> (batch, time, num_classes)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_reg_dense1(pooled))
+            h = self.species_polyphony_reg_dropout(h)
+            h = torch.relu(self.species_polyphony_reg_dense2(h))
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(h)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_class_dense1(pooled))
+            h = self.species_polyphony_class_dropout(h)
+            h = torch.relu(self.species_polyphony_class_dense2(h))
+            h = self.species_polyphony_class_head(h)
+            outputs["species_polyphony_class"] = h.view(-1, self.num_species_global, self.num_classes_global)
+
+        return outputs
+
+
+class MultiTaskSimpleMLPHead(nn.Module):
+    """
+    Shared MLP trunk (hidden_units, dropout only after the first layer -- same
+    as model.py's SimpleMLP), adapted to work on *either* pooled or spatial
+    embeddings:
+
+      - Segment-level objectives (polyphony_reg/class, species_polyphony_*)
+        always run on the pooled trunk output -- pooled over time first if a
+        time axis is present, used as-is otherwise.
+      - Frame-wise objectives (event_logits, framewise_polyphony_reg/class)
+        run on the *unpooled* trunk output, so they produce genuine per-frame
+        predictions -- and are only built/usable if actually configured.
+
+    This is a deliberate departure from a literal SimpleMLP port: SimpleMLP
+    flattens its input before any head runs, so it never has a time axis to
+    work with, and its event_logits/framewise_* heads silently degrade to
+    one scalar per clip (see the note in MultiTaskTemporalCNNHead's module docstring --
+    that also doesn't match the frame-wise labels add_labels builds for those
+    objectives). This version keeps the time axis alive for the heads that
+    actually need it.
+
+    `takes_spatial_embeddings` is set as an *instance* attribute here (not a
+    fixed class attribute like MultiTaskTemporalCNNHead's), computed from
+    `objectives_cfg` at construction time: True only if a frame-wise
+    objective is configured. That's what lets the same head class work with
+    either pooled or spatial input depending on what you're training --
+    the wrapper patches check this attribute to decide what to pass in,
+    and that decision has to be made before any data exists.
+
+    objectives_cfg: same shape as for MultiTaskTemporalCNNHead.
+    """
+
+    SUPPORTED = {
+        "polyphony_reg",
+        "polyphony_class",
+        "event_logits",
+        "framewise_polyphony_reg",
+        "framewise_polyphony_class",
+        "species_polyphony_reg",
+        "species_polyphony_class",
+    }
+
+    FRAMEWISE = {"event_logits", "framewise_polyphony_reg", "framewise_polyphony_class"}
+
+    def __init__(self, input_size, objectives_cfg, hidden_units=(512, 256), dropout_rate=0.3):
+        super().__init__()
+
+        if isinstance(input_size, (torch.Size, tuple, list)):
+            feature_dim = input_size[-1]
+        else:
+            feature_dim = input_size
+
+        self.in_features = feature_dim
+
+        unsupported = set(objectives_cfg.keys()) - self.SUPPORTED
+        if unsupported:
+            raise ValueError(f"Unknown objective(s) {unsupported}. Supported: {sorted(self.SUPPORTED)}")
+
+        self.objectives_cfg = dict(objectives_cfg)
+        self.hidden_units = list(hidden_units)
+
+        # Only ask the wrapper for spatial_embeddings if we actually need a
+        # time axis (frame-wise objectives); otherwise take the cheaper
+        # pooled vector. See class docstring.
+        self.takes_spatial_embeddings = bool(self.FRAMEWISE & set(self.objectives_cfg.keys()))
+
+        # ---- shared MLP trunk. nn.Linear only acts on the last dim, so this
+        # works unchanged on (batch, feature) or (batch, time, feature) input.
+        self.hidden_layers = nn.ModuleList()
+        self.dropout_layers = nn.ModuleList()
+        prev_dim = feature_dim
+        for i, units in enumerate(self.hidden_units):
+            self.hidden_layers.append(nn.Linear(prev_dim, units))
+            self.dropout_layers.append(nn.Dropout(dropout_rate) if i == 0 else nn.Identity())
+            prev_dim = units
+        trunk_dim = prev_dim
+
+        # ---- per-objective heads ----
+        if "polyphony_reg" in self.objectives_cfg:
+            self.polyphony_reg_head = nn.Linear(trunk_dim, 1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg["polyphony_class"].get("num_classes", 9)
+            self.polyphony_class_head = nn.Linear(trunk_dim, self.polyphony_num_classes)
+
+        if "event_logits" in self.objectives_cfg:
+            self.event_head = nn.Linear(trunk_dim, 1)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            self.frame_polyphony_reg_head = nn.Linear(trunk_dim, 1)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            self.frame_polyphony_num_classes = self.objectives_cfg["framewise_polyphony_class"].get("num_classes", 9)
+            self.frame_polyphony_class_head = nn.Linear(trunk_dim, self.frame_polyphony_num_classes)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            self.num_species_reg = self.objectives_cfg["species_polyphony_reg"]["num_species"]
+            self.species_polyphony_reg_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_reg_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_reg_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_reg_head = nn.Linear(128, self.num_species_reg)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            self.num_classes_global = self.objectives_cfg["species_polyphony_class"]["num_classes"]
+            self.num_species_global = self.objectives_cfg["species_polyphony_class"]["num_species"]
+            self.species_polyphony_class_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_class_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_class_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_class_head = nn.Linear(
+                128, self.num_species_global * self.num_classes_global
+            )
+
+    def forward(self, x):
+        # x: (batch, feature) pooled, or (batch, time[, freq], feature) spatial
+        has_time = x.dim() >= 3
+        if x.dim() == 4:
+            x = x.mean(dim=2)  # average out freq axis, like MultiTaskTemporalCNNHead
+        elif x.dim() not in (2, 3):
+            raise ValueError(
+                f"Expected input with 2, 3, or 4 dims (batch[, time[, freq]], embedding), "
+                f"got shape {tuple(x.shape)}"
+            )
+
+        if self.takes_spatial_embeddings and not has_time:
+            needs = sorted(self.FRAMEWISE & set(self.objectives_cfg))
+            raise ValueError(
+                f"MultiTaskSimpleMLPHead was configured with frame-wise objective(s) {needs}, which "
+                "need a time axis, but received a pooled (no time axis) embedding instead. "
+                "Check that the wrapper is routing spatial_embeddings here (it reads this "
+                "head's `takes_spatial_embeddings` attribute)."
+            )
+
+        for linear, dropout in zip(self.hidden_layers, self.dropout_layers):
+            x = torch.relu(linear(x))
+            x = dropout(x)
+        features = x  # (batch, trunk_dim) or (batch, time, trunk_dim)
+
+        pooled = features.mean(dim=1) if has_time else features
+
+        outputs = {}
+
+        if "polyphony_reg" in self.objectives_cfg:
+            outputs["polyphony_reg"] = self.polyphony_reg_head(pooled).squeeze(-1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            outputs["polyphony_class"] = self.polyphony_class_head(pooled)
+
+        if "event_logits" in self.objectives_cfg:
+            outputs["event_logits"] = self.event_head(features).squeeze(-1)  # (batch, time)
+
+        if "framewise_polyphony_reg" in self.objectives_cfg:
+            outputs["framewise_polyphony_reg"] = self.frame_polyphony_reg_head(features).squeeze(-1)  # (batch, time)
+
+        if "framewise_polyphony_class" in self.objectives_cfg:
+            outputs["framewise_polyphony_class"] = self.frame_polyphony_class_head(features)  # (batch, time, num_classes)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_reg_dense1(pooled))
+            h = self.species_polyphony_reg_dropout(h)
+            h = torch.relu(self.species_polyphony_reg_dense2(h))
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(h)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_class_dense1(pooled))
+            h = self.species_polyphony_class_dropout(h)
+            h = torch.relu(self.species_polyphony_class_dense2(h))
+            h = self.species_polyphony_class_head(h)
+            outputs["species_polyphony_class"] = h.view(-1, self.num_species_global, self.num_classes_global)
+
+        return outputs
+
 ##################################
 # Output classes
 ################################## 

@@ -13,66 +13,16 @@ from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionC
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label, get_local_data_dir
-from losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
+from source.utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 tf.keras.backend.clear_session()
 
-# def make_tf_dataset(hf_dataset, features, labels, batch_size, shuffle=False):
-#     X = np.stack(hf_dataset[features]).astype(np.float32)
-#     y = np.array(hf_dataset[labels]).astype(np.float32)
-
-#     ds = tf.data.Dataset.from_tensor_slices((X, y))
-#     if shuffle:
-#         ds = ds.shuffle(buffer_size=len(X))
-#     ds = ds.batch(batch_size)
-#     return ds
-
 def get_tf_datasets(dataset, features, labels, batch_size):
-    # train_dataset = dataset['train'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels, 
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     prefetch=False
-    # )
-
-    # test_dataset = dataset['test'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     prefetch=False
-    # )
-
-    # val_dataset = dataset['validation'].to_tf_dataset(
-    #     columns=features,
-    #     label_cols=labels,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     prefetch=False
-    # )
     train_dataset = get_tf_dataset_from_split(dataset, 'train', features, labels, batch_size, shuffle=True)
     val_dataset = get_tf_dataset_from_split(dataset, 'validation', features, labels, batch_size, shuffle=False)
     test_dataset = get_tf_dataset_from_split(dataset, 'test', features, labels, batch_size, shuffle=False)
 
     return train_dataset, test_dataset, val_dataset
-
-# def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
-#     if split_name not in dataset:
-#         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
-    
-#     # Keep only the columns actually needed
-#     cols_to_keep = set(features if isinstance(features, list) else [features]) | set(labels)
-#     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
-#     split = dataset[split_name].remove_columns(cols_to_remove)
-    
-#     return split.to_tf_dataset(
-#         columns=features,
-#         label_cols=labels,
-#         batch_size=batch_size,
-#         shuffle=shuffle,
-#         prefetch=False
-#     )
 
 def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
     if split_name not in dataset:
@@ -233,61 +183,6 @@ def reshape_to_tfe(example, input_feature_name):
 
     return example
 
-# def build_metrics(objectives_cfg):
-#     compile_metrics = {}
-#     log_metrics = {}
-#     multiple_objectives = len(objectives_cfg) > 1
-
-#     def metric_key(objective, metric_name):
-#         if multiple_objectives:
-#             return f"val_{objective}_{metric_name}"
-#         return f"val_{metric_name}"
-
-#     for objective, obj_cfg in objectives_cfg.items():
-#         if objective == "polyphony_reg":
-#             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-#             log_metrics[metric_key(objective, 'accuracy')] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#         elif objective == "polyphony_class":
-#             compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
-#             log_metrics[metric_key(objective, 'accuracy')] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#         elif objective == "binary":
-#             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-#             log_metrics[metric_key(objective, 'accuracy')] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#         elif objective == 'event_logits':
-#             compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-#             log_metrics[metric_key(objective, 'accuracy')] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#         elif objective == 'framewise_polyphony_reg':
-#             compile_metrics[objective] = RegressionAccuracy(name='accuracy')
-#             log_metrics[metric_key(objective, 'accuracy')] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#         elif objective == 'species_polyphony':
-#             compile_metrics[objective] = [
-#                 RegressionAccuracy(name='accuracy'),
-#                 RegressionPrecision(name='precision'),
-#                 RegressionRecall(name='recall'),
-#                 RegressionF1(name='f1'),
-#             ]
-#             for metric_name in ['accuracy', 'precision', 'recall', 'f1']:
-#                 log_metrics[metric_key(objective, metric_name)] = None
-#             log_metrics[metric_key(objective, 'loss')] = None
-
-#     # Add top-level val_loss
-#     log_metrics['val_loss'] = None
-#     epoch_keys = [f'{key}_epoch' for key in log_metrics.keys()]
-#     for epoch_key in epoch_keys:
-#         log_metrics[epoch_key] = None
-
-#     return compile_metrics, log_metrics
-
 def build_compile_metrics(objectives_cfg):
     compile_metrics = {}
     multiple_objectives = len(objectives_cfg) > 1
@@ -355,29 +250,6 @@ def build_log_metrics(objectives_to_log):
         return f"val_{metric_name}"
 
     for objective in objectives_to_log:
-        # if objective == "polyphony_reg":
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
-
-        # elif objective == "polyphony_class":
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
-
-        # elif objective == "binary":
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
-
-        # elif objective == 'event_logits':
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
-
-        # elif objective == 'framewise_polyphony_reg':
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
-
-        # elif objective == 'framewise_polyphony_reg':
-        #     log_metrics[metric_key(objective, 'accuracy')] = None
-        #     log_metrics[metric_key(objective, 'loss')] = None
          
         if objective in {"polyphony_reg", "polyphony_class", "binary", "event_logits", "framewise_polyphony_reg", "framewise_polyphony_class"}:
             log_metrics[metric_key(objective, 'accuracy')] = None
@@ -449,29 +321,6 @@ def main():
     # #################################
     # # Load dataset
     # #################################
-
-    # # Load environment variables from .env file
-    # load_dotenv('local.env')
-    # huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
-
-    # # Load Dataset
-    # print(f"[INFO] HF_DATASETS_OFFLINE={os.environ.get('HF_DATASETS_OFFLINE', 'NOT SET')} (ommits updating datasets to avoid hitting rate limit on Huggingface Hub)")
-   
-    # dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token)
-    # # TODO: remove after testing - keep only a subset of the dataset to speed up testing
-    # for split in dataset.keys():
-    #     dataset[split] = dataset[split].select(range(100))
-    #  # TODO: reset after testing
-    # from datasets import load_from_disk
-    # dataset = load_from_disk("test_data/HSN")
-    # from datasets import load_dataset, DatasetDict, Dataset
-    # print(f"Loading dataset {huggingface_path} with config {dataset_config} from Huggingface Hub...")
-    # dataset = load_dataset(huggingface_path, dataset_config, token=huggingface_token, streaming=True)
-    # print("Dataset loaded. Converting to in-memory format for processing...")
-    # dataset = DatasetDict({
-    #     split: Dataset.from_list(list(ds.take(2)))
-    #     for split, ds in dataset.items()
-    # })
 
     print("default_dir:", default_dir)
     print("train_config:", train_config)
@@ -614,38 +463,6 @@ def main():
     # Logging setup
     #################################
 
-    # # Build per-output accuracy metrics depending on objective type
-    # compile_metrics = {}
-
-    # for objective, obj_cfg in objectives_cfg.items():
-
-    #     # Handle polyphony accuracy
-    #     # metric_name = 'accuracy' if "val_accuracy" in log_metrics else f"{objective}_accuracy"
-    #     if objective == "polyphony_reg":
-    #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
-    #     elif objective == "polyphony_class":
-    #         compile_metrics[objective] = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy') 
-
-    #     elif objective == "binary":
-    #         compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-
-    #     # Handle event logits accuracy
-    #     elif objective == 'event_logits':
-    #         compile_metrics[objective] = tf.keras.metrics.BinaryAccuracy(name='accuracy')
-
-    #     # Handle frame-wise polyphony accuracy
-    #     elif objective == 'framewise_polyphony_reg':
-    #         compile_metrics[objective] = RoundedAccuracy(name='accuracy')
-
-    #     # Handle species polyphony accuracy
-    #     elif objective == 'species_polyphony':
-    #         compile_metrics[objective] = [
-    #             RoundedAccuracy(name='accuracy'),
-    #             RoundedPrecision(name='precision'),
-    #             RoundedRecall(name='recall'),
-    #             RoundedF1(name='f1'),
-    #         ]
-
     # Build metrics from objectives config        
     compile_metrics = build_compile_metrics(objectives_cfg)
     log_metrics = build_log_metrics(objectives_to_log)
@@ -749,7 +566,6 @@ def main():
             tf.config.experimental.set_memory_growth(gpu, True)
     if not gpus:
         print("WARNING: No GPU found, training on CPU")
-
 
     #################################
     # Callbacks

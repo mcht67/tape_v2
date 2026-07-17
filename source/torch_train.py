@@ -12,19 +12,19 @@ from omegaconf import OmegaConf
 from hydra.utils import instantiate
 
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, get_birdset_id2label
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
 
-from logs import get_log_paths, build_confusion_matrix_specs
-from metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
+from utils.logs import get_log_paths, build_confusion_matrix_specs
+from utils.metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from torch_losses import (
+from utils.torch_losses import (
     compute_species_count_class_weights,
     create_losses_from_objectives_torch,
     setup_loss_scheduler_torch,
 )
-from torch_logging import TorchSummaryWriterLogger, ModelAndHistorySaverTorch
-from torch_multitask_head import MultiTaskHead
+from utils.torch_logging import TorchSummaryWriterLogger, ModelAndHistorySaverTorch
+from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 
 
 # ----------------------------------------------------------------------------
@@ -178,7 +178,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_torch_test.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -187,7 +187,12 @@ def main():
     set_random_seeds(random_seed)
     params = Params()
 
-    input_feature_name = cfg.train.get("input_feature_name", "audio")
+    # NOTE: cfg.train.input_feature_name is the *precomputed embedding* column
+    # used by the TF pipeline (e.g. "perch_v2_cpu_audio_pooled_embeddings").
+    # torch_train.py fine-tunes from raw audio, so it needs cfg.train.input_feature
+    # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
+    # already use for the torch backend).
+    input_feature_name = cfg.train.get("input_feature", "audio")
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.get("initial_epoch", 0) or 0
     learning_rate = cfg.train.learning_rate
@@ -195,6 +200,7 @@ def main():
     early_stopping_patience = cfg.train.get("early_stopping_patience", 10)
     early_stopping_delay_epochs = cfg.train.get("early_stopping_delay_epochs", 0)
     num_batches_train = cfg.train.get("num_batches_train", None)
+    num_batches_val = cfg.train.get("num_batches_val", None)
 
     load_checkpoint_path = cfg.train.get("load_checkpoint_path", None)
 
@@ -214,9 +220,25 @@ def main():
     ###################################################
     # Dataset
     ###################################################
-    dataset_path = cfg.path.dataset
-    dataset = load_from_disk(dataset_path)
+    default_dir = os.environ.get("DEFAULT_DIR", "")
+    train_config = cfg.dataset.train_config
+    subset = cfg.dataset.get("subset", None)
+    local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
+    dataset_dir = os.path.join(default_dir, local_data_dir)
+    print("dataset_dir:", dataset_dir)
+    # TODO remove after testinhg:
+    # from datasets import load_dataset
+    # dataset = load_dataset("mcht67/PolyBirdMix", "HSN_polyphonic")
+    dataset_dir = "data/HSN_polyphonic"
+    # dataset.save_to_disk(dataset_dir)
 
+    dataset = load_from_disk(dataset_dir)
+    
+    # TODO: remove after testing:
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))  # only first 10 samples for testing
+
+    # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
         for split in dataset.keys():
@@ -227,7 +249,6 @@ def main():
 
     # Species-level objectives need num_species / a birdset id<->label mapping,
     # same as train.py.
-    subset = cfg.dataset.get("subset", None)
     birdset_id2label = None
     num_species = None
     mapping = None
@@ -280,12 +301,12 @@ def main():
         print(f"Derived time_dim={time_dim}, freq_dim={freq_dim} from a sample forward pass "
               f"for framewise objective label building.")
 
-    if labels != ["polyphony_reg"] and labels != ["polyphony_class"]:
-        dataset, added_labels = add_labels(
-            dataset, labels, birdset_id2label=birdset_id2label,
-            time_dim=time_dim, freq_dim=freq_dim,
-        )
-        print("Added labels:", added_labels)
+    # if labels != ["polyphony_reg"] and labels != ["polyphony_class"]:
+    dataset, added_labels = add_labels(
+        dataset, labels, birdset_id2label=birdset_id2label,
+        time_dim=time_dim, freq_dim=freq_dim,
+    )
+    print("Added labels:", added_labels)
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
@@ -293,8 +314,18 @@ def main():
     )
 
     input_size = model.get_head_input_size()
-    model.replace_head(MultiTaskHead(input_size, objectives_cfg))
-    model.freeze_encoder()
+    head_type = cfg.train.get("head_type", "temporal_cnn")
+    if head_type == "temporal_cnn":
+        head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)  # always operates on spatial_embeddings
+    elif head_type == "mlp":
+        head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)  # pooled_embeddings, or spatial_embeddings if any frame-wise objective is configured
+    else:
+        raise ValueError(f"Unknown cfg.train.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
+    model.replace_head(head)
+    freeze_encoder = cfg.train.get("freeze_encoder", True)
+    if freeze_encoder:
+        print("Freezing encoder parameters (only training head).")
+        model.freeze_encoder()
     model.to(device)
 
     print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
@@ -317,7 +348,19 @@ def main():
     for loss_obj in losses.values():
         loss_obj.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        
+    freeze_epochs = cfg.train.get("freeze_epochs", None)              # e.g. 5; None = old behavior (frozen forever)
+    finetune_learning_rate = cfg.train.get("finetune_learning_rate", None)  # e.g. 1e-5; None = reuse `learning_rate`
+
+    if freeze_encoder and freeze_epochs is not None:
+        head_params = [p for p in model.parameters() if p.requires_grad]
+        encoder_params = [p for p in model.parameters() if not p.requires_grad]
+        optimizer = torch.optim.Adam([
+            {"params": head_params, "lr": learning_rate},
+            {"params": encoder_params, "lr": finetune_learning_rate or learning_rate},
+        ])
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     loss_weight_scheduler = setup_loss_scheduler_torch(objectives_cfg, losses)
 
@@ -369,7 +412,16 @@ def main():
     ###################################################
     # Train loop
     ###################################################
+    encoder_unfrozen = False
+
     for epoch in range(initial_epoch, total_epochs):
+        if freeze_encoder and freeze_epochs is not None and not encoder_unfrozen and epoch >= freeze_epochs:
+            print(f"Epoch {epoch + 1}: unfreezing encoder for fine-tuning"
+                + (f" (encoder lr={finetune_learning_rate})" if finetune_learning_rate else ""))
+            for p in model.parameters():
+                p.requires_grad = True
+            encoder_unfrozen = True
+
         print(f"Epoch {epoch + 1}\n-------------------------------")
         epoch_start = time.time()
 
@@ -416,7 +468,10 @@ def main():
         val_true_all = {obj: [] for obj in objectives_list}
 
         with torch.no_grad():
-            for x, y in val_loader:
+            for batch_idx, (x, y) in enumerate(val_loader):
+                if num_batches_val and batch_idx >= num_batches_val:
+                    break
+
                 x = x.to(device)
                 y = {k: v.to(device) for k, v in y.items()}
 

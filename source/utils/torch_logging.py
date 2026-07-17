@@ -36,8 +36,8 @@ from torch.utils.tensorboard import SummaryWriter as TorchSummaryWriter
 
 import torch
 
-from logs import CustomSummaryWriter, plot_confusion_matrix_sklearn
-from metrics import (
+from utils.logs import CustomSummaryWriter, plot_confusion_matrix_sklearn
+from utils.metrics import (
     prepare_polyphony_for_cm,
     prepare_classification_for_cm,
 )

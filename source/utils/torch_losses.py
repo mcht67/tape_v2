@@ -14,8 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from losses import compute_species_count_class_weights  # noqa: F401  (re-exported)
-
+from utils.losses import compute_species_count_class_weights  # noqa: F401  (re-exported)
 
 class DynamicWeightedLoss(nn.Module):
     """Loss with an updateable scalar weight, e.g. for LossWeightScheduler."""
