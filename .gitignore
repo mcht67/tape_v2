@@ -28,6 +28,7 @@ archive/
 train_output/
 eval_output/
 test_data/
+archive-old/
 
 # Ignore tmp copies for experiments
 /tmp
@@ -56,6 +57,7 @@ debug_tmp
 tmp
 
 source/exp_notebooks
+source/old
 
 
 /logs
