@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import torch
 from hydra.utils import instantiate
 from dotenv import load_dotenv
 from datasets import load_dataset, Audio, load_from_disk
@@ -14,6 +15,8 @@ from utils.evaluation import arrays_to_records, collect_predictions, update_metr
 
 import integrations.birdset as birdset
 import integrations.perch as perch
+
+from torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
 def main():
 
@@ -169,36 +172,53 @@ def main():
     # Load model
     #################################
 
-    # Load best model from checkpoint
-    checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
-    # TODO: remove after testing
-    # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260703_172045_level-arcs/checkpoints/best.weights.h5'
-    # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260703_172515_brood-weld/checkpoints/best.weights.h5'
-    # checkpoint_path = 'archive/Pooled-Embeddings/perch_v2_cpu/20260609_012305_bosom-byes/checkpoints/best.weights.h5'
+    backend = cfg.model.get("backend", "tensorflow")
 
-    if not os.path.exists(checkpoint_path):
-        raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
-    
-    # Define model
-    model = instantiate(cfg.model)
+    if backend == "torch":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
 
-    # Build model by calling it on a sample input
-    first_example = test_dataset[0]
-    print("input features", test_dataset.features)
-    input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
-    sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
-    _ = model(sample_input, training=False)
+        checkpoint_path = os.path.join(checkpoint_dir, "best.pt")
+        if not os.path.exists(checkpoint_path):
+            raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run torch_train.py first to save the best checkpoint for later evaluation.")
 
-    print(f"Loading weights from {checkpoint_path}")
-    model.load_weights(checkpoint_path)
-    print("Model loaded successfully.")
+        model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
+        print(f"Loaded torch checkpoint from {checkpoint_path}")
 
-    ###########################################
-    # Metrics computation on test split
-    ###########################################
-    
-    print(tf.config.list_physical_devices('GPU'))
-    y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], birdset_id2label=birdset_id2label)
+        y_true, predictions, variable_values = collect_predictions_torch(
+            model, test_dataset, input_feature, objectives_cfg, device,
+            batch_size=cfg.train.get("eval_batch_size", 32), variables=['snr_dB'],
+            birdset_id2label=birdset_id2label,
+        )
+
+    else:
+        # Load best model from checkpoint
+        checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
+
+        if not os.path.exists(checkpoint_path):
+            raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
+
+        # Define model
+        model = instantiate(cfg.model)
+
+        # Build model by calling it on a sample input
+        first_example = test_dataset[0]
+        print("input features", test_dataset.features)
+        input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
+        sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
+        _ = model(sample_input, training=False)
+
+        print(f"Loading weights from {checkpoint_path}")
+        model.load_weights(checkpoint_path)
+        print("Model loaded successfully.")
+
+        ###########################################
+        # Metrics computation on test split
+        ###########################################
+
+        print(tf.config.list_physical_devices('GPU'))
+        y_true, predictions, variable_values = collect_predictions(model, test_dataset, input_feature_name, variables=['snr_dB'], birdset_id2label=birdset_id2label)
+
     print("y_true:", y_true)
     print("predictions:", predictions)
     print("variable_values:", variable_values)

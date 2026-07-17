@@ -16,6 +16,8 @@ from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
 
+from torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+
 def main():
 
     #################################
@@ -129,25 +131,39 @@ def main():
     # Load model
     #################################
 
-    # Load best model from checkpoint
-    checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
+    backend = cfg.model.get("backend", "tensorflow")
 
-    if not os.path.exists(checkpoint_path):
-        raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
-    
-    # Define model
-    model = instantiate(cfg.model)
+    if backend == "torch":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
 
-    # Build model by calling it on a sample input
-    first_example = soundscape_test5s_split[0]
-    print("input features", soundscape_test5s_split.features)
-    input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
-    sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
-    _ = model(sample_input, training=False)
+        checkpoint_path = os.path.join(checkpoint_dir, "best.pt")
+        if not os.path.exists(checkpoint_path):
+            raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run torch_train.py first to save the best checkpoint for later evaluation.")
 
-    print(f"Loading weights from {checkpoint_path}")
-    model.load_weights(checkpoint_path)
-    print("Model loaded successfully.")
+        model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
+        print(f"Loaded torch checkpoint from {checkpoint_path}")
+
+    else:
+        # Load best model from checkpoint
+        checkpoint_path = os.path.join(checkpoint_dir, "best.weights.h5")
+
+        if not os.path.exists(checkpoint_path):
+            raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
+
+        # Define model
+        model = instantiate(cfg.model)
+
+        # Build model by calling it on a sample input
+        first_example = soundscape_test5s_split[0]
+        print("input features", soundscape_test5s_split.features)
+        input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
+        sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
+        _ = model(sample_input, training=False)
+
+        print(f"Loading weights from {checkpoint_path}")
+        model.load_weights(checkpoint_path)
+        print("Model loaded successfully.")
 
     #########################################
     # Validation on soundscape data
@@ -176,9 +192,24 @@ def main():
 
     embeddings_precomputed = input_feature_name in soundscape_test5s_split.features
 
-    if embeddings_precomputed:
-        print(f"Embeddings have been precomputed and stored in feature '{input_feature_name}'. Using precomputed embeddings for evaluation.")
-        y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, birdset_id2label=birdset_id2label)
+    if backend == "torch" or embeddings_precomputed:
+
+        if backend == "torch":
+            # The fine-tuned torch model embeds + predicts end-to-end from raw
+            # audio in one batched pass -- there's no separate "precomputed vs.
+            # on-the-fly embedding" distinction to make.
+            print("Running the torch model end-to-end on raw audio (batched) for soundscape evaluation...")
+            truth_columns = ["min_polyphony", "max_polyphony"]
+            if num_species:
+                truth_columns += ["min_species_polyphony", "max_species_polyphony"]
+            y_true, predictions, variable_values = collect_predictions_torch(
+                model, soundscape_test5s_split, input_feature, objectives_cfg, device,
+                batch_size=cfg.train.get("eval_batch_size", 32), variables=[],
+                truth_columns=truth_columns, birdset_id2label=birdset_id2label,
+            )
+        else:
+            print(f"Embeddings have been precomputed and stored in feature '{input_feature_name}'. Using precomputed embeddings for evaluation.")
+            y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, birdset_id2label=birdset_id2label)
 
         # Store predictions
         print("y_true:", y_true)
