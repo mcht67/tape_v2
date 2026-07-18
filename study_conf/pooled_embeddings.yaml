@@ -1,12 +1,12 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  - 'XCM'
-  - "HSN"
-  - "PER"
   - "UHH"
-  - "NES"
-  - "SSW"
-  - "POW"
-  - "SNE"
+  # - "HSN"
+  # - "PER"
+  # - "NES"
+  # - "SSW"
+  # - "POW"
+  # - "SNE"
+  # - "XCM"
 
 base_config:
   log.study_name: "Pooled-Embeddings"
