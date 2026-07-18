@@ -494,7 +494,7 @@ class BirdSetEfficientNet(torch.nn.Module):
         encoder_outputs = self.model.efficientnet(spectrogram)
         last_hidden_states = encoder_outputs.last_hidden_state
         pooled_features = encoder_outputs.pooler_output
-        spatial_embeddings = last_hidden_states.permute(2, 1, 0) # (time, freq, embeddings) to match other models
+        spatial_embeddings = last_hidden_states.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
 
         # Heads that declare `takes_spatial_embeddings = True` (e.g. MultiTaskHead)
         # get the frame-wise sequence instead of the pooled vector.
@@ -624,13 +624,15 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
             x = pooled_output
         else:
             raise ValueError(f"Pooling option {self.pooling} not supported")
+        
+        spatial_embeddings = last_hidden_state.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
     
         if self.output_head:
             logits = self.output_head(x)
 
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
-        spatial_embeddings=last_hidden_state.permute(2, 1, 0), # (time, freq, embeddings) to match other models
+        spatial_embeddings=spatial_embeddings,
         logits=logits
     )
     
