@@ -14,8 +14,10 @@ dataset:
 #   type: perch_v2
 #   dimension_type: pooled
 model:
-  _target_: utils.torch_models.BirdSetEfficientNet
-  pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
+  _target_: utils.torch_models.BirdSetBirdMAE
+  pretrained_model_path: DBD-research-group/Bird-MAE-Huge
+  # _target_: utils.torch_models.BirdSetEfficientNet
+  # pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
   # Read by evaluate_on_test_split.py / evaluate_on_soundscape_data.py to pick
   # the torch path; torch_train.py itself doesn't need this key.
 
@@ -109,11 +111,11 @@ train:
   initial_epoch: null
   num_batches_train: 1   # one batch is enough to prove the pipeline runs end to end
   num_batches_val: 1
-  eval_batch_size: 8 
+  eval_batch_size: 1 
   backend: torch
-  head_type: temporal_cnn 
+  head_type: mlp 
   freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
-  freeze_epochs: 2           # train the head alone for 5 epochs, then unfreeze
+  freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
   finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
        # used by the evaluate_* scripts' torch path, not by torch_train.py
 log:
