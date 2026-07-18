@@ -146,10 +146,16 @@ class BirdSetEfficientNet(torch.nn.Module):
         last_hidden_states = encoder_outputs.last_hidden_state
         pooled_features = encoder_outputs.pooler_output
         logits = self.model.classifier(pooled_features)
+        spatial_embeddings = last_hidden_states.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
+
+        print("Spectrogram shape:", spectrogram.shape)   # (batch, channels, H, W)
+        print("Last hidden states shape:", last_hidden_states.shape)  # expect (batch, embedding, freq, time)
+        print("Pooled embeddings shape:", pooled_features.shape)  # expect (batch, embedding)
+        print("Spatial embeddings shape:", spatial_embeddings.shape) 
 
         return EmbeddingModelOutput(
             pooled_embeddings=pooled_features,
-            spatial_embeddings=last_hidden_states.permute(2, 1, 0), # (time, freq, embeddings) to match other models
+            spatial_embeddings=spatial_embeddings,
             logits=logits
         )
     
@@ -265,9 +271,16 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
         if self.output_head:
             logits = self.output_head(x)
 
+        spatial_embeddings = last_hidden_state.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
+
+        print("Spectrogram shape:", mel_spectrogram.shape)   # (batch, channels, H, W)
+        print("Last hidden state shape:", last_hidden_state.shape)  # expect (batch, embedding, freq, time)
+        print("Pooled output shape:", pooled_output.shape if pooled_output is not None else None)  # expect (batch, embedding)
+        print("Spatial embeddings shape:", spatial_embeddings.shape)  # expect (batch, time, freq, embedding)
+        
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
-        spatial_embeddings=last_hidden_state.permute(2, 1, 0), # (time, freq, embeddings) to match other models
+        spatial_embeddings=spatial_embeddings, # (batch, time, freq, embeddings) to match other models
         logits=logits
     )
     

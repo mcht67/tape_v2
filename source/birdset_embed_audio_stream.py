@@ -85,8 +85,10 @@ def main():
     # Check if dataset exists locally
     train_config = subset + '_polyphonic' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
     scape_test_config = subset + '_soundscape_test' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
+
+    dataset_configs = [train_config, scape_test_config] if subset!='XCM' and subset!="XCL" else [train_config]
     
-    for dataset_config in [train_config, scape_test_config]:
+    for dataset_config in dataset_configs:
         
         local_data_dir = get_local_data_dir(dataset_config=dataset_config, subset=subset)
         if not os.path.exists(local_data_dir):
