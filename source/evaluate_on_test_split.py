@@ -182,7 +182,7 @@ def main():
         if not os.path.exists(checkpoint_path):
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run torch_train.py first to save the best checkpoint for later evaluation.")
 
-        model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
+        model = load_torch_model_for_eval(cfg.model, cfg.head, objectives_cfg, checkpoint_path, device)
         print(f"Loaded torch checkpoint from {checkpoint_path}")
 
         y_true, predictions, variable_values = collect_predictions_torch(

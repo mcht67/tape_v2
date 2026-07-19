@@ -686,14 +686,14 @@ class SimpleMLP(tf.keras.Model):
             self.polyphony_num_classes = self.objectives_cfg.get("polyphony_class", {}).get("num_classes", 9) 
             self.polyphony_class_head = layers.Dense(self.polyphony_num_classes)
 
-        if "event_logits" in self.objectives_cfg:
-            self.event_head = layers.Dense(1)
+        # if "event_logits" in self.objectives_cfg:
+        #     self.event_head = layers.Dense(1)
         
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            self.frame_polyphony_reg_head = layers.Dense(1)
+        # if "framewise_polyphony_reg" in self.objectives_cfg:
+        #     self.frame_polyphony_reg_head = layers.Dense(1)
 
-        if "framewise_polyphony_class" in self.objectives_cfg:
-            self.frame_polyphony_class_head = layers.Dense(self.frame_polyphony_num_classes)
+        # if "framewise_polyphony_class" in self.objectives_cfg:
+        #     self.frame_polyphony_class_head = layers.Dense(self.frame_polyphony_num_classes)
 
         # Deeper bottleneck than polyphony_reg: joint multi-species prediction
         # requires capacity to model inter-species correlations
@@ -740,16 +740,16 @@ class SimpleMLP(tf.keras.Model):
                 features, training=training
             )
         
-        if "event_logits" in self.objectives_cfg:
-            outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
+        # if "event_logits" in self.objectives_cfg:
+        #     outputs["event_logits"] = tf.squeeze(self.event_head(features, training=training), axis=-1)
         
-        if "framewise_polyphony_reg" in self.objectives_cfg:
-            outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_reg_head(features, training=training), axis=-1)
+        # if "framewise_polyphony_reg" in self.objectives_cfg:
+        #     outputs["framewise_polyphony_reg"] = tf.squeeze(self.frame_polyphony_reg_head(features, training=training), axis=-1)
         
-        if "framewise_polyphony_class" in self.objectives_cfg:
-            outputs["framewise_polyphony_class"] = self.frame_polyphony_class_head(
-                features, training=training
-            )
+        # if "framewise_polyphony_class" in self.objectives_cfg:
+        #     outputs["framewise_polyphony_class"] = self.frame_polyphony_class_head(
+        #         features, training=training
+        #     )
 
         if "species_polyphony_reg" in self.objectives_cfg:
             x = self.species_polyphony_reg_dense1(features)

@@ -107,7 +107,7 @@ class _EvalDataset(Dataset):
         return x, truth, extra
 
 
-def load_torch_model_for_eval(model_cfg, objectives_cfg, checkpoint_path, device, head_type="temporal_cnn"):
+def load_torch_model_for_eval(model_cfg, head_cfg, objectives_cfg, checkpoint_path, device):
     """
     Instantiates the torch backbone from `model_cfg` (same hydra config used
     by torch_train.py), attaches a MultiTaskTemporalCNNHead matching `objectives_cfg`,
@@ -115,27 +115,17 @@ def load_torch_model_for_eval(model_cfg, objectives_cfg, checkpoint_path, device
     (`{"model_state_dict": ..., ...}`, e.g. checkpoint_dir/best.pt).
     """
     model = instantiate(model_cfg)
-
-    if not model.sampling_rate:
-        model.set_sampling_rate(32000)
-
-    input_size = model.get_head_input_size()
-    head_type = model_cfg.get("head_type", "temporal_cnn")
-    if head_type == "temporal_cnn":
-        head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)
-    elif head_type == "mlp":
-        head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)
-    else:
-        raise ValueError(f"Unknown model_cfg.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
+    head_input_size = model.get_head_input_size()
+    head_cfg.input_size = head_input_size
+    head_cfg.objectives_cfg = objectives_cfg
+    head = instantiate(head_cfg)
     model.replace_head(head)
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
-
     model.to(device)
     model.eval()
     return model
-
 
 DEFAULT_TRUTH_COLUMNS_BY_OBJECTIVE_PREFIX = {
     "polyphony": "polyphony",
