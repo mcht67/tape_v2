@@ -143,8 +143,7 @@ def main():
 
         # model = load_torch_model_for_eval(cfg.model, objectives_cfg, checkpoint_path, device)
         model = load_torch_model_for_eval(
-            cfg.model, objectives_cfg, checkpoint_path, device,
-            head_type=cfg.train.get("head_type", "temporal_cnn"),
+            cfg.model, cfg.head, objectives_cfg, checkpoint_path, device
         )
         print(f"Loaded torch checkpoint from {checkpoint_path}")
 

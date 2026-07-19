@@ -14,6 +14,7 @@ import warnings
 ##################################
 # Model heads
 ################################## 
+
 class SimpleRegressionHead(torch.nn.Module):
     def __init__(self, input_size: Union[int, torch.Size], dropout: float = 0.2):
         super().__init__()
@@ -43,22 +44,102 @@ class SimpleRegressionHead(torch.nn.Module):
     def forward(self, x):
         return self.regression_head(x)
 
-# torch_multitask_head.py
-#
-# MultiTaskTemporalCNNHead now mirrors model.py's TemporalCNN exactly: it owns the same
-# shared conv trunk (conv1/bn1/dropout1/conv2/bn2) and consumes the
-# frame-wise/spatial embedding sequence, not a single pooled vector. This is
-# the change from the previous version -- see torch_models_integration.py for
-# the (small) wiring change each BirdSet* wrapper needs so `spatial_embeddings`
-# reaches the head instead of `pooled_embeddings`.
-#
-# All six TemporalCNN objectives are supported now, including the frame-wise
-# ones (event_logits, framewise_polyphony_reg/class), since the head has
-# access to the time axis again.
+class SimpleMLPHead(nn.Module):
+    """
+    Literal 1:1 port of model.py's SimpleMLP (event_logits/framewise_*
+    removed version) -- always pooled-only, no dual pooled/spatial handling.
+    """
 
-import torch
-import torch.nn as nn
+    SUPPORTED = {"polyphony_reg", "polyphony_class", "species_polyphony_reg", "species_polyphony_class"}
 
+    # No takes_spatial_embeddings attribute at all -- defaults to False via
+    # getattr(...) in the wrapper patches, so this always gets pooled_embeddings,
+    # exactly like SimpleRegressionHead.
+
+    def __init__(self, input_size, objectives_cfg, hidden_units=(512, 256), dropout_rate=0.3):
+        super().__init__()
+
+        if isinstance(input_size, (torch.Size, tuple, list)):
+            feature_dim = input_size[-1]
+        else:
+            feature_dim = input_size
+
+        self.in_features = feature_dim
+
+        unsupported = set(objectives_cfg.keys()) - self.SUPPORTED
+        if unsupported:
+            raise ValueError(f"Unknown objective(s) {unsupported}. Supported: {sorted(self.SUPPORTED)}")
+
+        self.objectives_cfg = dict(objectives_cfg)
+        self.hidden_units = list(hidden_units)
+
+        # shared trunk -- dropout only after the first hidden layer, same as SimpleMLP
+        self.hidden_layers = nn.ModuleList()
+        self.dropout_layers = nn.ModuleList()
+        prev_dim = feature_dim
+        for i, units in enumerate(self.hidden_units):
+            self.hidden_layers.append(nn.Linear(prev_dim, units))
+            self.dropout_layers.append(nn.Dropout(dropout_rate) if i == 0 else nn.Identity())
+            prev_dim = units
+        trunk_dim = prev_dim
+
+        if "polyphony_reg" in self.objectives_cfg:
+            self.polyphony_reg_head = nn.Linear(trunk_dim, 1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            self.polyphony_num_classes = self.objectives_cfg["polyphony_class"].get("num_classes", 9)
+            self.polyphony_class_head = nn.Linear(trunk_dim, self.polyphony_num_classes)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            self.num_species_reg = self.objectives_cfg["species_polyphony_reg"]["num_species"]
+            self.species_polyphony_reg_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_reg_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_reg_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_reg_head = nn.Linear(128, self.num_species_reg)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            self.num_classes_global = self.objectives_cfg["species_polyphony_class"]["num_classes"]
+            self.num_species_global = self.objectives_cfg["species_polyphony_class"]["num_species"]
+            self.species_polyphony_class_dense1 = nn.Linear(trunk_dim, 256)
+            self.species_polyphony_class_dropout = nn.Dropout(dropout_rate)
+            self.species_polyphony_class_dense2 = nn.Linear(256, 128)
+            self.species_polyphony_class_head = nn.Linear(
+                128, self.num_species_global * self.num_classes_global
+            )
+
+    def forward(self, x):
+        # mirrors SimpleMLP's self.flatten(inputs) -- no-op on an already
+        # pooled (batch, feature) vector
+        if x.dim() > 2:
+            x = x.reshape(x.shape[0], -1)
+
+        for linear, dropout in zip(self.hidden_layers, self.dropout_layers):
+            x = torch.relu(linear(x))
+            x = dropout(x)
+        features = x
+
+        outputs = {}
+
+        if "polyphony_reg" in self.objectives_cfg:
+            outputs["polyphony_reg"] = self.polyphony_reg_head(features).squeeze(-1)
+
+        if "polyphony_class" in self.objectives_cfg:
+            outputs["polyphony_class"] = self.polyphony_class_head(features)
+
+        if "species_polyphony_reg" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_reg_dense1(features))
+            h = self.species_polyphony_reg_dropout(h)
+            h = torch.relu(self.species_polyphony_reg_dense2(h))
+            outputs["species_polyphony_reg"] = self.species_polyphony_reg_head(h)
+
+        if "species_polyphony_class" in self.objectives_cfg:
+            h = torch.relu(self.species_polyphony_class_dense1(features))
+            h = self.species_polyphony_class_dropout(h)
+            h = torch.relu(self.species_polyphony_class_dense2(h))
+            h = self.species_polyphony_class_head(h)
+            outputs["species_polyphony_class"] = h.view(-1, self.num_species_global, self.num_classes_global)
+
+        return outputs
 
 class MultiTaskTemporalCNNHead(nn.Module):
     """
@@ -436,6 +517,40 @@ class MultiTaskModelOutput(ModelOutput):
 # Models
 ##################################
 
+class PrecomputedEmbeddingModel(torch.nn.Module):
+    """
+    No-encoder stand-in for torch_train.py's harness: the input IS already the
+    precomputed (pooled or spatial) embedding, so this just passes it straight
+    to whichever head is attached. Lets MultiTaskSimpleMLPHead / SimpleMLPHead /
+    MultiTaskTemporalCNNHead run as complete standalone models on precomputed
+    embeddings, for direct comparison against the Keras head-only training.
+    """
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.output_head = None
+        self.sampling_rate = None  # unused -- no audio preprocessing in this path
+
+    def set_sampling_rate(self, sr):
+        pass  # no-op, nothing to set
+
+    def get_head_input_size(self):
+        return self.embedding_dim
+
+    def replace_head(self, new_head):
+        self.output_head = new_head
+
+    def freeze_encoder(self):
+        pass  # no encoder to freeze -- the head is the entire trainable model
+
+    def forward(self, x):
+        logits = self.output_head(x) if self.output_head else None
+        return EmbeddingModelOutput(
+            pooled_embeddings=x if x.dim() == 2 else None,
+            spatial_embeddings=x if x.dim() > 2 else None,
+            logits=logits,
+        )
+
 # Wrapper for pretrained model https://huggingface.co/DBD-research-group/EfficientNet-B1-BirdSet-XCL
 # added automatic preprocessing, freeze_encoder(), replace_head(), get_head_input_size()
 class BirdSetEfficientNet(torch.nn.Module):
@@ -552,9 +667,9 @@ class BirdSetBirdMAE(torch.nn.Module):
         audio = audio.to(device)
         mel_spectrogram = self.preprocess(audio)
         outputs = self.model(mel_spectrogram)
-        last_hidden_state = outputs.last_hidden_state  # (batch, time, embedding)
-        spatial_embeddings = last_hidden_state
-        pooled_embeddings = last_hidden_state.mean(dim=1)
+        last_hidden_state = outputs.last_hidden_state  # (batch, embedding)
+        spatial_embeddings = None
+        pooled_embeddings = last_hidden_state
 
         # Heads that declare `takes_spatial_embeddings = True` (e.g. MultiTaskHead)
         # get the frame-wise sequence; everything else gets the pooled vector

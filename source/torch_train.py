@@ -192,7 +192,8 @@ def main():
     # torch_train.py fine-tunes from raw audio, so it needs cfg.train.input_feature
     # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
     # already use for the torch backend).
-    input_feature_name = cfg.train.get("input_feature", "audio")
+    input_feature_name = cfg.train.get("input_feature_name", cfg.train.get("input_feature", "audio"))
+    precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.get("initial_epoch", 0) or 0
     learning_rate = cfg.train.learning_rate
@@ -207,6 +208,7 @@ def main():
     objectives_cfg = cfg.objectives
     objectives_list = list(objectives_cfg.keys())
     model_cfg = cfg.model
+    head_cfg = cfg.head
 
     log_paths = get_log_paths(cfg)
     log_dir = str(log_paths["train_log_dir"])
@@ -244,8 +246,9 @@ def main():
         for split in dataset.keys():
             dataset[split] = dataset[split].filter(lambda x: x["polyphony"] <= max_polyphony)
 
-    for split in dataset:
-        dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=32000))
+    if not precomputed_embeddings:
+        for split in dataset:
+            dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=32000))
 
     # Species-level objectives need num_species / a birdset id<->label mapping,
     # same as train.py.
@@ -280,6 +283,11 @@ def main():
     ###################################################
     print(model_cfg)
     model = instantiate(model_cfg)
+    head_input_size = model.get_head_input_size()
+    head_cfg.input_size = head_input_size
+    head_cfg.objectives_cfg = objectives_cfg   # must match the head's actual constructor param name
+    head = instantiate(head_cfg)
+    model.replace_head(head)
 
     default_sampling_rate = 32000
     if not model.sampling_rate:
@@ -288,18 +296,21 @@ def main():
     needs_frame_dims = bool({"framewise_polyphony_reg", "framewise_polyphony_class", "event_logits"} & set(labels))
     time_dim, freq_dim = None, None
     if needs_frame_dims:
-        model.eval()
-        with torch.no_grad():
-            sample_feat = dataset["train"][0][input_feature_name]
-            if isinstance(sample_feat, dict) and "array" in sample_feat:
-                sample_feat = sample_feat["array"]
-            sample_audio = torch.tensor(sample_feat, dtype=torch.float32).unsqueeze(0)
-            sample_outputs = model(sample_audio)
-            spatial_shape = sample_outputs.spatial_embeddings.shape  # (batch, time[, freq], embedding)
-            time_dim = spatial_shape[1]
-            freq_dim = spatial_shape[2] if len(spatial_shape) == 4 else None
-        print(f"Derived time_dim={time_dim}, freq_dim={freq_dim} from a sample forward pass "
-              f"for framewise objective label building.")
+        if precomputed_embeddings:
+            sample_feat = np.asarray(dataset["train"][0][input_feature_name])
+            time_dim = sample_feat.shape[0]
+            freq_dim = sample_feat.shape[1] if sample_feat.ndim == 3 else None
+        else:
+            model.eval()
+            with torch.no_grad():
+                sample_feat = dataset["train"][0][input_feature_name]
+                if isinstance(sample_feat, dict) and "array" in sample_feat:
+                    sample_feat = sample_feat["array"]
+                sample_audio = torch.tensor(sample_feat, dtype=torch.float32).unsqueeze(0)
+                sample_outputs = model(sample_audio)
+                spatial_shape = sample_outputs.spatial_embeddings.shape
+                time_dim = spatial_shape[1]
+                freq_dim = spatial_shape[2] if len(spatial_shape) == 4 else None
 
     # if labels != ["polyphony_reg"] and labels != ["polyphony_class"]:
     dataset, added_labels = add_labels(
@@ -313,15 +324,15 @@ def main():
         objective_names=objectives_list, batch_size=batch_size,
     )
 
-    input_size = model.get_head_input_size()
-    head_type = cfg.train.get("head_type", "temporal_cnn")
-    if head_type == "temporal_cnn":
-        head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)  # always operates on spatial_embeddings
-    elif head_type == "mlp":
-        head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)  # pooled_embeddings, or spatial_embeddings if any frame-wise objective is configured
-    else:
-        raise ValueError(f"Unknown cfg.train.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
-    model.replace_head(head)
+    # input_size = model.get_head_input_size()
+    # head_type = cfg.train.get("head_type", "temporal_cnn")
+    # if head_type == "temporal_cnn":
+    #     head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)  # always operates on spatial_embeddings
+    # elif head_type == "mlp":
+    #     head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)  # pooled_embeddings, or spatial_embeddings if any frame-wise objective is configured
+    # else:
+    #     raise ValueError(f"Unknown cfg.train.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
+    # model.replace_head(head)
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:
         print("Freezing encoder parameters (only training head).")
