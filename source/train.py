@@ -487,6 +487,8 @@ def main():
         max_polyphony = cfg.dataset.max_polyphony
         print(f"Filtering dataset to include only examples with polyphony degree <= {max_polyphony}...")
         for split in dataset.keys():
+            if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
+                dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
             dataset[split] = dataset[split].filter(lambda x: x['polyphony'] <= max_polyphony)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
