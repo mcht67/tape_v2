@@ -27,6 +27,7 @@ data
 archive/
 train_output/
 eval_output/
+soundscape_eval_output/
 test_data/
 archive-old/
 
