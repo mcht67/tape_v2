@@ -197,7 +197,8 @@ def main():
     # torch_train.py fine-tunes from raw audio, so it needs cfg.train.input_feature
     # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
     # already use for the torch backend).
-    input_feature_name = cfg.train.get("input_feature_name", cfg.train.get("input_feature", "audio"))
+    input_feature = cfg.train.get("input_feature", "audio")
+    input_feature_name = cfg.train.get("input_feature_name", input_feature)
     print(f"Using input feature column '{input_feature_name}' (cfg.train.input_feature_name or cfg.train.input_feature)")
     precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
     total_epochs = cfg.train.epochs
