@@ -132,6 +132,7 @@ def main():
     #################################
 
     ebird_class_labels = None
+    birdset_id2label = None
 
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
