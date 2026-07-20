@@ -178,7 +178,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -193,6 +193,7 @@ def main():
     # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
     # already use for the torch backend).
     input_feature_name = cfg.train.get("input_feature_name", cfg.train.get("input_feature", "audio"))
+    print(f"Using input feature column '{input_feature_name}' (cfg.train.input_feature_name or cfg.train.input_feature)")
     precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.get("initial_epoch", 0) or 0
@@ -208,11 +209,13 @@ def main():
     objectives_cfg = cfg.objectives
     objectives_list = list(objectives_cfg.keys())
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     head_cfg = cfg.head
 
     log_paths = get_log_paths(cfg)
     log_dir = str(log_paths["train_log_dir"])
     checkpoint_dir = str(log_paths["checkpoint_dir"])
+    print(f"Logging to {log_dir}, checkpoints to {checkpoint_dir}")
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -228,11 +231,6 @@ def main():
     local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
-    # TODO remove after testinhg:
-    # from datasets import load_dataset
-    # dataset = load_dataset("mcht67/PolyBirdMix", "HSN_polyphonic")
-    dataset_dir = "data/HSN_polyphonic"
-    # dataset.save_to_disk(dataset_dir)
 
     dataset = load_from_disk(dataset_dir)
     
@@ -245,10 +243,6 @@ def main():
         max_polyphony = cfg.dataset.max_polyphony
         for split in dataset.keys():
             dataset[split] = dataset[split].filter(lambda x: x["polyphony"] <= max_polyphony)
-
-    if not precomputed_embeddings:
-        for split in dataset:
-            dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=32000))
 
     # Species-level objectives need num_species / a birdset id<->label mapping,
     # same as train.py.
@@ -318,6 +312,12 @@ def main():
         time_dim=time_dim, freq_dim=freq_dim,
     )
     print("Added labels:", added_labels)
+
+    sampling_rate = model.get("sampling_rate")
+    if not precomputed_embeddings:
+        for split in dataset:
+            print(dataset[split].features)
+            dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,

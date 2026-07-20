@@ -315,6 +315,7 @@ def main():
 
     objectives_to_log = cfg.log.objectives_to_log if 'objectives_to_log' in cfg.log else None
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
 
     

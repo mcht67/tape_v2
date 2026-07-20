@@ -16,7 +16,7 @@ base_config:
   dataset.min_snr: -10
   train.epochs: 100
   train.learning_rate: 0.001
-  path.study_subfolder: "test-fine-tuning/" #${model._target_}/"
+  path.study_subfolder: ${model.name}/
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class

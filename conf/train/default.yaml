@@ -1,10 +1,14 @@
 input_feature: 
-input_feature_name: birdnet_V2.3_audio_embeddings
-batch_size: 32
-learning_rate: 0.001
-early_stopping_patience: 10
-early_stopping_delay_epochs: 0
-epochs: 100
+input_feature_name: 
+batch_size: 
+learning_rate: 
+early_stopping_patience: 
+early_stopping_delay_epochs: 
+epochs: 
 initial_epoch:
 num_batches_train: 
 num_batches_val: 
+backend:
+freeze_encoder: 
+freeze_epochs:
+finetune_learning_rate:

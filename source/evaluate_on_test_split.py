@@ -20,7 +20,7 @@ def main():
     #################################
     # Configuration
     #################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
     print(cfg)
 
     study_name = cfg.log.study_name
@@ -39,6 +39,7 @@ def main():
         checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
     
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
 
     input_feature = cfg.train.input_feature

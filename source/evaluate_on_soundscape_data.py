@@ -23,7 +23,7 @@ def main():
     #################################
     # Configuration
     #################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     study_name = cfg.log.study_name
     subset = cfg.dataset.subset
@@ -41,6 +41,7 @@ def main():
         checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
 
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
     input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
@@ -80,12 +81,6 @@ def main():
     print("local_data_dir:", local_data_dir)
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
-
-    # # TODO: remove after one run 
-    # from datasets import load_dataset
-    # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-    # scape_ds = scape_ds.select(range(20))  # Select first 20 examples for testing
-    # scape_ds.save_to_disk(dataset_dir)
 
     soundscape_test5s_split = load_from_disk(dataset_dir)
  
