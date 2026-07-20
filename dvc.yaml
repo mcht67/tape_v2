@@ -42,8 +42,7 @@ stages:
       - train
       - log
     outs:
-      - ${path.train_output}:
-          persist: true
+      - ${path.train_output}
 
   evaluate:
     cmd: ${python.complete} source/evaluate_on_test_split.py
@@ -64,8 +63,7 @@ stages:
       - objectives
       - train
     outs:
-      - ${path.eval_output}:
-          persist: true 
+      - ${path.eval_output}
 
   soundscape_evaluate:
     cmd: ${python.complete} source/evaluate_on_soundscape_data.py
@@ -83,5 +81,4 @@ stages:
       - objectives
       - train
     outs:
-      - ${path.soundscape_eval_output}:
-          persist: true 
+      - ${path.soundscape_eval_output}
