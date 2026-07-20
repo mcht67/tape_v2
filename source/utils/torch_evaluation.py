@@ -40,7 +40,7 @@ from torch.utils.data.dataloader import default_collate
 from datasets import Audio
 from hydra.utils import instantiate
 
-from torch_multitask_head import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
+from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 
 
 MULTILABEL_COLUMN_CANDIDATES = ("birdset_code_multilabel", "birdset_id_multilabel", "ebird_code_multilabel")

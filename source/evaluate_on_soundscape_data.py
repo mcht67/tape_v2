@@ -16,14 +16,14 @@ from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
 
-from source.utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
 def main():
 
     #################################
     # Configuration
     #################################
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_torch_test.yaml")
 
     study_name = cfg.log.study_name
     subset = cfg.dataset.subset
