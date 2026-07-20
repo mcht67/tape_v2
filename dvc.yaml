@@ -1,101 +1,81 @@
 # This file defines the dvc stages and its depencies
 
 stages:
-  #load_dataset:
-  #   cmd:
-  #     ${python.base} source/load_dataset.py
+
+  # train:
+  #   cmd: ${python.complete} source/train.py 
   #   deps:
-  #     - source/load_dataset.py
+  #     - source/train.py
+  #     - source/utils/logs.py
+  #     - source/utils/general.py
+  #     - source/utils/config.py
+  #     - source/utils/dataset.py
+  #     - source/utils/losses.py
   #   params:
-  #     - dataset.config
-  #     - dataset.huggingface_path
-  #     - path.dataset_metadata
+  #     - general.random_seed
+  #     - dataset
+  #     - model
+  #     - objectives
+  #     - train
+  #     - log
   #   outs:
-  #     - ${path.dataset_metadata}
+  #     - ${path.train_output}:
+  #         persist: true  
 
-  # embed_audio_with_perch:
-  #   cmd: ${python.perch} source/embed_audio.py
-  #   deps:
-  #     - source/embed_audio.py
-  #     - ${path.dataset_metadata}
-  #   params:
-  #     - embeddings
-  #   outs:
-  #     - ${path.perch_embeddings_metadata}
+    train:
+      cmd: ${python.complete} source/torch_train.py
+      deps:
+        - source/train.py
+        - source/utils/logs.py
+        - source/utils/config.py
+        - source/utils/dataset.py
+        - source/utils/metrics.py
+        - source/utils/torch_losses.py
+        - source/utils/torch_models.py
+        - source/utils/torch_logging.py
+      params:
+        - general.random_seed
+        - dataset
+        - model
+        - head
+        - objectives
+        - train
+        - log
+      outs:
+        - ${path.train_output}:
+            persist: true
 
-  # embed_audio_with_birdset:
-  #   cmd: ${python.train} source/torch_embed_audio.py
-  #   deps:
-  #     - source/torch_embed_audio.py
-  #     - ${path.dataset_metadata}
-  #   params:
-  #     - embeddings
-  #   outs:
-  #     - ${path.birdset_embeddings_metadata}
-
-  # add_labels:
-  #   cmd: ${python.base} source/add_labels.py
-  #   deps:
-  #     - source/add_labels.py
-  #     - ${path.dataset_metadata}
-  #   params:
-  #     - path.dataset
-  #     - labels
-  #   outs:
-  #     - ${path.added_labels_metadata}
-  #     - ${path.dataset}: 
-  #         persist: true
-  #         cache: false
-
-  # upload_dataset:
-  #   cmd: ${python.base} source/upload_dataset.py
-  #   deps:
-  #     - source/upload_dataset.py
-  #     - ${path.dataset}
-  #   params:
-  #     - path.dataset
-  #     - dataset.config
-
-  train:
-    cmd: ${python.complete} source/train.py #${python.train} source/train.py
-    deps:
-      - source/train.py
-      #- ${path.dataset}
-    params:
-      - general.random_seed
-      - dataset
-      - model
-      - objectives
-      - train
-      - log
-    outs:
-      # - ${path.val_dataset}:
-      #     push: false        # cached locally, never pushed to remote
-      - ${path.train_output}:
-          persist: true      # pushed to remote
-      # - ${path.train_log_dir}:
-      #     persist: true      # pushed to remote
-      # - ${path.checkpoint_dir}:
-      #     persist: true      # pushed to remote
-  
   evaluate:
     cmd: ${python.complete} source/evaluate_on_test_split.py
     deps: 
       - source/evaluate_on_test_split.py
+      - source/utils/logs.py
+      - source/utils/dataset.py
+      - source/utils/metrics.py
+      - source/utils/evaluation.py
+      - source/utils/torch_evaluation.py
+      # - source/integrations/birdset.oy
+      # - source/integrations/perch.py
     params:
       - general.random_seed
       - dataset
+      - embeddings
       - model
       - objectives
       - train
     outs:
       - ${path.eval_output}:
-          persist: true      # pushed to remote
+          persist: true 
 
   soundscape_evaluate:
     cmd: ${python.complete} source/evaluate_on_soundscape_data.py
     deps: 
       - source/evaluate_on_soundscape_data.py
+      - source/utils/logs.py
+      - source/utils/dataset.py
+      - source/utils/torch_evaluation.py
+      - source/utils/metrics.py
+      - source/utils/evaluation.py
     params:
       - general.random_seed
       - dataset
@@ -104,4 +84,4 @@ stages:
       - train
     outs:
       - ${path.soundscape_eval_output}:
-          persist: true      # pushed to remot
+          persist: true 

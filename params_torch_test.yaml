@@ -118,7 +118,6 @@ train:
   num_batches_val: 1
   eval_batch_size: 1 
   backend: torch
-  head_type: mlp 
   freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
   finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
