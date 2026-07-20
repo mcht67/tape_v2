@@ -10,9 +10,10 @@ from torch.utils.data.dataloader import default_collate
 from datasets import load_from_disk, Audio
 from omegaconf import OmegaConf
 from hydra.utils import instantiate
+from dotenv import load_dotenv
 
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, load_dataset_with_retry
 
 from utils.logs import get_log_paths, build_confusion_matrix_specs
 from utils.metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
@@ -182,7 +183,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_torch_test.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -208,6 +209,7 @@ def main():
     num_batches_train = cfg.train.get("num_batches_train", None)
     num_batches_val = cfg.train.get("num_batches_val", None)
 
+    huggingface_path = cfg.dataset.huggingface_path
     load_checkpoint_path = cfg.train.get("load_checkpoint_path", None)
 
     objectives_cfg = cfg.objectives
@@ -236,11 +238,37 @@ def main():
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
 
-    dataset = load_from_disk(dataset_dir)
+    # Load huggingface token from .env file
+    load_dotenv('local.env')
+    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+
+    if not os.path.exists(local_data_dir):
+        print(f"Dataset {train_config} not found locally. Downloading from Huggingface...")
+        dataset = load_dataset_with_retry(huggingface_path, train_config, token=huggingface_token, download_mode='force_redownload')
+    else:
+        print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
+        dataset = load_from_disk(local_data_dir)
+
+    # dataset = load_from_disk('data/HSN/HSN_polyphonic')
     
     # TODO: remove after testing:
     for split in dataset.keys():
         dataset[split] = dataset[split].select(range(10))  # only first 10 samples for testing
+
+    def find_bad_keys(feature, path="root"):
+        """Recursively find dict-typed features with None (or non-str) keys."""
+        if isinstance(feature, dict):
+            for k, v in feature.items():
+                if not isinstance(k, str):
+                    print(f"BAD KEY at {path}: key={k!r} value={v!r}")
+                find_bad_keys(v, f"{path}.{k}")
+        elif hasattr(feature, "feature"):  # Sequence
+            find_bad_keys(feature.feature, f"{path}[]")
+
+    for split in dataset:
+        print(f"--- checking split: {split} ---")
+        for col_name, feat in dataset[split].features.items():
+            find_bad_keys(feat, col_name)
 
     # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
