@@ -313,9 +313,12 @@ def main():
     )
     print("Added labels:", added_labels)
 
-    sampling_rate = model.get("sampling_rate")
+    sampling_rate = model.get_sampling_rate()
     if not precomputed_embeddings:
         for split in dataset:
+            if 'sources_audio' in dataset[split].column_names:
+                print("Removing 'sources_audio' column from dataset split:", split)
+                dataset[split] = dataset[split].remove_columns(['sources_audio']) # TODO: remove
             print(dataset[split].features)
             dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
 
