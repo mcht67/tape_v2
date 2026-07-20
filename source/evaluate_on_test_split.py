@@ -106,7 +106,9 @@ def main():
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
-    # Filter dataset by polyphony degree if specified in the config
+    # Filter dataset by polyphony degree if specified in the confi
+    if 'polyphony' not in test_dataset.column_names and 'polyphony_degree' in test_dataset.column_names:
+        test_dataset = test_dataset.rename_column('polyphony_degree', 'polyphony')
     if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
         print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
