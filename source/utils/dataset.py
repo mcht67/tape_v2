@@ -206,11 +206,8 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
     
 def get_birdset_id2label(subset, dataset=None):
     if dataset is not None:
-        try:
-            return get_birdset_id2label_from_dataset(dataset)
-        except Exception as e:
-            print(f"Failed to get birdset_id2label from dataset: {e}. Falling back to loading from Hugging Face.")
-            pass
+        if 'ebird_code_multilabel' in dataset[next(iter(dataset.keys()))].features:
+                return get_birdset_id2label_from_dataset(dataset)
 
     # TODO remove
     # Load environment variables from .env file
