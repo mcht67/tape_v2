@@ -6,7 +6,7 @@ import tensorflow as tf
 import torch
 from hydra.utils import instantiate
 from dotenv import load_dotenv
-from datasets import load_from_disk
+from datasets import load_from_disk, Audio
 
 from utils.dataset import get_birdset_id2label, get_local_data_dir
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
@@ -125,7 +125,10 @@ def main():
         print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
         test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
         print(f"After filtering, test split has {len(test_dataset)} examples.")
-    
+
+
+    test_dataset = test_dataset.cast_column(input_feature_name, Audio())
+
     #################################
     # Update objectives config based on dataset
     #################################
