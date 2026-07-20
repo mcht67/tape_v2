@@ -10,9 +10,10 @@ from torch.utils.data.dataloader import default_collate
 from datasets import load_from_disk, Audio
 from omegaconf import OmegaConf
 from hydra.utils import instantiate
+from dotenv import load_dotenv
 
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, load_dataset_with_retry
 
 from utils.logs import get_log_paths, build_confusion_matrix_specs
 from utils.metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
@@ -25,6 +26,10 @@ from utils.torch_losses import (
 )
 from utils.torch_logging import TorchSummaryWriterLogger, ModelAndHistorySaverTorch
 from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
+
+# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+from datasets import disable_caching
+disable_caching()
 
 
 # ----------------------------------------------------------------------------
@@ -153,7 +158,7 @@ def cm_spec_type_for_objective(obj_name):
 class EarlyStopper:
     def __init__(self, patience=10, start_from_epoch=0):
         self.patience = patience
-        self.start_from_epoch = start_from_epoch
+        self.start_from_epoch = start_from_epoch if start_from_epoch is not None else 0
         self.best = float("inf")
         self.wait = 0
         self.should_stop = False
@@ -178,7 +183,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -187,32 +192,34 @@ def main():
     set_random_seeds(random_seed)
     params = Params()
 
-    # NOTE: cfg.train.input_feature_name is the *precomputed embedding* column
-    # used by the TF pipeline (e.g. "perch_v2_cpu_audio_pooled_embeddings").
-    # torch_train.py fine-tunes from raw audio, so it needs cfg.train.input_feature
-    # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
-    # already use for the torch backend).
-    input_feature_name = cfg.train.get("input_feature_name", cfg.train.get("input_feature", "audio"))
+    input_feature = cfg.train.get("input_feature", "audio")
+    print(f"input_feature: {input_feature}")
+    input_feature_name = cfg.train.get("input_feature_name") 
+    input_feature_name = input_feature if not input_feature_name else input_feature_name
+    print(f"Using input feature column '{input_feature_name}' (cfg.train.input_feature_name or cfg.train.input_feature)")
     precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.get("initial_epoch", 0) or 0
     learning_rate = cfg.train.learning_rate
-    batch_size = cfg.train.batch_size
+    batch_size = cfg.train.get("batch_size", 32)
     early_stopping_patience = cfg.train.get("early_stopping_patience", 10)
     early_stopping_delay_epochs = cfg.train.get("early_stopping_delay_epochs", 0)
     num_batches_train = cfg.train.get("num_batches_train", None)
     num_batches_val = cfg.train.get("num_batches_val", None)
 
+    huggingface_path = cfg.dataset.huggingface_path
     load_checkpoint_path = cfg.train.get("load_checkpoint_path", None)
 
     objectives_cfg = cfg.objectives
     objectives_list = list(objectives_cfg.keys())
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     head_cfg = cfg.head
 
     log_paths = get_log_paths(cfg)
     log_dir = str(log_paths["train_log_dir"])
     checkpoint_dir = str(log_paths["checkpoint_dir"])
+    print(f"Logging to {log_dir}, checkpoints to {checkpoint_dir}")
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -228,27 +235,26 @@ def main():
     local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
-    # TODO remove after testinhg:
-    # from datasets import load_dataset
-    # dataset = load_dataset("mcht67/PolyBirdMix", "HSN_polyphonic")
-    dataset_dir = "data/HSN_polyphonic"
-    # dataset.save_to_disk(dataset_dir)
 
-    dataset = load_from_disk(dataset_dir)
-    
-    # TODO: remove after testing:
+    # Load huggingface token from .env file
+    load_dotenv('local.env')
+    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+
+    if not os.path.exists(local_data_dir):
+        print(f"Dataset {train_config} not found locally. Downloading from Huggingface...")
+        dataset = load_dataset_with_retry(huggingface_path, train_config, token=huggingface_token) #, download_mode='force_redownload')
+    else:
+        print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
+        dataset = load_from_disk(local_data_dir)
+
     for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))  # only first 10 samples for testing
+        dataset[split] = dataset[split].select(range(10))
 
     # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
         for split in dataset.keys():
             dataset[split] = dataset[split].filter(lambda x: x["polyphony"] <= max_polyphony)
-
-    if not precomputed_embeddings:
-        for split in dataset:
-            dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=32000))
 
     # Species-level objectives need num_species / a birdset id<->label mapping,
     # same as train.py.
@@ -319,20 +325,36 @@ def main():
     )
     print("Added labels:", added_labels)
 
+    sampling_rate = model.get_sampling_rate()
+    if not precomputed_embeddings:
+        for split in dataset:
+            if 'sources_audio' in dataset[split].column_names:
+                dataset[split] = dataset[split].remove_columns(['sources_audio'])
+            print(f"[DEBUG] casting column: {input_feature_name!r}")
+            dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
+            print(f"[DEBUG] post-cast features[{input_feature_name}]: {dataset[split].features[input_feature_name]}")
+
+    print(dataset['train'].features)
+
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
         objective_names=objectives_list, batch_size=batch_size,
     )
 
-    # input_size = model.get_head_input_size()
-    # head_type = cfg.train.get("head_type", "temporal_cnn")
-    # if head_type == "temporal_cnn":
-    #     head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)  # always operates on spatial_embeddings
-    # elif head_type == "mlp":
-    #     head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)  # pooled_embeddings, or spatial_embeddings if any frame-wise objective is configured
-    # else:
-    #     raise ValueError(f"Unknown cfg.train.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
-    # model.replace_head(head)
+    ds = train_loader.dataset  # your wrapper class, built with the EfficientNet sampling_rate=32000 cast
+
+    bad = []
+    for i in range(len(ds)):
+        try:
+            x, y = ds[i]
+            if not isinstance(x, torch.Tensor):
+                bad.append((i, type(x)))
+        except Exception as e:
+            bad.append((i, "EXC", str(e)))
+
+    print(f"{len(bad)} bad out of {len(ds)}")
+    print(bad[:20])
+
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:
         print("Freezing encoder parameters (only training head).")

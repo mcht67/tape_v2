@@ -232,21 +232,21 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/pooled_embeddings.yaml'
+    study_config_path = 'study_conf/fine_tune.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
 
     dataset_subsets = study_config['dataset_subsets']
-    embeddings = study_config['hyperparams']['embeddings']
+    embeddings = study_config['hyperparams']['embeddings'] if 'embeddings' in study_config['hyperparams'] else None
     study_name = study_config['base_config']['log.study_name']
 
     # Create DVC remote for the study
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = False
-    recompute_embeddings = False
+    run_dataset_preparation = False #if embeddings else False
+    recompute_embeddings = False #if embeddings else False
     force_redownload = False
 
     ##########################

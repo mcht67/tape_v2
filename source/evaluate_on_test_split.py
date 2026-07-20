@@ -6,17 +6,18 @@ import tensorflow as tf
 import torch
 from hydra.utils import instantiate
 from dotenv import load_dotenv
-from datasets import load_dataset, Audio, load_from_disk
+from datasets import load_from_disk, Audio
 
 from utils.dataset import get_birdset_id2label, get_local_data_dir
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
 from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
 
-import integrations.birdset as birdset
-import integrations.perch as perch
+from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
-from source.utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+from datasets import disable_caching
+disable_caching()
 
 def main():
 
@@ -24,6 +25,7 @@ def main():
     # Configuration
     #################################
     cfg = OmegaConf.load("params.yaml")
+    print(cfg)
 
     study_name = cfg.log.study_name
 
@@ -41,12 +43,13 @@ def main():
         checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
     
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
 
-    input_feature_name = cfg.train.input_feature_name
     input_feature = cfg.train.input_feature
-    embedding_type = cfg.embeddings.type
-    embedding_dim_type = cfg.embeddings.dimension_type
+    input_feature_name = cfg.train.get("input_feature_name", input_feature)
+    # embedding_type = cfg.embeddings.type
+    # embedding_dim_type = cfg.embeddings.dimension_type
 
     #################################
     # Setup
@@ -127,7 +130,10 @@ def main():
         print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
         test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
         print(f"After filtering, test split has {len(test_dataset)} examples.")
-    
+
+
+    # test_dataset = test_dataset.cast_column(input_feature_name, Audio(decode=True, sampling_rate=cfg.train.get("cast_audio_sampling_rate", 32000)))
+
     #################################
     # Update objectives config based on dataset
     #################################
@@ -164,15 +170,14 @@ def main():
         objectives_cfg.species_polyphony_class.num_species = num_species
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
 
-    # Set objectives config in model config for easy access when building model and losses
-    model_cfg.objectives_cfg = objectives_cfg
-
 
     #################################
     # Load model
     #################################
 
-    backend = cfg.model.get("backend", "tensorflow")
+    backend = cfg.train.get("backend", "tensorflow")
+
+    print(cfg.model) 
 
     if backend == "torch":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -199,7 +204,9 @@ def main():
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
 
         # Define model
-        model = instantiate(cfg.model)
+        # Set objectives config in model config for easy access when building model and losses
+        model_cfg.objectives_cfg = objectives_cfg
+        model = instantiate(model_cfg)
 
         # Build model by calling it on a sample input
         first_example = test_dataset[0]

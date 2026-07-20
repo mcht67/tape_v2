@@ -16,7 +16,11 @@ from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
 
-from source.utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
+
+# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+from datasets import disable_caching
+disable_caching()
 
 def main():
 
@@ -41,12 +45,12 @@ def main():
         checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
 
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
-    model_cfg.objectives_cfg = objectives_cfg
-    input_feature_name = cfg.train.input_feature_name
     input_feature = cfg.train.input_feature
-    embedding_type = cfg.embeddings.type
-    embedding_dim_type = cfg.embeddings.dimension_type
+    input_feature_name = cfg.train.get("input_feature_name", input_feature)
+    # embedding_type = cfg.embeddings.type
+    # embedding_dim_type = cfg.embeddings.dimension_type
 
     if subset == "XCM" or subset == "XCL":
         print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
@@ -81,10 +85,11 @@ def main():
     print("local_data_dir:", local_data_dir)
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
-    soundscape_test_dataset = load_from_disk(dataset_dir)
-    soundscape_test5s_split = soundscape_test_dataset['test_5s']
 
+    soundscape_test5s_split = load_from_disk(dataset_dir)
+ 
     # TODO: Add labels
+    # soundscape_test5s_split = soundscape_test_dataset['test_5s']
     print(soundscape_test5s_split)
 
     #################################
@@ -100,7 +105,7 @@ def main():
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-    birdset_id2label = get_birdset_id2label(subset, dataset=soundscape_test_dataset)
+    birdset_id2label = get_birdset_id2label(subset, dataset=soundscape_test5s_split)
     ebird_class_labels = [k for k in birdset_id2label.values()]
     # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
     print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
@@ -122,10 +127,7 @@ def main():
     if 'species_polyphony_class' in objectives_cfg:
         objectives_cfg.species_polyphony_class.num_classes = num_classes
         objectives_cfg.species_polyphony_class.num_species = num_species
-        print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
-
-    # Set objectives config in model config for easy access when building model and losses
-    model_cfg.objectives_cfg = objectives_cfg
+        print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")    
 
     #################################
     # Load model
@@ -155,6 +157,7 @@ def main():
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
 
         # Define model
+        model_cfg.objectives_cfg = objectives_cfg
         model = instantiate(cfg.model)
 
         # Build model by calling it on a sample input

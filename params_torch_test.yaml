@@ -1,11 +1,12 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/Polyphonic-BirdSet-train
+  huggingface_path: mcht67/PolyBirdMix
   subset: HSN
-  train_config: HSN_polyphonic_8
+  train_config: HSN_polyphonic
   soundscape_config: HSN_soundscape_test
   max_polyphony: 8
+  min_snr: -10
 # embeddings:
 #   # Unused by torch_train.py (it fine-tunes the pretrained encoder end-to-end
 #   # from raw audio instead of precomputed embeddings), left here only because
@@ -108,17 +109,16 @@ train:
   # input_feature_name, which is the TF pipeline's precomputed-embedding
   # column and is unused here).
   input_feature: audio
-  # input_feature_name: perch_v2_cpu_audio_pooled_embeddings
+  input_feature_name:
   precomputed_embeddings: False
-  batch_size: 8          # kept small for a fast first smoke test; raise once this runs cleanly
+  batch_size: 32          # kept small for a fast first smoke test; raise once this runs cleanly
   learning_rate: 0.001
   epochs: 5
   initial_epoch: null
-  num_batches_train: 1   # one batch is enough to prove the pipeline runs end to end
-  num_batches_val: 1
-  eval_batch_size: 1 
+  num_batches_train:    # one batch is enough to prove the pipeline runs end to end
+  num_batches_val:
+  eval_batch_size: 
   backend: torch
-  head_type: mlp 
   freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
   finetune_learning_rate: 1e-5   # optional; lower LR for the encoder

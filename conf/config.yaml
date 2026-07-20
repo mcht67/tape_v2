@@ -37,6 +37,7 @@ defaults:
   - embeddings: birdnet_V2.3.yaml # # should be defined in multi_submission
   #- preprocess: default
   - model: default #empty
+  - head: default
   - objectives: default #empty # should be defined in multi_submission
   - train: 'default'
   - log: 'default'

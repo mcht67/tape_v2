@@ -107,7 +107,7 @@ if __name__ == "__main__":
     ##########################
     # Embed audio with perch
     ##########################
-    embeddings_uploaded = False
+    # embeddings_uploaded = False
 
     if input_features and embeddings:
         cmd = [

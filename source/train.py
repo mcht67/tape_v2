@@ -15,6 +15,10 @@ from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label, get_local_data_dir
 from source.utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
+# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+from datasets import disable_caching
+disable_caching()
+
 tf.keras.backend.clear_session()
 
 def get_tf_datasets(dataset, features, labels, batch_size):
@@ -315,6 +319,7 @@ def main():
 
     objectives_to_log = cfg.log.objectives_to_log if 'objectives_to_log' in cfg.log else None
     model_cfg = cfg.model
+    model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
 
     

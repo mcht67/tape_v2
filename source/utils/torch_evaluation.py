@@ -39,11 +39,20 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from datasets import Audio
 from hydra.utils import instantiate
-
-from torch_multitask_head import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
+from functools import partial
+from collections import Counter
 
 
 MULTILABEL_COLUMN_CANDIDATES = ("birdset_code_multilabel", "birdset_id_multilabel", "ebird_code_multilabel")
+
+
+def _get_col(ex, col):
+    return ex[col]
+
+def _derive_species_polyphony(ex, multilabel_col, ids):
+    values = ex[multilabel_col]
+    counts = Counter(values) if values is not None else Counter()
+    return [counts.get(int(bid), 0) for bid in ids]
 
 
 def _resolve_truth_source(dataset, col, birdset_id2label):
@@ -56,30 +65,31 @@ def _resolve_truth_source(dataset, col, birdset_id2label):
 
     if col == "polyphony":
         if "polyphony" in features:
-            return lambda ex: ex["polyphony"]
+            return partial(_get_col, col="polyphony")
         if "polyphony_degree" in features:
-            return lambda ex: ex["polyphony_degree"]
+            return partial(_get_col, col="polyphony_degree")
         return None
 
     if col == "species_polyphony":
         if "species_polyphony" in features:
-            return lambda ex: ex["species_polyphony"]
+            return partial(_get_col, col="species_polyphony")
         if birdset_id2label is not None:
-            multilabel_col = next((c for c in MULTILABEL_COLUMN_CANDIDATES if c in features), None)
+            multilabel_col = next(
+                (c for c in MULTILABEL_COLUMN_CANDIDATES if c in features), None
+            )
             if multilabel_col is not None:
                 ids = list(birdset_id2label.keys())
-
-                def _derive(ex, multilabel_col=multilabel_col, ids=ids):
-                    values = ex[multilabel_col]
-                    counts = Counter(values) if values is not None else Counter()
-                    return [counts.get(int(bid), 0) for bid in ids]
-
-                return _derive
+                return partial(
+                    _derive_species_polyphony,
+                    multilabel_col=multilabel_col,
+                    ids=ids,
+                )
+            return None
         return None
 
     # min_polyphony, max_polyphony, min_species_polyphony, max_species_polyphony
     if col in features:
-        return lambda ex, col=col: ex[col]
+        return partial(_get_col, col=col)
     return None
 
 
@@ -158,8 +168,7 @@ def collect_predictions_torch(
     variables=None,
     truth_columns=None,
     birdset_id2label=None,
-    num_workers=2,
-    cast_audio_sampling_rate=32000,
+    num_workers=2
 ):
     """
     Torch counterpart of utils.evaluation.collect_predictions. `dataset` is a
@@ -174,8 +183,10 @@ def collect_predictions_torch(
     truth_columns = truth_columns if truth_columns is not None else _infer_truth_columns(objectives_list)
     variables = variables or []
 
-    if input_feature_name in dataset.features and not isinstance(dataset.features[input_feature_name], Audio):
-        dataset = dataset.cast_column(input_feature_name, Audio(sampling_rate=cast_audio_sampling_rate))
+    sampling_rate = model.get_sampling_rate()
+
+    if input_feature_name in dataset.features: # and not isinstance(dataset.features[input_feature_name], Audio):
+        dataset = dataset.cast_column(input_feature_name, Audio(sampling_rate=sampling_rate, decode=True))
 
     truth_sources = {}
     for col in truth_columns:
