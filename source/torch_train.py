@@ -183,7 +183,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
