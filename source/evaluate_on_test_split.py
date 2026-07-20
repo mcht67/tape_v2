@@ -15,6 +15,10 @@ from utils.evaluation import arrays_to_records, collect_predictions, update_metr
 
 from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
+# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+from datasets import disable_caching
+disable_caching()
+
 def main():
 
     #################################
