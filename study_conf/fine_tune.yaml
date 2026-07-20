@@ -22,11 +22,10 @@ base_config:
     - polyphony_class
   head:
     _target_: utils.torch_models.SimpleMLPHead
-  train:
-    backend: torch
-    freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
-    freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
-    finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
+  train.backend: torch
+  train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
+  train.freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
+  finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
   # log.metrics:
   #   - val_loss
   #   - val_accuracy # use val_accuracy if only one objective is used

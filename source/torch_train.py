@@ -198,6 +198,7 @@ def main():
     # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
     # already use for the torch backend).
     input_feature = cfg.train.get("input_feature", "audio")
+    print(f"input_feature: {input_feature}")
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
     print(f"Using input feature column '{input_feature_name}' (cfg.train.input_feature_name or cfg.train.input_feature)")
     precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
