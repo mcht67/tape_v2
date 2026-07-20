@@ -168,8 +168,7 @@ def collect_predictions_torch(
     variables=None,
     truth_columns=None,
     birdset_id2label=None,
-    num_workers=2,
-    cast_audio_sampling_rate=32000,
+    num_workers=2
 ):
     """
     Torch counterpart of utils.evaluation.collect_predictions. `dataset` is a
@@ -184,8 +183,10 @@ def collect_predictions_torch(
     truth_columns = truth_columns if truth_columns is not None else _infer_truth_columns(objectives_list)
     variables = variables or []
 
-    if input_feature_name in dataset.features and not isinstance(dataset.features[input_feature_name], Audio):
-        dataset = dataset.cast_column(input_feature_name, Audio(sampling_rate=cast_audio_sampling_rate))
+    sampling_rate = model.get_sampling_rate()
+
+    if input_feature_name in dataset.features: # and not isinstance(dataset.features[input_feature_name], Audio):
+        dataset = dataset.cast_column(input_feature_name, Audio(sampling_rate=sampling_rate, decode=True))
 
     truth_sources = {}
     for col in truth_columns:

@@ -127,7 +127,7 @@ def main():
         print(f"After filtering, test split has {len(test_dataset)} examples.")
 
 
-    test_dataset = test_dataset.cast_column(input_feature_name, Audio())
+    # test_dataset = test_dataset.cast_column(input_feature_name, Audio(decode=True, sampling_rate=cfg.train.get("cast_audio_sampling_rate", 32000)))
 
     #################################
     # Update objectives config based on dataset
@@ -172,7 +172,7 @@ def main():
 
     backend = cfg.train.get("backend", "tensorflow")
 
-    print(cfg.model)
+    print(cfg.model) 
 
     if backend == "torch":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

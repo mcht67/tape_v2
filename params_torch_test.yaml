@@ -109,7 +109,6 @@ train:
   # input_feature_name, which is the TF pipeline's precomputed-embedding
   # column and is unused here).
   input_feature: audio
-  input_feature_name: Bird-MAE-Huge_audio_pooled_embeddings
   precomputed_embeddings: False
   batch_size: 8          # kept small for a fast first smoke test; raise once this runs cleanly
   learning_rate: 0.001
