@@ -5,7 +5,15 @@ import tensorflow as tf
 from hydra.utils import instantiate
 from dotenv import load_dotenv
 from datasets import Audio, load_from_disk
+from datasets import Audio, load_from_disk
 import torch
+import pandas as pd
+from functools import partial
+
+from utils.logs import SummaryWriter, get_log_paths, save_to_report, plot_polyphony_distribution
+from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
+from utils.evaluation import collect_predictions, arrays_to_records, update_metrics_table
+from utils.metrics import compute_polyphony_range_metrics
 import pandas as pd
 from functools import partial
 
@@ -31,6 +39,7 @@ def main():
 
     study_name = cfg.log.study_name
     subset = cfg.dataset.subset
+    subset = cfg.dataset.subset
 
     huggingface_path = cfg.dataset.huggingface_path
     train_dataset_config = cfg.dataset.train_config
@@ -38,7 +47,13 @@ def main():
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['soundscape_eval_log_dir']
+    log_paths = get_log_paths(cfg)
+    log_dir = log_paths['soundscape_eval_log_dir']
     os.makedirs(log_dir, exist_ok=True)
+    default_dir = os.environ.get('DEFAULT_DIR', '')
+    checkpoint_dir = log_paths['checkpoint_dir']
+    if not os.path.exists(checkpoint_dir):
+        checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
     default_dir = os.environ.get('DEFAULT_DIR', '')
     checkpoint_dir = log_paths['checkpoint_dir']
     if not os.path.exists(checkpoint_dir):
@@ -58,6 +73,12 @@ def main():
         os.makedirs(log_dir, exist_ok=True)
         return
     
+    if subset == "XCM" or subset == "XCL":
+        print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
+        # Create empty test directory for consistent dvc tracking
+        os.makedirs(log_dir, exist_ok=True)
+        return
+    
     #################################
     # Setup
     #################################
@@ -70,6 +91,7 @@ def main():
     OmegaConf.save(cfg, os.path.join(log_dir, "params.yaml"))
 
     #################################
+    # Load soundscape dataset
     # Load soundscape dataset
     #################################
 
@@ -93,6 +115,7 @@ def main():
     print(soundscape_test5s_split)
 
     #################################
+    # Update objectives config based on dataset
     # Update objectives config based on dataset
     #################################
 

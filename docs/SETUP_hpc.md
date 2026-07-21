@@ -159,6 +159,7 @@ dvc remote modify --local myremote gdrive_user_credentials_file ./secrets/dvc-to
 dvc pull
 ``` 
 To reset authentication delete dvc-token.json. This will open authentication in the browser on the next dvc pull.
+The refresh token is valid for 7 days. If you want it to persist, you have to publish the Google Cloud App.
 
 ### Move your local setup to the Cluster
 

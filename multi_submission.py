@@ -17,6 +17,7 @@ from pathlib import Path
 
 # Submit dataset preparation based on requested configuration
 def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embeddings=False, force_redownload=False):
+def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embeddings=False, force_redownload=False):
 
     huggingface_path = study_config['base_config']['dataset.huggingface_path']
     input_features = study_config['hyperparams']['train.input_feature']
@@ -29,6 +30,7 @@ def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embe
 
     args = [
         "--huggingface_path", huggingface_path,
+        "--subset", subset,
         "--subset", subset,
         "--dataset_config", dataset_config,
         "--input_features", json.dumps(input_features),
@@ -132,9 +134,33 @@ def format_value(value):
     else:
         return str(value)
 
+# def create_exp_params_str(config_dict):
+#     exp_params_str = ''
+#     for key, value in config_dict.items():
+#         if isinstance(value, list):
+#             formatted = "[" + ",".join(str(v) for v in value) + "]"
+#         else:
+#             formatted = str(value)
+#         exp_params_str += f"-S  {key}={formatted} "
+#     return exp_params_str
+
+def format_value(value):
+    if isinstance(value, dict):
+        items = ",".join(f"{k}:{format_value(v)}" for k, v in value.items())
+        return "{" + items + "}"
+    elif isinstance(value, list):
+        items = ",".join(format_value(v) for v in value)
+        return "[" + items + "]"
+    else:
+        return str(value)
+
 def create_exp_params_str(config_dict):
     parts = []
+    parts = []
     for key, value in config_dict.items():
+        formatted = format_value(value)
+        parts.append(f"-S {key}={formatted}")
+    return " ".join(parts)
         formatted = format_value(value)
         parts.append(f"-S {key}={formatted}")
     return " ".join(parts)
@@ -245,8 +271,8 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = False #if embeddings else False
-    recompute_embeddings = False #if embeddings else False
+    run_dataset_preparation = False
+    recompute_embeddings = False
     force_redownload = False
 
     ##########################
@@ -256,8 +282,10 @@ if __name__ == "__main__":
     for subset in dataset_subsets:
         train_config = subset + '_polyphonic' #'_' + str(study_config['base_config']['dataset.max_polyphony'])
         # data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
+        # data_dir = f'{subset}/{train_config}' # as in get_data_dir function in source/utils/dataset.py
         prep_job_id = None
         if embeddings:
             if run_dataset_preparation:
+                prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
                 prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
         submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)

@@ -31,7 +31,7 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    # - "birdnet_V2.3"
+    # - "brirdnet_V2.3"
     # - "vggish"
     # - "perch_8"
     # - "yamnet"

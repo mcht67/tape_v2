@@ -306,13 +306,16 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             birdset_id2label = get_birdset_id2label('', dataset=dataset)
 
         for feature_name in feature_names:
-            print(f'Add {feature_name} labels...')
-            add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
-            species_polyphony_feature = Sequence(Value("int32"))
+            # print(f'Add {feature_name} labels...')
+            # add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
+            # species_polyphony_feature = Sequence(Value("int32"))
+
+            # for split in dataset.keys():
+            #     dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
+            #     dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
 
             for split in dataset.keys():
-                dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
-                dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+                dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
 
             # for split in dataset.keys():
             #     dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
