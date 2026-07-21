@@ -328,8 +328,9 @@ def main():
             if 'sources_audio' in dataset[split].column_names:
                 print("Removing 'sources_audio' column from dataset split:", split)
                 dataset[split] = dataset[split].remove_columns(['sources_audio']) # TODO: remove
-            print(dataset[split].features)
             dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
+
+    print(dataset[split].features)
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
