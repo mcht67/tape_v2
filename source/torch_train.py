@@ -246,10 +246,7 @@ def main():
     else:
         print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)
-
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))
-
+        
     # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony

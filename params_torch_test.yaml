@@ -15,8 +15,9 @@ dataset:
 #   type: perch_v2
 #   dimension_type: pooled
 model:
-  _target_: utils.torch_models.BirdSetBirdMAE
-  pretrained_model_path: DBD-research-group/Bird-MAE-Huge
+  _target_: utils.torch_models.NatureLMBEATs
+  # _target_: utils.torch_models.BirdSetBirdMAE
+  # pretrained_model_path: DBD-research-group/Bird-MAE-Huge
   # _target_: utils.torch_models.BirdSetEfficientNet
   # pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
   # Read by evaluate_on_test_split.py / evaluate_on_soundscape_data.py to pick

@@ -1,0 +1,2 @@
+_target_: utils.torch_models.NatureLMBEATs
+name: NatureLMBEATs

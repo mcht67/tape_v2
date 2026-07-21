@@ -140,6 +140,7 @@ RUN python3.12 -m venv $DOCKER_COMPLETE_VENV &&\
         psutil==7.2.2 \
         ruamel.yaml==0.19.1 \
         python-dotenv==1.2.2 \
+        avex==1.3.0 \
         git+https://github.com/google-research/perch-hoplite.git
 
 # TODO: fix properly; for now: "#fsspec==2026.2.0" and "gcsfs==2025.3.0" to avoid conflict.

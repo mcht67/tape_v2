@@ -751,9 +751,16 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
         if self.output_head:
             logits = self.output_head(x)
 
+        spatial_embeddings = last_hidden_state.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
+
+        print("Spectrogram shape:", mel_spectrogram.shape)   # (batch, channels, H, W)
+        print("Last hidden state shape:", last_hidden_state.shape)  # expect (batch, embedding, freq, time)
+        print("Pooled output shape:", pooled_output.shape if pooled_output is not None else None)  # expect (batch, embedding)
+        print("Spatial embeddings shape:", spatial_embeddings.shape)  # expect (batch, time, freq, embedding)
+        
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
-        spatial_embeddings=spatial_embeddings,
+        spatial_embeddings=spatial_embeddings, # (batch, time, freq, embeddings) to match other models
         logits=logits
     )
     
@@ -1038,6 +1045,113 @@ class BirdSetWav2Vec2(torch.nn.Module):
     def get_head_input_size(self):
         return self.config.output_hidden_size
     
+class NatureLMBEATs(torch.nn.Module):
+    """
+    Wrapper for the BEATs audio encoder extracted from NatureLM-audio, released by
+    Earth Species Project. Original model:
+    https://huggingface.co/EarthSpeciesProject/esp-aves2-naturelm-audio-v1-beats
+
+    Unlike the other wrappers in this file, this is NOT loaded via
+    transformers.AutoModel -- DBD-research-group has not published a BirdSet-trained
+    BEATs checkpoint on Hugging Face. This is the BEATs encoder as fine-tuned inside
+    NatureLM-audio (unfrozen during large-scale audio-language training), distributed
+    through Earth Species Project's own `avex` library instead.
+
+    Requires: pip install avex
+
+    Like BirdSetWav2Vec2, BEATs consumes raw waveform directly -- avex's BEATs wrapper
+    performs fbank extraction/normalization internally, so `preprocess` is a no-op here
+    (kept only so the class matches the shape of the other wrappers).
+    """
+    def __init__(self, model_name="esp_aves2_naturelm_audio_v1_beats", device=None):
+        super().__init__()
+
+        try:
+            from avex import load_model as avex_load_model
+        except ImportError as e:
+            raise ImportError(
+                "NatureLMBEATs requires the `avex` package: pip install avex"
+            ) from e
+
+        device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        # return_features_only=True: raw embeddings, no classifier head baked in --
+        # equivalent to how the other wrappers here take model.<encoder> without
+        # the HF classification head.
+        self.model = avex_load_model(model_name, return_features_only=True, device=device)
+        self.output_head = None
+
+        # BEATs operates on 16kHz audio (unlike most other BirdSet wrappers here,
+        # which use 32kHz) -- see set_sampling_rate() / resample your inputs.
+        self.sampling_rate = 16000
+        self._head_input_size = None
+
+    def preprocess(self, audio):
+        """No-op: avex's BEATs model does fbank extraction + normalization internally
+        and expects a raw waveform tensor (batch, samples) at self.sampling_rate."""
+        return audio
+
+    def forward(self, audio):
+        """Forward pass with automatic preprocessing and optional pooling and output head"""
+        logits = None
+        audio = audio.to(device=next(self.parameters()).device)
+        wav = self.preprocess(audio)
+
+        features = self.model(wav)  # (batch, time_steps, 768)
+        pooled_embeddings = features.mean(dim=1)
+        # add a dummy freq axis so shape matches the other wrappers'
+        # (batch, time, freq, embedding) spatial_embeddings convention
+        spatial_embeddings = features.unsqueeze(2)
+
+        if self.output_head is not None:
+            head_input = spatial_embeddings if getattr(self.output_head, "takes_spatial_embeddings", False) else pooled_embeddings
+            logits = self.output_head(head_input)
+
+        return EmbeddingModelOutput(
+            pooled_embeddings=pooled_embeddings,
+            spatial_embeddings=spatial_embeddings,
+            logits=logits
+        )
+
+    def freeze_encoder(self):
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+    def replace_head(self, new_head: torch.nn.Module):
+        self.output_head = new_head
+
+    def get_head_input_size(self):
+        """
+        Returns the embedding dimension for the output head (768 for BEATs-base).
+        Computed via a dummy forward pass on first call, then cached.
+        """
+        if self._head_input_size is not None:
+            return self._head_input_size
+
+        self.eval()
+        with torch.no_grad():
+            dummy_audio = torch.randn(1, self.sampling_rate)  # 1 second at 16kHz
+            dummy_audio = dummy_audio.to(device=next(self.parameters()).device)
+            features = self.model(dummy_audio)
+            self._head_input_size = features.shape[-1]
+
+        return self._head_input_size
+
+    def set_sampling_rate(self, new_sampling_rate):
+        # BEATs' own preprocessing is baked into the avex model and expects 16kHz;
+        # unlike BirdSetAST there's no local resampling machinery to reinitialize
+        # here, so just resample your input audio to self.sampling_rate before
+        # calling forward() if it's coming from a 32kHz-native BirdSet pipeline.
+        if new_sampling_rate != self.sampling_rate:
+            warnings.warn(
+                f"NatureLMBEATs expects {self.sampling_rate}Hz audio; BEATs' internal "
+                f"preprocessing is not reconfigurable. Resample your audio to "
+                f"{self.sampling_rate}Hz (e.g. via torchaudio.functional.resample) "
+                f"before calling forward()."
+            )
+
+    def get_sampling_rate(self):
+        return self.sampling_rate
+
 ##################################
 # Utilities
 ##################################
