@@ -183,7 +183,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_torch_test.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -199,7 +199,8 @@ def main():
     # already use for the torch backend).
     input_feature = cfg.train.get("input_feature", "audio")
     print(f"input_feature: {input_feature}")
-    input_feature_name = cfg.train.get("input_feature_name", input_feature)
+    input_feature_name = cfg.train.get("input_feature_name") 
+    input_feature_name = input_feature if not input_feature_name else input_feature_name
     print(f"Using input feature column '{input_feature_name}' (cfg.train.input_feature_name or cfg.train.input_feature)")
     precomputed_embeddings = cfg.train.get("precomputed_embeddings", False)
     total_epochs = cfg.train.epochs
