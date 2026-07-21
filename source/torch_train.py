@@ -201,9 +201,9 @@ def main():
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.get("initial_epoch", 0) or 0
     learning_rate = cfg.train.learning_rate
-    batch_size = cfg.train.batch_size
+    batch_size = cfg.train.get("batch_size", 32)
     early_stopping_patience = cfg.train.get("early_stopping_patience", 10)
-    early_stopping_delay_epochs = cfg.train.get("early_stopping_delay_epochs", 0)
+    early_stopping_delay_epochs = cfg.train.get("early_stopping_delay_epochs", 0) sd
     num_batches_train = cfg.train.get("num_batches_train", None)
     num_batches_val = cfg.train.get("num_batches_val", None)
 
@@ -341,18 +341,19 @@ def main():
         objective_names=objectives_list, batch_size=batch_size,
     )
 
-    # bad_indices = []
-    # for i in range(len(train_dataset)):
-    #     try:
-    #         x, y = train_dataset[i]
-    #         if not isinstance(x, torch.Tensor):
-    #             bad_indices.append((i, type(x), x.keys() if isinstance(x, dict) else x))
-    #     except Exception as e:
-    #         bad_indices.append((i, "EXC", str(e)))
-    #     if len(bad_indices) >= 10:
-    #         break
+    ds = train_loader.dataset  # your wrapper class, built with the EfficientNet sampling_rate=32000 cast
 
-    # print(bad_indices)
+    bad = []
+    for i in range(len(ds)):
+        try:
+            x, y = ds[i]
+            if not isinstance(x, torch.Tensor):
+                bad.append((i, type(x)))
+        except Exception as e:
+            bad.append((i, "EXC", str(e)))
+
+    print(f"{len(bad)} bad out of {len(ds)}")
+    print(bad[:20])
 
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:

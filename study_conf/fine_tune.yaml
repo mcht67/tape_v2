@@ -22,6 +22,7 @@ base_config:
     - polyphony_class
   head:
     _target_: utils.torch_models.SimpleMLPHead
+  train.batch_size: 32
   train.backend: torch
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   train.freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
