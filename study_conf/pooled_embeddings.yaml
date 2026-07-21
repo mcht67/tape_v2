@@ -1,7 +1,7 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  - "UHH"
+  # - "UHH"
   # - "HSN"
-  # - "PER"
+  - "PER"
   # - "NES"
   # - "SSW"
   # - "POW"
@@ -46,5 +46,5 @@ hyperparams:
     # - "perch_v2"
   objectives:
     - "polyphony_reg"
-    # - "polyphony_class"
+    - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
