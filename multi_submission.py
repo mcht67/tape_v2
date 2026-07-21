@@ -246,7 +246,7 @@ if __name__ == "__main__":
     
     # Dataset preparation options
     run_dataset_preparation = True #if embeddings else False
-    recompute_embeddings = False #if embeddings else False
+    recompute_embeddings = True #if embeddings else False
     force_redownload = False
 
     ##########################
