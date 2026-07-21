@@ -111,13 +111,13 @@ train:
   input_feature: audio
   input_feature_name:
   precomputed_embeddings: False
-  batch_size: 8          # kept small for a fast first smoke test; raise once this runs cleanly
+  batch_size: 32          # kept small for a fast first smoke test; raise once this runs cleanly
   learning_rate: 0.001
   epochs: 5
   initial_epoch: null
-  num_batches_train: 1   # one batch is enough to prove the pipeline runs end to end
-  num_batches_val: 1
-  eval_batch_size: 1 
+  num_batches_train:    # one batch is enough to prove the pipeline runs end to end
+  num_batches_val:
+  eval_batch_size: 
   backend: torch
   freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   freeze_epochs: 2           # train the head alone for N epochs, then unfreeze

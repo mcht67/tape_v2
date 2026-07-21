@@ -1,0 +1,3 @@
+_target_: utils.torch_models.BirdSetBirdMAE
+pretrained_model_path: DBD-research-group/Bird-MAE-Huge
+name: BirdSetBirdMAE

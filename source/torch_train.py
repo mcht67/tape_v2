@@ -242,10 +242,13 @@ def main():
 
     if not os.path.exists(local_data_dir):
         print(f"Dataset {train_config} not found locally. Downloading from Huggingface...")
-        dataset = load_dataset_with_retry(huggingface_path, train_config, token=huggingface_token, download_mode='force_redownload')
+        dataset = load_dataset_with_retry(huggingface_path, train_config, token=huggingface_token) #, download_mode='force_redownload')
     else:
         print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)
+
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))
 
     # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
@@ -326,16 +329,30 @@ def main():
     if not precomputed_embeddings:
         for split in dataset:
             if 'sources_audio' in dataset[split].column_names:
-                print("Removing 'sources_audio' column from dataset split:", split)
-                dataset[split] = dataset[split].remove_columns(['sources_audio']) # TODO: remove
+                dataset[split] = dataset[split].remove_columns(['sources_audio'])
+            print(f"[DEBUG] casting column: {input_feature_name!r}")
             dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
+            print(f"[DEBUG] post-cast features[{input_feature_name}]: {dataset[split].features[input_feature_name]}")
 
-    print(dataset[split].features)
+    print(dataset['train'].features)
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
         objective_names=objectives_list, batch_size=batch_size,
     )
+
+    # bad_indices = []
+    # for i in range(len(train_dataset)):
+    #     try:
+    #         x, y = train_dataset[i]
+    #         if not isinstance(x, torch.Tensor):
+    #             bad_indices.append((i, type(x), x.keys() if isinstance(x, dict) else x))
+    #     except Exception as e:
+    #         bad_indices.append((i, "EXC", str(e)))
+    #     if len(bad_indices) >= 10:
+    #         break
+
+    # print(bad_indices)
 
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:
