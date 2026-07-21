@@ -348,7 +348,7 @@ def main():
                     outputs = birdset.compute_embedding(audio, embedding_model, device)
                     pooled_embedding = outputs.pooled_embeddings.cpu().numpy()
                     spatial_embedding = outputs.spatial_embeddings.cpu().numpy()
-                elif embedding_type=='perch_v1' or embedding_type=='perch_v2':
+                elif embedding_type=='perch_hoplite' or embedding_type=='perch_v2':
                     pooled_embedding, spatial_embedding = perch.compute_embedding(audio, embedding_model, model_key, embedding_type, sampling_rate, device=device)
 
                 if embedding_dim_type == 'pooled':

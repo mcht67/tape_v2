@@ -206,7 +206,8 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
     
 def get_birdset_id2label(subset, dataset=None):
     if dataset is not None:
-        return get_birdset_id2label_from_dataset(dataset)
+        if 'ebird_code_multilabel' in dataset[next(iter(dataset.keys()))].features:
+                return get_birdset_id2label_from_dataset(dataset)
 
     # TODO remove
     # Load environment variables from .env file
@@ -306,13 +307,16 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             birdset_id2label = get_birdset_id2label('', dataset=dataset)
 
         for feature_name in feature_names:
-            print(f'Add {feature_name} labels...')
-            add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
-            species_polyphony_feature = Sequence(Value("int32"))
+            # print(f'Add {feature_name} labels...')
+            # add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
+            # species_polyphony_feature = Sequence(Value("int32"))
+
+            # for split in dataset.keys():
+            #     dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
+            #     dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
 
             for split in dataset.keys():
-                dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
-                dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+                dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
 
             # for split in dataset.keys():
             #     dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)

@@ -51,8 +51,8 @@ def main():
     # hf_download_path = cfg.dataset.huggingface.download_path
     # hf_upload_path = cfg.dataset.huggingface.upload_path
 
-    # Filter embedding models bny type "perch_v1" and "perch_v2"
-    perch_embeddings_models = [key for key in embedding_models if get_embedding_type(key)=='perch_v1' or get_embedding_type(key)=='perch_v2']
+    # Filter embedding models bny type "perch_hoplite" and "perch_v2"
+    perch_embeddings_models = [key for key in embedding_models if get_embedding_type(key)=='perch_hoplite' or get_embedding_type(key)=='perch_v2']
 
     if not perch_embeddings_models:
         print("No perch model keys found. Skipping.")

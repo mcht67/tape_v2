@@ -48,6 +48,7 @@ def main():
 
     input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
+    input_feature_name = input_feature_name if input_feature_name is not None else input_feature
     # embedding_type = cfg.embeddings.type
     # embedding_dim_type = cfg.embeddings.dimension_type
 
@@ -112,7 +113,9 @@ def main():
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
-    # Filter dataset by polyphony degree if specified in the config
+    # Filter dataset by polyphony degree if specified in the confi
+    if 'polyphony' not in test_dataset.column_names and 'polyphony_degree' in test_dataset.column_names:
+        test_dataset = test_dataset.rename_column('polyphony_degree', 'polyphony')
     if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
         print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
@@ -130,27 +133,25 @@ def main():
         print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
         test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
         print(f"After filtering, test split has {len(test_dataset)} examples.")
-
-
-    # test_dataset = test_dataset.cast_column(input_feature_name, Audio(decode=True, sampling_rate=cfg.train.get("cast_audio_sampling_rate", 32000)))
-
+    
     #################################
     # Update objectives config based on dataset
     #################################
 
     ebird_class_labels = None
+    birdset_id2label = None
 
-    # if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
+    if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
         #TODO: get from ClassLabels in dataset
         # ebird_class_labels = test_dataset.features['ebird_code_multilabel'].feature.names
         # Get birdset ids
         # scape_ds = load_dataset(huggingface_path, soundscape_dataset_config, split='test_5s', token=huggingface_token, download_mode='force_redownload')
-    birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
-    ebird_class_labels = [k for k in birdset_id2label.values()]
-    # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
-    print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
-    num_species = len(ebird_class_labels)
+        birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
+        ebird_class_labels = [k for k in birdset_id2label.values()]
+        # ebird_code_class_labels = scape_ds.features['ebird_code_multilabel'].feature.names
+        print(f"Found {len(ebird_class_labels)} species in the dataset: {ebird_class_labels}")
+        num_species = len(ebird_class_labels)
 
 
     # Set number of classes for polyphony degree classification based on dataset config
