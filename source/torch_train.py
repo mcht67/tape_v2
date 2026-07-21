@@ -183,7 +183,7 @@ def main():
     ###################################################
     # Configuration
     ###################################################
-    cfg = OmegaConf.load("params_torch_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     os.environ.setdefault("DEFAULT_DIR", os.getcwd())
     os.environ.setdefault("DVC_EXP_NAME", "test-experiment")
@@ -192,11 +192,6 @@ def main():
     set_random_seeds(random_seed)
     params = Params()
 
-    # NOTE: cfg.train.input_feature_name is the *precomputed embedding* column
-    # used by the TF pipeline (e.g. "perch_v2_cpu_audio_pooled_embeddings").
-    # torch_train.py fine-tunes from raw audio, so it needs cfg.train.input_feature
-    # instead (matches what evaluate_on_test_split.py/evaluate_on_soundscape_data.py
-    # already use for the torch backend).
     input_feature = cfg.train.get("input_feature", "audio")
     print(f"input_feature: {input_feature}")
     input_feature_name = cfg.train.get("input_feature_name") 
@@ -251,27 +246,6 @@ def main():
     else:
         print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)
-
-    # dataset = load_from_disk('data/HSN/HSN_polyphonic')
-    
-    # TODO: remove after testing:
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))  # only first 10 samples for testing
-
-    def find_bad_keys(feature, path="root"):
-        """Recursively find dict-typed features with None (or non-str) keys."""
-        if isinstance(feature, dict):
-            for k, v in feature.items():
-                if not isinstance(k, str):
-                    print(f"BAD KEY at {path}: key={k!r} value={v!r}")
-                find_bad_keys(v, f"{path}.{k}")
-        elif hasattr(feature, "feature"):  # Sequence
-            find_bad_keys(feature.feature, f"{path}[]")
-
-    for split in dataset:
-        print(f"--- checking split: {split} ---")
-        for col_name, feat in dataset[split].features.items():
-            find_bad_keys(feat, col_name)
 
     # Filter by max_polyphony if configured
     if "max_polyphony" in cfg.dataset and cfg.dataset.max_polyphony is not None:
@@ -362,15 +336,6 @@ def main():
         objective_names=objectives_list, batch_size=batch_size,
     )
 
-    # input_size = model.get_head_input_size()
-    # head_type = cfg.train.get("head_type", "temporal_cnn")
-    # if head_type == "temporal_cnn":
-    #     head = MultiTaskTemporalCNNHead(input_size, objectives_cfg)  # always operates on spatial_embeddings
-    # elif head_type == "mlp":
-    #     head = MultiTaskSimpleMLPHead(input_size, objectives_cfg)  # pooled_embeddings, or spatial_embeddings if any frame-wise objective is configured
-    # else:
-    #     raise ValueError(f"Unknown cfg.train.head_type '{head_type}', expected 'temporal_cnn' or 'mlp'")
-    # model.replace_head(head)
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:
         print("Freezing encoder parameters (only training head).")
