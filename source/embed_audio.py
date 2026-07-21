@@ -81,7 +81,7 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
     audio_array = normalize_audio_array(audio_array)
 
     # Get embeddings
-    if embedding_type == 'perch_v1':
+    if embedding_type == 'perch_hoplite':
         pooled_embeddings, spatial_embeddings = embed_with_perch1(model, model_key, audio_array)
         if spatial_embeddings is not None:
             example[spatial_embeddings_key]= spatial_embeddings
@@ -142,7 +142,7 @@ def add_embeddings(embedding_type, model_keys, input_feature, dataset, cache_dir
     modified = False
     for model_key in model_keys:
         #if recompute or new_feature_key not in dataset.features:
-        if embedding_type == 'perch_v1':
+        if embedding_type == 'perch_hoplite':
             model, sampling_rate = load_perch1_model(model_key)
         elif embedding_type == 'perch_v2':
             model, sampling_rate = load_perch2_model(model_key)
@@ -178,7 +178,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, c
     dataset = dataset.cast_column(input_feature, Audio())
     embedding_type = get_embedding_type(model_key)
 
-    if embedding_type == 'perch_v1':
+    if embedding_type == 'perch_hoplite':
         model, sampling_rate = load_perch1_model(model_key)
     elif embedding_type == 'perch_v2':
         model, sampling_rate = load_perch2_model(model_key)
@@ -248,7 +248,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, c
 #             dataset = dataset.cast_column(input_feature, Audio())
 #             embedding_type = get_embedding_type(model_key)
 
-#             if embedding_type == 'perch_v1':
+#             if embedding_type == 'perch_hoplite':
 #                 model, sampling_rate = load_perch1_model(model_key)
 #             elif embedding_type == 'perch_v2':
 #                 model, sampling_rate = load_perch2_model(model_key)
@@ -331,13 +331,13 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, c
 
 def get_embedding_type(model_key):
             # Define available models
-            perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+            perch_hoplite_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
             perch_v2_models = ['perch_v2', 'perch_v2_cpu']
             birdset_models = []
 
-            # Get embedding type [perch_v1, perch_v2, birdset]
-            if model_key in perch_v1_models:
-                embedding_type = 'perch_v1'
+            # Get embedding type [perch_hoplite, perch_v2, birdset]
+            if model_key in perch_hoplite_models:
+                embedding_type = 'perch_hoplite'
             elif model_key in perch_v2_models:
                 embedding_type = 'perch_v2'
             elif model_key in birdset_models:
@@ -414,9 +414,9 @@ def main():
         # AVES = 'aves'
         # PLACEHOLDER = 'placeholder'
 
-        # perch_v1_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
-        # if args.version=='perch_v1' and embedding_model not in perch_v1_models:
-        #     print("Requested embedding is no perch_v1 model, exiting.")
+        # perch_hoplite_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves']
+        # if args.version=='perch_hoplite' and embedding_model not in perch_hoplite_models:
+        #     print("Requested embedding is no perch_hoplite model, exiting.")
         #     exit(0)
 
         # perch_v2_models = ['perch_v2', 'perch_v2_cpu']

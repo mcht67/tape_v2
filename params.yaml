@@ -1,14 +1,14 @@
 general:
   random_seed: 42
 dataset:
-  huggingface_path: mcht67/Polyphonic-BirdSet-train
+  huggingface_path: mcht67/PolyBirdMix
   subset: HSN
   train_config: HSN_polyphonic_8
   soundscape_config: HSN_soundscape_test
   max_polyphony: 8
 embeddings:
-  name: perch_v2_cpu
-  type: perch_v2
+  name: birdnet_V2.4
+  type: perch_hoplite
   dimension_type: pooled
 model:
   _target_: model.SimpleMLP # defines the model to be instantiated

@@ -269,7 +269,7 @@ def main():
 
                 if hasattr(embedding_model, 'to'):
                     embedding_model = embedding_model.to(device) 
-            elif embedding_type=='perch_v1' or embedding_type=='perch_v2':
+            elif embedding_type=='perch_hoplite' or embedding_type=='perch_v2':
 
                 model_key = cfg.embeddings.name
 
@@ -284,7 +284,7 @@ def main():
                         tf.config.experimental.set_memory_growth(gpu, True)
                 
                 # Load model
-                if embedding_type == 'perch_v1':
+                if embedding_type == 'perch_hoplite':
                     embedding_model, sampling_rate = perch.load_perch1_model(model_key)
                 elif embedding_type == 'perch_v2':
                     embedding_model, sampling_rate = perch.load_perch2_model(model_key)
@@ -312,7 +312,7 @@ def main():
                     outputs = birdset.compute_embedding(audio, embedding_model, device)
                     pooled_embedding = outputs.pooled_embeddings.cpu().numpy()
                     spatial_embedding = outputs.spatial_embeddings.cpu().numpy()
-                elif embedding_type=='perch_v1' or embedding_type=='perch_v2':
+                elif embedding_type=='perch_hoplite' or embedding_type=='perch_v2':
                     pooled_embedding, spatial_embedding = perch.compute_embedding(audio, embedding_model, model_key, embedding_type, sampling_rate, device=device)
 
                 if embedding_dim_type == 'pooled':
