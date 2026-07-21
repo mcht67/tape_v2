@@ -30,6 +30,7 @@ eval_output/
 soundscape_eval_output/
 test_data/
 archive-old/
+results/
 
 # Ignore tmp copies for experiments
 /tmp
