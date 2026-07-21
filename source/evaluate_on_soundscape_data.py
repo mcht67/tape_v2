@@ -86,10 +86,9 @@ def main():
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
 
-    soundscape_test5s_split = load_from_disk(dataset_dir)
+    soundscape_test_dataset = load_from_disk(dataset_dir)
  
-    # TODO: Add labels
-    # soundscape_test5s_split = soundscape_test_dataset['test_5s']
+    soundscape_test5s_split = soundscape_test_dataset['test_5s']
     print(soundscape_test5s_split)
 
     #################################
