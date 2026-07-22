@@ -6,14 +6,13 @@ from datasets import concatenate_datasets, load_from_disk
 from omegaconf import OmegaConf
 import os
 from hydra.utils import instantiate
-from dotenv import load_dotenv
 import json
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, load_dataset_with_retry, get_birdset_id2label, get_local_data_dir
-from source.utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
+from utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
 from datasets import disable_caching
