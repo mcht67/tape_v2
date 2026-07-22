@@ -6,7 +6,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   - "POW"
   # - "SSW"
   # - "SNE"
-  - "XCM"
+  # - "XCM"
 
 base_config:
   log.study_name: "Pooled-Embeddings"
@@ -37,8 +37,8 @@ hyperparams:
     # - "birdnet_V2.4"
     # - "vggish"
     - "perch_8"
-    - "yamnet"
-    - "beans_baseline"
+    # - "yamnet"
+    # - "beans_baseline"
     - "Bird-MAE-Huge"
     - "AST-Birdset-XCL"
     - "Wav2Vec2-Base-BirdSet-XCL"
