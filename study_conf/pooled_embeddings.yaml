@@ -2,10 +2,10 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "UHH"
   # - "HSN"
   # - "PER"
-  - "NES"
+  # - "NES"
   - "POW"
-  - "SSW"
-  - "SNE"
+  # - "SSW"
+  # - "SNE"
   - "XCM"
 
 base_config:
@@ -35,7 +35,7 @@ hyperparams:
     - "AudioProtoPNet-20-BirdSet-XCL"
     - "birdnet_V2.3"
     # - "birdnet_V2.4"
-    - "vggish"
+    # - "vggish"
     - "perch_8"
     - "yamnet"
     - "beans_baseline"

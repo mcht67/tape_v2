@@ -5,7 +5,7 @@
 # See the LICENSE file in the root of this project for details.
 
 # Job name and logs
-#SBATCH -J tape
+#SBATCH -J polybirdmix-prepare
 #SBATCH -D /beegfs/scratch/cohrt/tape_v2/ # Working Directory
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
@@ -16,7 +16,7 @@
 # CPU
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=500GB
-#SBATCH --time=48:00:00
+#SBATCH --time=96:00:00
 #SBATCH --partition=standard
 
 # GPU

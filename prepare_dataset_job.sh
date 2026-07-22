@@ -5,7 +5,7 @@
 # See the LICENSE file in the root of this project for details.
 
 # Job name and logs
-#SBATCH -J tape
+#SBATCH -J polybirdmix-prepare
 #SBATCH -D /beegfs/scratch/cohrt/tape_v2/ # Working Directory
 #SBATCH --output=./logs/slurm/slurm-%j.out
 

@@ -127,15 +127,16 @@ def main():
                     if embeddings_name:
                         embeddings_names.append(embeddings_name)
                         embeddings_added = True
-        print("Embedding completed.")
 
-        if embeddings_added:
-            # SAVE TO DISK
-            os.makedirs(local_data_dir, exist_ok=True)
-            print(f"Saving dataset with embeddings to {local_data_dir}...")
-            overwrite_dataset(dataset, local_data_dir, store_backup=False)
-            # dataset.save_to_disk(local_data_dir)
-            print("Save done.")
+            if embeddings_added:
+                # SAVE TO DISK
+                os.makedirs(local_data_dir, exist_ok=True)
+                print(f"Saving dataset with embeddings to {local_data_dir}...")
+                overwrite_dataset(dataset, local_data_dir, store_backup=False)
+                # dataset.save_to_disk(local_data_dir)
+                print("Save done.")
+
+        print("Embedding completed.")
 
         # UPLOAD TO HUGGINGFACE
         # print("Upload embeddings...")
