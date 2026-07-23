@@ -34,8 +34,8 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    - "EfficientNet-B1-BirdSet-XCL"
-    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "EfficientNet-B1-BirdSet-XCL"
+    - "AudioProtoPNet-20-BirdSet-XCL"
     # - "birdnet_V2.3"
     # # - "birdnet_V2.4"
     # - "vggish"
