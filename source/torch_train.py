@@ -257,7 +257,7 @@ def main():
         for split in dataset.keys():
             if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
                 dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
-            dataset[split] = dataset[split].filter(lambda polyphony: [p <= max_polyphony for p in polyphony], input_columns=['polyphony'], batched=True, num_proc=num_workers, batched_size=100)
+            dataset[split] = dataset[split].filter(lambda polyphony: [p <= max_polyphony for p in polyphony], input_columns=['polyphony'], batched=True, num_proc=num_workers, batch_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # Filter dataset by SNR if specified in the config
@@ -265,14 +265,14 @@ def main():
         snr_range = cfg.dataset.snr_range
         print(f"Filtering dataset to include only examples with SNR in range {snr_range}...")
         for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batched_size=100)
+            dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
         min_snr = cfg.dataset.min_snr
         print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")
         for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda snr: [s >= min_snr for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batched_size=100)
+            dataset[split] = dataset[split].filter(lambda snr: [s >= min_snr for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # Species-level objectives need num_species / a birdset id<->label mapping,
