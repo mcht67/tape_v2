@@ -9,7 +9,7 @@ from hydra.utils import instantiate
 import json
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
-from utils.general import reshape_tensor_data
+from utils.general import reshape_tensor_data, get_num_workers
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
 from utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
@@ -335,6 +335,8 @@ def main():
     print("dataset_dir:", dataset_dir)
     dataset = load_from_disk(dataset_dir)
 
+    num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
+
     # Filter dataset by polyphony degree if specified in the config
     if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
         max_polyphony = cfg.dataset.max_polyphony
@@ -342,7 +344,7 @@ def main():
         for split in dataset.keys():
             if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
                 dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
-            dataset[split] = dataset[split].filter(lambda x: x['polyphony'] <= max_polyphony)
+            dataset[split] = dataset[split].filter(lambda polyphony: [p <= max_polyphony for p in polyphony], input_columns=['polyphony'], batched=True, num_proc=num_workers, batched_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # Filter dataset by SNR if specified in the config
@@ -350,39 +352,39 @@ def main():
         snr_range = cfg.dataset.snr_range
         print(f"Filtering dataset to include only examples with SNR in range {snr_range}...")
         for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda x: snr_range[0] <= x['snr_dB'] <= snr_range[1])
+            dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batched_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
     if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
         min_snr = cfg.dataset.min_snr
         print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")
         for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda x: x['snr_dB'] >= min_snr)
+            dataset[split] = dataset[split].filter(lambda snr: [s >= min_snr for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batched_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # dataset.save_to_disk("test_data/HSN")
 
     # TODO: Remove after handling in model output processing
     # Reshape input features if needed based on model requirements
-    if input_feature_name in {
-        "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
-        "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
-        "yamnet_audio_spatial_embeddings",
-        "vggish_audio_spatial_embeddings",
-        "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
-        "beans_baseline_audio_spatial_embeddings",
-        "AST-Birdset-XCL_audio_spatial_embeddings",
+    # if input_feature_name in {
+    #     "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
+    #     "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+    #     "yamnet_audio_spatial_embeddings",
+    #     "vggish_audio_spatial_embeddings",
+    #     "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
+    #     "beans_baseline_audio_spatial_embeddings",
+    #     "AST-Birdset-XCL_audio_spatial_embeddings",
 
-        "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "yamnet_no_noise_audio_spatial_embeddings",
-        "vggish_no_noise_audio_spatial_embeddings",
-        "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "beans_baseline_no_noise_audio_spatial_embeddings",
-        "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
-    }:
-        print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
-        for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
+    #     "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "yamnet_no_noise_audio_spatial_embeddings",
+    #     "vggish_no_noise_audio_spatial_embeddings",
+    #     "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "beans_baseline_no_noise_audio_spatial_embeddings",
+    #     "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
+    # }:
+    #     print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
+    #     for split in dataset.keys():
+    #         dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")

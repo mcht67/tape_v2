@@ -606,5 +606,27 @@ def store_embeddings(dataset, dataset_path, embeddings_metadata_path, embeddings
         with open(embeddings_metadata_path, "w") as f:
                     json.dump(metadata, f, indent=2)
 
+def get_num_workers(gb_per_worker=1, cpu_percentage=0.5):
+    # --- CPU detection ---
+    slurm_cpus = os.getenv("SLURM_CPUS_PER_TASK")
+    if slurm_cpus:
+        return int(slurm_cpus)
+    else:
+        num_workers_cpu_max = psutil.cpu_count(logical=False) or psutil.cpu_count()
+
+    num_workers_cpu = int(num_workers_cpu_max * cpu_percentage)
+
+    # --- Memory detection ---
+    slurm_mem = os.getenv("SLURM_MEM_PER_NODE")
+    if slurm_mem:
+        available_gb = int(slurm_mem) / 1024  # SLURM gives MB
+    else:
+        memory = psutil.virtual_memory()
+        available_gb = memory.available / (1024 ** 3)
+
+    num_workers_memory = int(available_gb / gb_per_worker)
+
+    return max(min(num_workers_cpu, num_workers_memory), 1)
+
 
 
