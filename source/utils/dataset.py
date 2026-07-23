@@ -3,11 +3,14 @@ from functools import partial
 import numpy as np
 import time
 import random
-from datasets import load_dataset
+from datasets import load_dataset, Dataset, DatasetDict,
 import traceback
 from collections import Counter
 import os
 import shutil
+
+import logging
+from dotenv import load_dotenv
 
 def overwrite_dataset(dataset, dataset_path, store_backup=True):
     # Save to temporary location
@@ -174,6 +177,69 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
     example[feature_name] = labels
     return example
 
+def get_birdset_id2label_from_dataset(dataset):
+    """Build a {id: label} mapping from a Dataset/DatasetDict with an
+    'ebird_code_multilabel' feature."""
+    if isinstance(dataset, DatasetDict):
+        dataset = dataset[next(iter(dataset.keys()))]
+    elif not isinstance(dataset, Dataset):
+        raise TypeError(f"Expected a Hugging Face Dataset or DatasetDict, got {type(dataset)}")
+
+    class_labels = dataset.features["ebird_code_multilabel"].feature.names
+    print(f"Found {len(class_labels)} species in the dataset: {class_labels}")
+    return dict(enumerate(class_labels))
+
+
+def get_birdset_id2label(subset, dataset=None):
+    """
+    Get a {id: label} mapping for a BirdSet/PolyBirdMix subset.
+
+    Resolution order:
+      1. If `dataset` already has an 'ebird_code_multilabel' feature, use it directly.
+      2. Otherwise, try to load the corresponding dataset from the Hugging Face Hub.
+      3. If that fails and `dataset` was provided, fall back to inferring ids from
+         'birdset_id_multilabel'/'birdset_code_multilabel' columns.
+    """
+    # 1. Dataset already has labels we can read directly.
+    if dataset is not None:
+        first_split = dataset[next(iter(dataset.keys()))] if isinstance(dataset, DatasetDict) else dataset
+        if isinstance(first_split, Dataset) and "ebird_code_multilabel" in first_split.features:
+            return get_birdset_id2label_from_dataset(dataset)
+
+    # 2. Try loading the reference dataset from the Hub.
+    load_dotenv("local.env")
+    token = os.getenv("HUGGINGFACE_TOKEN")
+
+    try:
+        if subset in ['XCM', 'XCL']:
+            ds = load_dataset("DBD-research-group/BirdSet", subset, split="train", token=token)
+        else:
+            ds = load_dataset(
+                "mcht67/PolyBirdMix", f"{subset}_soundscape_test", split="test_5s", token=token
+            )
+        class_labels = ds.features["ebird_code_multilabel"].feature.names
+        print(f"Found {len(class_labels)} species in the dataset: {class_labels}")
+        return dict(enumerate(class_labels))
+
+    except Exception:
+        # 3. Fall back to inferring ids from the provided dataset's raw columns.
+        if dataset is None:
+            raise ValueError(f"Dataset must be provided for unknown subset '{subset}'")
+
+        unique_ids = set()
+        for split in dataset.values():
+            for example in split:
+                if example.get("birdset_id_multilabel") is not None:
+                    unique_ids.update(example["birdset_id_multilabel"])
+                elif example.get("birdset_code_multilabel") is not None:
+                    unique_ids.update(example["birdset_code_multilabel"])
+                else:
+                    raise ValueError(
+                        "No 'birdset_id_multilabel' or 'birdset_code_multilabel' found in example"
+                    )
+        print(f"Unique birdset IDs: {sorted(unique_ids)}")
+        return {birdset_id: None for birdset_id in sorted(unique_ids)}
+
 # def get_birdset_id2label(dataset):
 
 #     # Get list of birdset ids
@@ -204,56 +270,56 @@ def add_species_polyphony(example, birdset_id2label, feature_name):
 #         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
 #         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
-def get_birdset_id2label(subset, dataset=None):
-    if dataset is not None:
-        if 'ebird_code_multilabel' in dataset[next(iter(dataset.keys()))].features:
-                return get_birdset_id2label_from_dataset(dataset)
+# def get_birdset_id2label(subset, dataset=None):
+#     if dataset is not None:
+#         if 'ebird_code_multilabel' in dataset[next(iter(dataset.keys()))].features:
+#                 return get_birdset_id2label_from_dataset(dataset)
 
-    # TODO remove
-    # Load environment variables from .env file
-    from dotenv import load_dotenv
-    load_dotenv('local.env')
-    huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
-    from datasets import load_dataset
-    if not subset=='XCM' and not subset=='XCL':
-        ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
-    elif subset=='XCM' or subset=='XCL':
-        ds = load_dataset("DBD-research-group/BirdSet", f'{subset}', split='train', token=huggingface_token)
-    else:
-        if not dataset:
-            raise ValueError("Dataset must be provided for unknown subset")
-        unique_birdset_ids = set()
-        for split in dataset.values():
-            for example in split:
-                if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
-                    unique_birdset_ids.update(example['birdset_id_multilabel'])
-                elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
-                    unique_birdset_ids.update(example['birdset_code_multilabel'])
-                else:
-                    raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
-        print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
-        return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
+#     # TODO remove
+#     # Load environment variables from .env file
+#     from dotenv import load_dotenv
+#     load_dotenv('local.env')
+#     huggingface_token = os.getenv('HUGGINGFACE_TOKEN')
+#     from datasets import load_dataset
+#     if not subset=='XCM' and not subset=='XCL':
+#         ds = load_dataset("mcht67/PolyBirdMix", f'{subset}_soundscape_test', split='test_5s', token=huggingface_token)
+#     elif subset=='XCM' or subset=='XCL':
+#         ds = load_dataset("DBD-research-group/BirdSet", f'{subset}', split='train', token=huggingface_token)
+#     else:
+#         if not dataset:
+#             raise ValueError("Dataset must be provided for unknown subset")
+#         unique_birdset_ids = set()
+#         for split in dataset.values():
+#             for example in split:
+#                 if 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+#                     unique_birdset_ids.update(example['birdset_id_multilabel'])
+#                 elif 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+#                     unique_birdset_ids.update(example['birdset_code_multilabel'])
+#                 else:
+#                     raise ValueError("No birdset_id_multilabel or birdset_code_multilabel found in example")
+#         print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
+#         return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
     
-    ebird_code_class_labels = ds.features['ebird_code_multilabel'].feature.names
-    print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
-    birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
-    return birdset_id2label
+#     ebird_code_class_labels = ds.features['ebird_code_multilabel'].feature.names
+#     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
+#     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
+#     return birdset_id2label
 
-from datasets import Dataset, DatasetDict
+# from datasets import Dataset, DatasetDict
 
-def get_birdset_id2label_from_dataset(dataset):
-    if isinstance(dataset, DatasetDict):
-        first_split = next(iter(dataset.keys()))
-        dataset = dataset[first_split]
-    elif not isinstance(dataset, Dataset):
-        raise TypeError(
-            f"Expected a Hugging Face Dataset or DatasetDict, got {type(dataset)}"
-        )
+# def get_birdset_id2label_from_dataset(dataset):
+#     if isinstance(dataset, DatasetDict):
+#         first_split = next(iter(dataset.keys()))
+#         dataset = dataset[first_split]
+#     elif not isinstance(dataset, Dataset):
+#         raise TypeError(
+#             f"Expected a Hugging Face Dataset or DatasetDict, got {type(dataset)}"
+#         )
 
-    ebird_code_class_labels = dataset.features['ebird_code_multilabel'].feature.names
-    print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
-    birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
-    return birdset_id2label
+#     ebird_code_class_labels = dataset.features['ebird_code_multilabel'].feature.names
+#     print(f"Found {len(ebird_code_class_labels)} species in the dataset: {ebird_code_class_labels}")
+#     birdset_id2label = {birdset_id: label for birdset_id, label in enumerate(ebird_code_class_labels)}
+#     return birdset_id2label
 
 
 
