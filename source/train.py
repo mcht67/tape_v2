@@ -365,7 +365,7 @@ def main():
 
     # dataset.save_to_disk("test_data/HSN")
 
-    print("Input shape:", dataset['train'][0][input_feature_name].shape)
+    print("Input shape:", np.array(dataset['train'][0][input_feature_name]).shape)
 
     # TODO: Remove after handling in model output processing
     # Reshape input features if needed based on model requirements
@@ -390,7 +390,7 @@ def main():
         for split in dataset.keys():
             dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
 
-    print("Input shape after reshape:", dataset['train'][0][input_feature_name].shape)
+    print("Input shape after reshape:", np.array(dataset['train'][0][input_feature_name]).shape)
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
