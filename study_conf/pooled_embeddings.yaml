@@ -15,6 +15,7 @@ base_config:
   dataset.max_polyphony: 8
   dataset.min_snr: -10
   train.epochs: 100
+  train.batch_size: 32
   train.learning_rate: 0.001
   train.early_stopping_patience: 10
   train.early_stopping_delay_epochs: 10

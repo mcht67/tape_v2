@@ -312,7 +312,7 @@ def main():
     learning_rate = cfg.train.learning_rate
     early_stopping_patience = cfg.train.early_stopping_patience if 'early_stopping_patience' in cfg.train and cfg.train.early_stopping_patience is not None else 0
     early_stopping_delay_epochs = cfg.train.early_stopping_delay_epochs if 'early_stopping_delay_epochs' in cfg.train and cfg.train.early_stopping_delay_epochs is not None else 0
-    batch_size = cfg.train.batch_size
+    batch_size = cfg.train.batch_size if 'batch_size' in cfg.train and cfg.train.batch_size is not None else 32
     num_batches_train = cfg.train.num_batches_train if 'num_batches_train' in cfg.train else None
     num_batches_val = cfg.train.num_batches_val if 'num_batches_val' in cfg.train else None
 
@@ -611,6 +611,8 @@ def main():
     #################################
     # Train model
     #################################
+
+    print(f"Starting training for {total_epochs} epochs from initial epoch {initial_epoch} with learning rate {learning_rate} and batch size {batch_size} on {input_feature_name} with input shape {input_dim}.")
 
     history = model.fit(train_dataset, 
                         validation_data=val_dataset, 
