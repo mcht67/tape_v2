@@ -3,13 +3,12 @@ from functools import partial
 import numpy as np
 import time
 import random
-from datasets import load_dataset, Dataset, DatasetDict,
+from datasets import load_dataset, Dataset, DatasetDict
 import traceback
 from collections import Counter
 import os
 import shutil
 
-import logging
 from dotenv import load_dotenv
 
 def overwrite_dataset(dataset, dataset_path, store_backup=True):

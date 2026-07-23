@@ -35,9 +35,9 @@ hyperparams:
     # - "no_noise_audio"
   embeddings:
     # - "EfficientNet-B1-BirdSet-XCL"
-    # - "AudioProtoPNet-20-BirdSet-XCL"
-    - "birdnet_V2.3"
-    # # - "birdnet_V2.4"
+    - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "birdnet_V2.3"
+    # - "birdnet_V2.4"
     # - "vggish"
     # - "perch_8"
     # - "yamnet"
