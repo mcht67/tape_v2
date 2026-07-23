@@ -8,7 +8,7 @@ from hydra.utils import instantiate
 from dotenv import load_dotenv
 from datasets import load_from_disk, Audio
 
-from utils.dataset import get_birdset_id2label, get_local_data_dir
+from utils.dataset import get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
 from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
@@ -113,26 +113,29 @@ def main():
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
-    # Filter dataset by polyphony degree if specified in the confi
-    if 'polyphony' not in test_dataset.column_names and 'polyphony_degree' in test_dataset.column_names:
-        test_dataset = test_dataset.rename_column('polyphony_degree', 'polyphony')
-    if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
-        max_polyphony = cfg.dataset.max_polyphony
-        print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
-        test_dataset = test_dataset.filter(lambda x: x['polyphony'] <= max_polyphony)
-        print(f"After filtering, test split has {len(test_dataset)} examples.")
+    num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
+    dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
 
-    # Filter dataset by SNR if specified in the config
-    if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
-        snr_range = cfg.dataset.snr_range
-        print(f"Filtering test dataset to include only examples with SNR in range {snr_range}...")
-        test_dataset = test_dataset.filter(lambda x: snr_range[0] <= x['snr_dB'] <= snr_range[1])
-        print(f"After filtering, test split has {len(test_dataset)} examples.")
-    if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
-        min_snr = cfg.dataset.min_snr
-        print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
-        test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
-        print(f"After filtering, test split has {len(test_dataset)} examples.")
+    # # Filter dataset by polyphony degree if specified in the confi
+    # if 'polyphony' not in test_dataset.column_names and 'polyphony_degree' in test_dataset.column_names:
+    #     test_dataset = test_dataset.rename_column('polyphony_degree', 'polyphony')
+    # if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
+    #     max_polyphony = cfg.dataset.max_polyphony
+    #     print(f"Filtering test dataset to include only examples with polyphony degree <= {max_polyphony}...")
+    #     test_dataset = test_dataset.filter(lambda x: x['polyphony'] <= max_polyphony)
+    #     print(f"After filtering, test split has {len(test_dataset)} examples.")
+
+    # # Filter dataset by SNR if specified in the config
+    # if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
+    #     snr_range = cfg.dataset.snr_range
+    #     print(f"Filtering test dataset to include only examples with SNR in range {snr_range}...")
+    #     test_dataset = test_dataset.filter(lambda x: snr_range[0] <= x['snr_dB'] <= snr_range[1])
+    #     print(f"After filtering, test split has {len(test_dataset)} examples.")
+    # if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
+    #     min_snr = cfg.dataset.min_snr
+    #     print(f"Filtering test dataset to include only examples with SNR >= {min_snr}...")
+    #     test_dataset = test_dataset.filter(lambda x: x['snr_dB'] >= min_snr)
+    #     print(f"After filtering, test split has {len(test_dataset)} examples.")
     
     #################################
     # Update objectives config based on dataset

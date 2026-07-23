@@ -11,7 +11,7 @@ import json
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
 from utils.general import reshape_tensor_data, get_num_workers
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
 from utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
@@ -335,30 +335,31 @@ def main():
     dataset = load_from_disk(dataset_dir)
 
     num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
+    dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
 
-    # Filter dataset by polyphony degree if specified in the config
-    if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
-        max_polyphony = cfg.dataset.max_polyphony
-        print(f"Filtering dataset to include only examples with polyphony degree <= {max_polyphony}...")
-        for split in dataset.keys():
-            if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
-                dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
-            dataset[split] = dataset[split].filter(lambda polyphony: [p <= max_polyphony for p in polyphony], input_columns=['polyphony'], batched=True, num_proc=num_workers, batch_size=100)
-            print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+    # # Filter dataset by polyphony degree if specified in the config
+    # if 'max_polyphony' in cfg.dataset and cfg.dataset.max_polyphony is not None:
+    #     max_polyphony = cfg.dataset.max_polyphony
+    #     print(f"Filtering dataset to include only examples with polyphony degree <= {max_polyphony}...")
+    #     for split in dataset.keys():
+    #         if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
+    #             dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
+    #         dataset[split] = dataset[split].filter(lambda polyphony: [p <= max_polyphony for p in polyphony], input_columns=['polyphony'], batched=True, num_proc=num_workers, batch_size=100)
+    #         print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
-    # Filter dataset by SNR if specified in the config
-    if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
-        snr_range = cfg.dataset.snr_range
-        print(f"Filtering dataset to include only examples with SNR in range {snr_range}...")
-        for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
-            print(f"After filtering, {split} split has {len(dataset[split])} examples.")
-    if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
-        min_snr = cfg.dataset.min_snr
-        print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")
-        for split in dataset.keys():
-            dataset[split] = dataset[split].filter(lambda snr: [s >= min_snr for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
-            print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+    # # Filter dataset by SNR if specified in the config
+    # if 'snr_range' in cfg.dataset and cfg.dataset.snr_range is not None:
+    #     snr_range = cfg.dataset.snr_range
+    #     print(f"Filtering dataset to include only examples with SNR in range {snr_range}...")
+    #     for split in dataset.keys():
+    #         dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
+    #         print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+    # if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
+    #     min_snr = cfg.dataset.min_snr
+    #     print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")
+    #     for split in dataset.keys():
+    #         dataset[split] = dataset[split].filter(lambda snr: [s >= min_snr for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
+    #         print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     # dataset.save_to_disk("test_data/HSN")
 
