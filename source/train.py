@@ -320,9 +320,6 @@ def main():
     model_cfg = cfg.model
     model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
-
-    
-
     
     # #################################
     # # Load dataset
@@ -436,6 +433,8 @@ def main():
 
     print(f"Training with {input_feature_name} as input feature and {labels} as labels on dataset {huggingface_path} with config {train_config}.")
 
+    print(f"Dataset feature schema: {dataset['train'].features[input_feature_name]}")
+
     #################################
     # Add labels
     #################################
@@ -473,6 +472,9 @@ def main():
     if num_batches_val: val_dataset = val_dataset.take(num_batches_val)
     train_size = num_batches_train * batch_size if num_batches_train else len(dataset['train'])
     val_size = num_batches_val * batch_size if num_batches_val else len(dataset['validation'])
+
+    batch = next(iter(train_dataset))
+    print(f'batch[0].shape: {batch[0].shape}') 
 
      #################################
     # Logging setup
@@ -542,8 +544,8 @@ def main():
         
         # Initialize variables with forward pass
         sample_batch = next(iter(train_dataset))
-        # _ = model(sample_batch[0], training=False)
-        _ = model(tf.zeros((input_dim)), training=False)
+        _ = model(sample_batch[0], training=False)
+        # _ = model(tf.zeros((input_dim)), training=False)
 
         model.load_weights(load_checkpoint_path)
         print(f"Resuming from epoch {initial_epoch}")
@@ -559,8 +561,8 @@ def main():
         print(input_dim)  
         # input_dim = sample_batch[0].shape
         # _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
-        _ = model(tf.zeros((input_dim)), training=False)
-        # _ = model(sample_batch[0], training=False)
+        # _ = model(tf.zeros((input_dim)), training=False)
+        _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")
         print(f"Compiling model with losses: {losses}")
         print(f"Compile metrics: {compile_metrics}")
