@@ -12,6 +12,7 @@ from utils.dataset import get_birdset_id2label, get_local_data_dir, filter_datas
 from utils.logs import SummaryWriter, save_to_report, get_log_paths
 from utils.metrics import compute_polyphony_metrics
 from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
+from utils.general import get_num_workers
 
 from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
 
