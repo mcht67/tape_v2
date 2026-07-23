@@ -442,7 +442,8 @@ def main():
     print("Adding labels to dataset based on objectives config...")
 
     # Get input dim
-    input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
+    # input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
+    input_dim = np.array(dataset['train'][0][input_feature_name]).shape
 
     print(f"Input feature '{input_feature_name}' has shape {input_dim} for the first example. Assuming this is the input shape for the model.")
 
@@ -541,7 +542,8 @@ def main():
         
         # Initialize variables with forward pass
         sample_batch = next(iter(train_dataset))
-        _ = model(sample_batch[0], training=False)
+        # _ = model(sample_batch[0], training=False)
+        _ = model(tf.zeros((input_dim)), training=False)
 
         model.load_weights(load_checkpoint_path)
         print(f"Resuming from epoch {initial_epoch}")
@@ -552,13 +554,13 @@ def main():
         print(model_cfg)
         # Initialize new model with forward pass
         sample_batch = next(iter(train_dataset))
-        print(sample_batch[0].shape)  # full shape including all dims
+        print(sample_batch[0].shape)  # full shape including all dims ( without batch dimension)
         print(sample_batch[0].dtype)  
         print(input_dim)  
-        input_dim = sample_batch[0].shape
+        # input_dim = sample_batch[0].shape
         # _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
         _ = model(tf.zeros((input_dim)), training=False)
-        _ = model(sample_batch[0], training=False)
+        # _ = model(sample_batch[0], training=False)
         print(f"New model has {len(model.trainable_variables)} trainable variables")
         print(f"Compiling model with losses: {losses}")
         print(f"Compile metrics: {compile_metrics}")
