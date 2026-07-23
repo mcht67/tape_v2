@@ -367,26 +367,26 @@ def main():
 
     # TODO: Remove after handling in model output processing
     # Reshape input features if needed based on model requirements
-    # if input_feature_name in {
-    #     "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
-    #     "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
-    #     "yamnet_audio_spatial_embeddings",
-    #     "vggish_audio_spatial_embeddings",
-    #     "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
-    #     "beans_baseline_audio_spatial_embeddings",
-    #     "AST-Birdset-XCL_audio_spatial_embeddings",
+    if input_feature_name in {
+        "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+        "yamnet_audio_spatial_embeddings",
+        "vggish_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
+        "beans_baseline_audio_spatial_embeddings",
+        "AST-Birdset-XCL_audio_spatial_embeddings",
 
-    #     "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-    #     "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-    #     "yamnet_no_noise_audio_spatial_embeddings",
-    #     "vggish_no_noise_audio_spatial_embeddings",
-    #     "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-    #     "beans_baseline_no_noise_audio_spatial_embeddings",
-    #     "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
-    # }:
-    #     print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
-    #     for split in dataset.keys():
-    #         dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
+        "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "yamnet_no_noise_audio_spatial_embeddings",
+        "vggish_no_noise_audio_spatial_embeddings",
+        "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+        "beans_baseline_no_noise_audio_spatial_embeddings",
+        "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
+    }:
+        print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
+        for split in dataset.keys():
+            dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
 
     if dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
