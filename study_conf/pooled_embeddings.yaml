@@ -1,8 +1,8 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - "UHH"
   # - "HSN"
-  - "PER"
-  # - "NES"
+  # - "PER"
+  - "NES"
   # - "POW"
   # - "SSW"
   # - "SNE"
