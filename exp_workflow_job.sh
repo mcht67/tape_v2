@@ -5,7 +5,7 @@
 # See the LICENSE file in the root of this project for details.
 
 # Job name and logs
-#SBATCH -J poolybirdmix-mix
+#SBATCH -J tape-exp
 #SBATCH -D /beegfs/scratch/cohrt/tape_v2/ # Working Directory
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
@@ -19,8 +19,8 @@
 ##SBATCH --partition=standard
 
 #SBATCH --gres=gpu:a100
-#SBATCH --mem=10GB
-#SBATCH --time=00:10:00
+#SBATCH --mem=256GB
+#SBATCH --time=12:00:00
 #SBATCH --partition=gpu
 
 # Get email notifications for job status
