@@ -602,6 +602,7 @@ def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
         for split in dataset.keys():
             dataset[split] = dataset[split].filter(lambda snr: [snr_range[0] <= s <= snr_range[1] for s in snr], input_columns=['snr_dB'], batched=True, num_proc=num_workers, batch_size=100)
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+            
     if 'min_snr' in cfg.dataset and cfg.dataset.min_snr is not None:
         min_snr = cfg.dataset.min_snr
         print(f"Filtering dataset to include only examples with SNR >= {min_snr}...")

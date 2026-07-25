@@ -8,8 +8,9 @@ from datasets import Audio, load_from_disk
 import torch
 import pandas as pd
 from functools import partial
+import shutil
 
-from utils.logs import SummaryWriter, get_log_paths, save_to_report, plot_polyphony_distribution
+from utils.logs import SummaryWriter, get_log_paths, get_archive_paths, save_to_report, plot_polyphony_distribution
 from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
 from utils.evaluation import collect_predictions, arrays_to_records, update_metrics_table
 from utils.metrics import compute_polyphony_range_metrics
@@ -39,6 +40,11 @@ def main():
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['soundscape_eval_log_dir']
     os.makedirs(log_dir, exist_ok=True)
+
+    archive_paths = get_archive_paths(cfg)
+    archive_log_dir = archive_paths['soundscape_eval_log_dir']
+    os.makedirs(archive_log_dir, exist_ok=True)
+    
     default_dir = os.environ.get('DEFAULT_DIR', '')
     checkpoint_dir = log_paths['checkpoint_dir']
     if not os.path.exists(checkpoint_dir):
@@ -49,8 +55,8 @@ def main():
     objectives_cfg = cfg.objectives
     input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
-    # embedding_type = cfg.embeddings.type
-    # embedding_dim_type = cfg.embeddings.dimension_type
+    embedding_type = cfg.embeddings.type
+    embedding_dim_type = cfg.embeddings.dimension_type
 
     if subset == "XCM" or subset == "XCL":
         print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
@@ -414,6 +420,13 @@ def main():
             # Write metrics to TensorBoard
             writer.add_scalar('soundscape/polyphony_range_accuracy_class', polyphony_range_accuracy_class, global_step=0)
             writer.add_scalar('soundscape/mean_distance_to_min_polyphony_class', mean_distance_to_min_polyphony_class, global_step=0)
+
+    # Copy log files and subfolders to archive directory for later analysis
+    if os.path.exists(archive_log_dir) and os.path.isdir(archive_log_dir) and os.path.exists(log_dir) and os.path.isdir(log_dir):
+        print(f"Copying log files and subfolders from {log_dir} to archive directory {archive_log_dir}...")
+        shutil.copytree(log_dir, archive_log_dir, dirs_exist_ok=True)
+    else:
+        print(f"Archive log directory {archive_log_dir} or log directory {log_dir} does not exist. Skipping copy.")
 
 if __name__ == "__main__":
     main()

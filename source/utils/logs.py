@@ -2423,14 +2423,23 @@ def get_dvc_exp_name():
         return "test-experiment"
 
 def get_log_paths(cfg) -> dict[str, Path]:
+
+    return {
+        "train_log_dir": Path(cfg.path.train_output) / "logs",
+        "eval_log_dir": Path(cfg.path.eval_output) / "logs",
+        "soundscape_eval_log_dir": Path(cfg.path.soundscape_eval_output) / "logs",
+        "checkpoint_dir": Path(cfg.path.train_output) / "checkpoints",
+    }
+
+def get_archive_paths(cfg) -> dict[str, Path]:
     exp_name = get_dvc_exp_name()
     run_dir = f"{cfg.datetime}_{exp_name}"
 
     return {
-        "train_log_dir": Path(cfg.path.train_output) / run_dir / "logs",
-        "eval_log_dir": Path(cfg.path.eval_output) / run_dir / "logs",
-        "soundscape_eval_log_dir": Path(cfg.path.soundscape_eval_output) / run_dir / "logs",
-        "checkpoint_dir": Path(cfg.path.train_output) / run_dir / "checkpoints",
+        "train_log_dir": Path(cfg.path.train_output_to_archive) / run_dir / "logs",
+        "eval_log_dir": Path(cfg.path.eval_output_to_archive) / run_dir / "logs",
+        "soundscape_eval_log_dir": Path(cfg.path.soundscape_eval_output_to_archive) / run_dir / "logs",
+        "checkpoint_dir": Path(cfg.path.train_output_to_archive) / run_dir / "checkpoints",
     }
 
 class ModelAndHistorySaver(tf.keras.callbacks.Callback):

@@ -7,8 +7,9 @@ from omegaconf import OmegaConf
 import os
 from hydra.utils import instantiate
 import json
+import shutil
 
-from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths
+from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths, get_archive_paths
 from utils.general import reshape_tensor_data, get_num_workers
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
@@ -293,13 +294,18 @@ def main():
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['train_log_dir']
     checkpoint_dir = log_paths['checkpoint_dir']
-    default_dir = os.environ.get('DEFAULT_DIR', '')
-
+    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
     print("Log dir:", log_dir)
     print("Checkpoint dir:", checkpoint_dir)
 
-    os.makedirs(log_dir, exist_ok=True)
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    archive_paths = get_archive_paths(cfg)
+    archive_log_dir = archive_paths['train_log_dir']
+    checkpoint_archive_dir = archive_paths['checkpoint_dir']
+    os.makedirs(archive_log_dir, exist_ok=True)
+    os.makedirs(checkpoint_archive_dir, exist_ok=True)
+
+    default_dir = os.environ.get('DEFAULT_DIR', '')
 
     study_name = cfg.log.study_name
     load_model_path = cfg.train.load_model_path if 'load_model_path' in cfg.train else None
@@ -620,6 +626,21 @@ def main():
                         epochs=total_epochs,
                         initial_epoch=initial_epoch, 
                         callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+
+
+    # Copy log files and subfolders to archive directory for later analysis
+    if os.path.isdir(log_dir):
+        print(f"Copying log files and subfolders from {log_dir} to archive directory {archive_log_dir}...")
+        shutil.copytree(log_dir, archive_log_dir, dirs_exist_ok=True)
+    else:
+        print(f"Archive log directory {archive_log_dir} or log directory {log_dir} does not exist. Skipping copy.")
+
+    if os.path.isdir(checkpoint_dir):
+        print(f"Copying checkpoint files and subfolders from {checkpoint_dir} to archive directory {checkpoint_archive_dir}...")
+        shutil.copytree(checkpoint_dir, checkpoint_archive_dir, dirs_exist_ok=True)
+    else:
+        print(f"Checkpoint archive directory {checkpoint_archive_dir} or checkpoint directory {checkpoint_dir} does not exist. Skipping copy.")
+
 
 if __name__=="__main__":
      main()

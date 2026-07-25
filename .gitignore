@@ -28,6 +28,9 @@ archive/
 train_output/
 eval_output/
 soundscape_eval_output/
+train_output_to_archive/
+eval_output_to_archive/
+soundscape_eval_output_to_archive/
 test_data/
 archive-old/
 results/

@@ -7,9 +7,10 @@ import torch
 from hydra.utils import instantiate
 from dotenv import load_dotenv
 from datasets import load_from_disk, Audio
+import shutil
 
 from utils.dataset import get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
-from utils.logs import SummaryWriter, save_to_report, get_log_paths
+from utils.logs import SummaryWriter, save_to_report, get_log_paths, get_archive_paths
 from utils.metrics import compute_polyphony_metrics
 from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
 from utils.general import get_num_workers
@@ -38,6 +39,11 @@ def main():
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
     os.makedirs(log_dir, exist_ok=True)
+
+    archive_paths = get_archive_paths(cfg)
+    archive_log_dir = archive_paths['eval_log_dir']
+    os.makedirs(archive_log_dir, exist_ok=True)
+
     default_dir = os.environ.get('DEFAULT_DIR', '')
     checkpoint_dir = log_paths['checkpoint_dir']
     if not os.path.exists(checkpoint_dir):
@@ -326,6 +332,13 @@ def main():
     # # This expects the polyphony degree to match the index of the class, i.e. class 0 = polyphony 0, class 1 = polyphony 1, etc.
     # if objectives_cfg.get('polyphony_class', None) is not None:
     #     pred_polyphony_class = np.argmax(predictions['polyphony_class'][0])
+
+    # Copy log files and subfolders to archive directory for later analysis
+    if os.path.isdir(log_dir):
+        print(f"Copying log files and subfolders from {log_dir} to archive directory {archive_log_dir}...")
+        shutil.copytree(log_dir, archive_log_dir, dirs_exist_ok=True)
+    else:
+        print(f"Archive log directory {archive_log_dir} or log directory {log_dir} does not exist. Skipping copy.")
     
 
 if __name__ == "__main__":

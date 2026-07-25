@@ -11,12 +11,13 @@ from datasets import load_from_disk, Audio
 from omegaconf import OmegaConf
 from hydra.utils import instantiate
 from dotenv import load_dotenv
+import shutil
 
 from utils.general import get_num_workers
 from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, load_dataset_with_retry
 
-from utils.logs import get_log_paths, build_confusion_matrix_specs
+from utils.logs import get_log_paths, get_archive_paths, build_confusion_matrix_specs
 from utils.metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
@@ -220,9 +221,15 @@ def main():
     log_paths = get_log_paths(cfg)
     log_dir = str(log_paths["train_log_dir"])
     checkpoint_dir = str(log_paths["checkpoint_dir"])
-    print(f"Logging to {log_dir}, checkpoints to {checkpoint_dir}")
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(checkpoint_dir, exist_ok=True)
+    print(f"Logging to {log_dir}, checkpoints to {checkpoint_dir}")
+
+    archive_paths = get_archive_paths(cfg)
+    archive_log_dir = archive_paths['train_log_dir']
+    checkpoint_archive_dir = archive_paths['checkpoint_dir']
+    os.makedirs(archive_log_dir, exist_ok=True)
+    os.makedirs(checkpoint_archive_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -585,6 +592,18 @@ def main():
 
     logger.close()
 
+    # Copy log files and subfolders to archive directory for later analysis
+    if os.path.isdir(log_dir):
+        print(f"Copying log files and subfolders from {log_dir} to archive directory {archive_log_dir}...")
+        shutil.copytree(log_dir, archive_log_dir, dirs_exist_ok=True)
+    else:
+        print(f"Archive log directory {archive_log_dir} or log directory {log_dir} does not exist. Skipping copy.")
+
+    if os.path.isdir(checkpoint_dir):
+        print(f"Copying checkpoint files and subfolders from {checkpoint_dir} to archive directory {checkpoint_archive_dir}...")
+        shutil.copytree(checkpoint_dir, checkpoint_archive_dir, dirs_exist_ok=True)
+    else:
+        print(f"Checkpoint archive directory {checkpoint_archive_dir} or checkpoint directory {checkpoint_dir} does not exist. Skipping copy.")
 
 if __name__ == "__main__":
     main()

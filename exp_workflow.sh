@@ -162,24 +162,24 @@ ARCHIVE_DIR=${DEFAULT_DIR}/archive/
 echo "Archiving results to $ARCHIVE_DIR..."
 
 # Check if train_output exists and rsync if it does
-if [ -d "train_output" ]; then
-  rsync -rv train_output/ ${ARCHIVE_DIR}
+if [ -d "train_output_to_archive" ]; then
+  rsync -rv train_output_to_archive/ ${ARCHIVE_DIR}
 else
-  echo "train_output directory not found, skipping..."
+  echo "train_output_to_archive directory not found, skipping..."
 fi
 
 # Check if eval_output exists and rsync if it does
-if [ -d "eval_output" ]; then
-  rsync -rv eval_output/ ${ARCHIVE_DIR}
+if [ -d "eval_output_to_archive" ]; then
+  rsync -rv eval_output_to_archive/ ${ARCHIVE_DIR}
 else
-  echo "eval_output directory not found, skipping..."
+  echo "eval_output_to_archive directory not found, skipping..."
 fi
 
 # Check if soundscape_eval_output exists and rsync if it does
-if [ -d "soundscape_eval_output" ]; then
-  rsync -rv soundscape_eval_output/ ${ARCHIVE_DIR}
+if [ -d "soundscape_eval_output_to_archive" ]; then
+  rsync -rv soundscape_eval_output_to_archive/ ${ARCHIVE_DIR}
 else
-  echo "soundscape_eval_output directory not found, skipping..."
+  echo "soundscape_eval_output_to_archive directory not found, skipping..."
 fi
 
 # #################################
