@@ -11,6 +11,14 @@ Expected folder structure (under --target_dir):
 Each CSV has metric names as the (unnamed) first column / index, and one
 column per "{dataset}_{head}" combination, e.g. "HSN_reg", "HSN_class".
 
+NOTE: the two sources use *different* metric sets, because they evaluate
+different scenarios:
+  - "synthetic": ground truth is a single point value -> point-estimate
+    metrics (mae, rmse, accuracy, ...)
+  - "soundscape": ground truth is a range -> range-aware metrics
+    (range_mae, range_mse, qwk_vs_midpoint, overlap_f1, ...)
+Metric config is therefore defined per-source below, not globally.
+
 Usage:
     python make_result_tables.py --target_dir /path/to/results --out tables.tex
 """
@@ -26,48 +34,80 @@ import pandas as pd
 # Configuration
 # ---------------------------------------------------------------------------
 
-# raw metric row name -> (display name, "higher"/"lower" is better)
-METRIC_INFO = {
-    "range_mae": ("MAE", "lower"),
-    "range_mse": ("MSE", "lower"),
-    "range_accuracy": ("Accuracy", "higher"),
-    "off_by_one_range_accuracy": ("Off-by-one Acc.", "higher"),
-    "qwk_vs_midpoint": ("QWK", "higher"),
-    "pearson_r_vs_midpoint": ("Pearson $r$", "higher"),
-    "overlap_precision": ("Overlap Prec.", "higher"),
-    "overlap_recall": ("Overlap Rec.", "higher"),
-    "overlap_f1": ("Overlap F1", "higher"),
-    "support": ("Support", None),
-}
-
-# Metrics shown in the compact overview table (averaged across datasets)
-OVERVIEW_METRICS = ["range_mae", "range_accuracy", "off_by_one_range_accuracy", "qwk_vs_midpoint"]
-
-# Metrics shown in the detailed per-dataset tables
-DETAILED_METRICS = [
-    "range_mae",
-    "range_mse",
-    "range_accuracy",
-    "off_by_one_range_accuracy",
-    "qwk_vs_midpoint",
-    "support",
-]
-
 HEAD_ORDER = ["reg", "class"]
 HEAD_LABEL = {"reg": "Regression", "class": "Classification"}
 
+COL_RE = re.compile(r"^(?P<dataset>.+)_(?P<head>reg|class)$")
+
+# Per-source configuration. Each source defines:
+#   csv_rel_path : where to find the CSV under a model dir
+#   table_desc   : human-readable description used in captions
+#   metric_info  : raw metric name (as it appears in the CSV index) ->
+#                  (display name, "higher"/"lower"/None direction)
+#   overview_metrics : metric keys (raw names) shown in the compact overview
+#                       table, averaged across datasets
+#   detailed_metrics : metric keys (raw names) shown in the per-dataset
+#                       detailed tables
 SOURCES = {
     "synthetic": {
         "csv_rel_path": Path("eval_results") / "test_metrics.csv",
         "table_desc": "synthetic mixture",
+        "metric_info": {
+            "mae": ("MAE", "lower"),
+            "rmse": ("RMSE", "lower"),
+            "accuracy": ("Accuracy", "higher"),
+            "off_by_one_accuracy": ("Off-by-one Acc.", "higher"),
+            "macro_f1": ("Macro F1", "higher"),
+            "weighted_f1": ("Weighted F1", "higher"),
+            "qwk": ("QWK", "higher"),
+            "pearson_r": ("Pearson $r$", "higher"),
+            "support": ("Support", None),
+        },
+        "overview_metrics": ["mae", "accuracy", "off_by_one_accuracy", "qwk"],
+        "detailed_metrics": [
+            "mae",
+            "rmse",
+            "accuracy",
+            "off_by_one_accuracy",
+            "qwk",
+            "support",
+        ],
     },
     "soundscape": {
         "csv_rel_path": Path("scape_eval_results") / "soundscape_test_metrics.csv",
         "table_desc": "soundscape",
+        "metric_info": {
+            "range_mae": ("MAE", "lower"),
+            "range_mse": ("MSE", "lower"),
+            "range_accuracy": ("Accuracy", "higher"),
+            "off_by_one_range_accuracy": ("Off-by-one Acc.", "higher"),
+            "qwk_vs_midpoint": ("QWK", "higher"),
+            "qwk_vs_min": ("QWK_min", "higher"),
+            "qwk_vs_max": ("QWK_max", "higher"),
+            "pearson_r_vs_midpoint": ("Pearson $r$", "higher"),
+            "overlap_precision": ("Overlap Prec.", "higher"),
+            "overlap_recall": ("Overlap Rec.", "higher"),
+            "overlap_f1": ("Overlap F1", "higher"),
+            "mean_interval_width": ("Mean Interval Width", "lower"),
+            "support": ("Support", None),
+        },
+        "overview_metrics": [
+            "range_mae",
+            "range_accuracy",
+            "off_by_one_range_accuracy",
+            "qwk_vs_midpoint",
+        ],
+        "detailed_metrics": [
+            "range_mae",
+            "range_mse",
+            "range_accuracy",
+            "off_by_one_range_accuracy",
+            "qwk_vs_midpoint",
+            "mean_interval_width",
+            "support",
+        ],
     },
 }
-
-COL_RE = re.compile(r"^(?P<dataset>.+)_(?P<head>reg|class)$")
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +130,10 @@ def discover_models(target_dir: Path):
 def load_long_df(target_dir: Path, models):
     """Return one tidy long dataframe with columns:
     model, source, dataset, head, metric, value
+
+    `metric` values are the *raw* metric names as they appear in each
+    source's CSV; interpretation (display name/direction) is looked up
+    per-source via SOURCES[source]["metric_info"].
     """
     rows = []
     for model in models:
@@ -98,6 +142,7 @@ def load_long_df(target_dir: Path, models):
             if not csv_path.is_file():
                 continue
             df = pd.read_csv(csv_path, index_col=0)
+            df.index = df.index.map(lambda m: str(m).strip())
             for col in df.columns:
                 m = COL_RE.match(col.strip())
                 if not m:
@@ -106,6 +151,9 @@ def load_long_df(target_dir: Path, models):
                 dataset = m.group("dataset")
                 head = m.group("head")
                 for metric, value in df[col].items():
+                    if metric not in cfg["metric_info"]:
+                        print(f"  [warn] unrecognized metric '{metric}' for source '{source}' in {csv_path}")
+                        continue
                     rows.append(
                         {
                             "model": model,
@@ -158,7 +206,11 @@ def best_mask(series: pd.Series, direction: str):
 # ---------------------------------------------------------------------------
 
 def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
-    sub = long_df[(long_df["source"] == source) & (long_df["metric"].isin(OVERVIEW_METRICS))]
+    cfg = SOURCES[source]
+    metric_info = cfg["metric_info"]
+    overview_metrics = cfg["overview_metrics"]
+
+    sub = long_df[(long_df["source"] == source) & (long_df["metric"].isin(overview_metrics))]
     if sub.empty:
         return ""
 
@@ -167,28 +219,28 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
         sub.groupby(["model", "head", "metric"])["value"]
         .mean()
         .unstack("metric")
-        .reindex(columns=OVERVIEW_METRICS)
+        .reindex(columns=overview_metrics)
     )
 
-    n_cols = len(OVERVIEW_METRICS)
+    n_cols = len(overview_metrics)
     col_spec = "ll" + "c" * n_cols
     header_cells = []
-    for metric in OVERVIEW_METRICS:
-        label, direction = METRIC_INFO[metric]
+    for metric in overview_metrics:
+        label, direction = metric_info[metric]
         arrow = r"$\uparrow$" if direction == "higher" else r"$\downarrow$" if direction == "lower" else ""
         header_cells.append(f"{label} {arrow}".strip())
     header = "Backbone & Head & " + " & ".join(header_cells) + r" \\"
 
     # figure out best value per column across the whole table (model+head combos)
     best_masks = {}
-    for metric in OVERVIEW_METRICS:
-        _, direction = METRIC_INFO[metric]
+    for metric in overview_metrics:
+        _, direction = metric_info[metric]
         best_masks[metric] = best_mask(avg[metric], direction) if metric in avg else None
 
     lines = []
     lines.append(r"\begin{table*}[t]")
     lines.append(r"\centering")
-    src_desc = SOURCES[source]["table_desc"]
+    src_desc = cfg["table_desc"]
     lines.append(
         rf"\caption{{Results on {src_desc} data, averaged across evaluation subsets, for each model and head type.}}"
     )
@@ -204,7 +256,7 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
             continue
         for i, head in enumerate(heads_present):
             row_vals = []
-            for metric in OVERVIEW_METRICS:
+            for metric in overview_metrics:
                 val = avg.loc[(model, head), metric] if metric in avg.columns else np.nan
                 cell = fmt(val)
                 mask = best_masks.get(metric)
@@ -229,10 +281,14 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
 # ---------------------------------------------------------------------------
 
 def build_detailed_table(long_df: pd.DataFrame, source: str, model: str) -> str:
+    cfg = SOURCES[source]
+    metric_info = cfg["metric_info"]
+    detailed_metrics = cfg["detailed_metrics"]
+
     sub = long_df[
         (long_df["source"] == source)
         & (long_df["model"] == model)
-        & (long_df["metric"].isin(DETAILED_METRICS))
+        & (long_df["metric"].isin(detailed_metrics))
     ]
     if sub.empty:
         return ""
@@ -241,19 +297,19 @@ def build_detailed_table(long_df: pd.DataFrame, source: str, model: str) -> str:
         sub.groupby(["head", "dataset", "metric"])["value"]
         .mean()
         .unstack("metric")
-        .reindex(columns=DETAILED_METRICS)
+        .reindex(columns=detailed_metrics)
     )
 
-    n_cols = len(DETAILED_METRICS)
+    n_cols = len(detailed_metrics)
     col_spec = "ll" + "c" * n_cols
     header_cells = []
-    for metric in DETAILED_METRICS:
-        label, direction = METRIC_INFO[metric]
+    for metric in detailed_metrics:
+        label, direction = metric_info[metric]
         arrow = r"$\uparrow$" if direction == "higher" else r"$\downarrow$" if direction == "lower" else ""
         header_cells.append(f"{label} {arrow}".strip())
     header = "Head & Dataset & " + " & ".join(header_cells) + r" \\"
 
-    src_desc = SOURCES[source]["table_desc"]
+    src_desc = cfg["table_desc"]
     label_safe = re.sub(r"[^a-zA-Z0-9]+", "_", model.lower())
 
     lines = []
@@ -275,7 +331,7 @@ def build_detailed_table(long_df: pd.DataFrame, source: str, model: str) -> str:
         lines.append(r"\midrule")
         datasets = sorted(pivot.loc[head].index)
         for i, dataset in enumerate(datasets):
-            row_vals = [fmt(pivot.loc[(head, dataset), metric]) for metric in DETAILED_METRICS]
+            row_vals = [fmt(pivot.loc[(head, dataset), metric]) for metric in detailed_metrics]
             head_cell = (
                 rf"\multirow{{{len(datasets)}}}{{*}}{{{HEAD_LABEL[head]}}}" if i == 0 else ""
             )
