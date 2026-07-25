@@ -2,9 +2,9 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "UHH"
   # - "HSN"
   # - "PER"
-  - "NES"
-  # - "POW"
-  # - "SSW"
+  # - "NES"
+  - "POW"
+  - "SSW"
   # - "SNE"
   # - "XCM"
 
