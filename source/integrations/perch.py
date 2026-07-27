@@ -45,6 +45,8 @@ def load_perch1_model(model_key):
         preset_info = model_configs.get_preset_model_config(model_config_name)
         model = preset_info.load_model()
         sampling_rate = preset_info.model_config["sample_rate"]
+        print(f"Loaded model {model_key} with sampling rate {sampling_rate}.")
+        print("model_config:", preset_info.model_config)
     return model, sampling_rate
 
 def load_perch2_model(model_key):
@@ -70,10 +72,12 @@ def compute_embedding(audio, model, model_key, embedding_type, sampling_rate, de
     # if audio_array is None or len(audio_array) < 16000 or len(audio_array) > 160000:
     #     return None, None
     # Pad/Truncate audio to 5s if shorter
-    if len(audio_array) < 160000:
-        audio_array = np.pad(audio_array, (0, 160000 - len(audio_array)), mode='constant')
-    elif len(audio_array) > 160000:
-        audio_array = audio_array[:160000]
+    # TODO: take sampling rate into account, e.g. 32kHz -> 160000 samples for 5s
+    num_samples = 5 * sampling_rate  # 5 seconds worth of samples
+    if len(audio_array) < num_samples:
+        audio_array = np.pad(audio_array, (0, num_samples - len(audio_array)), mode='constant')
+    elif len(audio_array) > num_samples:
+        audio_array = audio_array[:num_samples]
 
     if embedding_type == 'perch_hoplite':
         pooled_embeddings, spatial_embeddings = embed_with_perch1(
