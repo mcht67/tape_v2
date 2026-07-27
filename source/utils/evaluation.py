@@ -5,8 +5,13 @@ import tensorflow as tf
 
 from collections import Counter
 
+import numpy as np
+import tensorflow as tf
+from collections import Counter
 
-def collect_predictions(model, dataset, input_feature_name, variables=None, birdset_id2label=None, batch_size=64):
+
+def collect_predictions(model, dataset, input_feature_name, variables=None,
+                         birdset_id2label=None, batch_size=64):
     """
     Run inference over `dataset` and return arrays ready for metric computation.
 
@@ -16,64 +21,85 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
         variable_values: dict of {var_name: array of shape (N,)}
     """
     variables = variables or []
-    embeddings, variable_rows = [], []
-    gt_total, gt_min, gt_max = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
-    gt_species, gt_min_species, gt_max_species = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
+    n = len(dataset)
 
-    for i, example in enumerate(dataset):
-        embeddings.append(example[input_feature_name])
-        variable_rows.append({var: example[var] for var in variables})
+    gt_total, gt_min, gt_max = [None] * n, [None] * n, [None] * n
+    gt_species, gt_min_species, gt_max_species = [None] * n, [None] * n, [None] * n
+    variable_rows = [None] * n
 
-        # Get species agnostic polyphony values (total, min, max) and species-specific polyphony counts
-        if "polyphony_degree" in example:
-            gt_total[i] = example["polyphony_degree"]
-        if "polyphony" in example:
-            gt_total[i] = example["polyphony"]
-        if "min_polyphony" in example:
-            gt_min[i] = example["min_polyphony"]
-        if "max_polyphony" in example:
-            gt_max[i] = example["max_polyphony"]
+    # Accumulate predictions per output head across batches instead of
+    # keeping every embedding + every activation in memory at once.
+    pred_chunks = {}
 
-        # Get per-species polyphony counts if available
-        if "species_polyphony" in example:
-            gt_species[i] = example["species_polyphony"]
-        if "min_species_polyphony" in example:
-            gt_min_species[i] = example["min_species_polyphony"]
-        if "max_species_polyphony" in example:
-            gt_max_species[i] = example["max_species_polyphony"]
+    # Only fetch the columns we actually need — avoids materializing
+    # unrelated columns (e.g. raw audio) that HF may otherwise decode.
+    needed_cols = {input_feature_name, "polyphony_degree", "polyphony",
+                   "min_polyphony", "max_polyphony", "species_polyphony",
+                   "min_species_polyphony", "max_species_polyphony",
+                   "birdset_code_multilabel", "birdset_id_multilabel",
+                   "ebird_code_multilabel"} | set(variables)
+    needed_cols &= set(dataset.column_names)
 
-        # if species_names:
-        if not "species_polyphony" in example and birdset_id2label is not None:
-            counts = None
-            if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
-                counts = Counter(example['birdset_code_multilabel'])
-            elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
-                counts = Counter(example['birdset_id_multilabel'])
-            elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
-                counts = Counter(example['ebird_code_multilabel'])
+    idx = 0
+    # Dataset.iter() streams fixed-size batches as dicts of column -> list,
+    # so only one batch's worth of decoded features is ever in memory,
+    # and np.stack only ever stacks `batch_size` items at a time.
+    for batch in dataset.select_columns(list(needed_cols)).iter(batch_size=batch_size):
+        bsz = len(batch[input_feature_name])
 
-            labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
-            
-            gt_species[i] = labels
-            
-    X = tf.constant(np.stack(embeddings), dtype=tf.float32)
-    raw_predictions = model(X, training=False)
+        X = tf.constant(np.stack(batch[input_feature_name]), dtype=tf.float32)
+        raw_predictions = model(X, training=False)
+        for k, v in raw_predictions.items():
+            arr = v.numpy()
+            if k == "polyphony_reg" and arr.ndim == 2 and arr.shape[1] == 1:
+                arr = arr[:, 0]
+            pred_chunks.setdefault(k, []).append(arr)
 
-    # raw_predictions is a dict of {output_name: tensor} since the model has
-    # multiple named heads. Convert to numpy and squeeze trailing singleton
-    # dims only where main() expects 1D (the total-polyphony regression head).
-    predictions = {}
-    for k, v in raw_predictions.items():
-        arr = v.numpy()
-        if k == "polyphony_reg" and arr.ndim == 2 and arr.shape[1] == 1:
-            arr = arr[:, 0]
-        predictions[k] = arr
+        for j in range(bsz):
+            i = idx + j
+            variable_rows[i] = {var: batch[var][j] for var in variables}
+
+            # Get species agnostic polyphony values (total, min, max) and
+            # species-specific polyphony counts
+            if "polyphony_degree" in batch:
+                gt_total[i] = batch["polyphony_degree"][j]
+            if "polyphony" in batch:
+                gt_total[i] = batch["polyphony"][j]
+            if "min_polyphony" in batch:
+                gt_min[i] = batch["min_polyphony"][j]
+            if "max_polyphony" in batch:
+                gt_max[i] = batch["max_polyphony"][j]
+
+            # Get per-species polyphony counts if available
+            if "species_polyphony" in batch:
+                gt_species[i] = batch["species_polyphony"][j]
+            if "min_species_polyphony" in batch:
+                gt_min_species[i] = batch["min_species_polyphony"][j]
+            if "max_species_polyphony" in batch:
+                gt_max_species[i] = batch["max_species_polyphony"][j]
+
+            if "species_polyphony" not in batch and birdset_id2label is not None:
+                counts = None
+                if batch.get('birdset_code_multilabel') is not None and batch['birdset_code_multilabel'][j] is not None:
+                    counts = Counter(batch['birdset_code_multilabel'][j])
+                elif batch.get('birdset_id_multilabel') is not None and batch['birdset_id_multilabel'][j] is not None:
+                    counts = Counter(batch['birdset_id_multilabel'][j])
+                elif batch.get('ebird_code_multilabel') is not None and batch['ebird_code_multilabel'][j] is not None:
+                    counts = Counter(batch['ebird_code_multilabel'][j])
+
+                labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()] \
+                    if counts is not None else [0] * len(birdset_id2label)
+                gt_species[i] = labels
+
+        idx += bsz
+
+    predictions = {k: np.concatenate(v, axis=0) for k, v in pred_chunks.items()}
 
     y_true = {
         "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
         "min_polyphony": np.array(gt_min),
         "max_polyphony": np.array(gt_max),
-        "species_polyphony": np.array(gt_species), #if species_names else None,
+        "species_polyphony": np.array(gt_species),
         "min_species_polyphony": np.array(gt_min_species),
         "max_species_polyphony": np.array(gt_max_species),
     }
@@ -84,6 +110,85 @@ def collect_predictions(model, dataset, input_feature_name, variables=None, bird
     }
 
     return y_true, predictions, variable_values
+
+# def collect_predictions(model, dataset, input_feature_name, variables=None, birdset_id2label=None, batch_size=64):
+#     """
+#     Run inference over `dataset` and return arrays ready for metric computation.
+
+#     Returns:
+#         y_true: {"polyphony": (N,) or None, "species_polyphony": (N, num_species) or None}
+#         predictions: {objective_name: array}, matching model's named outputs
+#         variable_values: dict of {var_name: array of shape (N,)}
+#     """
+#     variables = variables or []
+#     embeddings, variable_rows = [], []
+#     gt_total, gt_min, gt_max = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
+#     gt_species, gt_min_species, gt_max_species = [None] * len(dataset), [None] * len(dataset), [None] * len(dataset)
+
+#     for i, example in enumerate(dataset):
+#         embeddings.append(example[input_feature_name])
+#         variable_rows.append({var: example[var] for var in variables})
+
+#         # Get species agnostic polyphony values (total, min, max) and species-specific polyphony counts
+#         if "polyphony_degree" in example:
+#             gt_total[i] = example["polyphony_degree"]
+#         if "polyphony" in example:
+#             gt_total[i] = example["polyphony"]
+#         if "min_polyphony" in example:
+#             gt_min[i] = example["min_polyphony"]
+#         if "max_polyphony" in example:
+#             gt_max[i] = example["max_polyphony"]
+
+#         # Get per-species polyphony counts if available
+#         if "species_polyphony" in example:
+#             gt_species[i] = example["species_polyphony"]
+#         if "min_species_polyphony" in example:
+#             gt_min_species[i] = example["min_species_polyphony"]
+#         if "max_species_polyphony" in example:
+#             gt_max_species[i] = example["max_species_polyphony"]
+
+#         # if species_names:
+#         if not "species_polyphony" in example and birdset_id2label is not None:
+#             counts = None
+#             if 'birdset_code_multilabel' in example and example['birdset_code_multilabel'] is not None:
+#                 counts = Counter(example['birdset_code_multilabel'])
+#             elif 'birdset_id_multilabel' in example and example['birdset_id_multilabel'] is not None:
+#                 counts = Counter(example['birdset_id_multilabel'])
+#             elif 'ebird_code_multilabel' in example and example['ebird_code_multilabel'] is not None:
+#                 counts = Counter(example['ebird_code_multilabel'])
+
+#             labels = [counts.get(int(birdset_id), 0) for birdset_id in birdset_id2label.keys()]
+            
+#             gt_species[i] = labels
+            
+#     X = tf.constant(np.stack(embeddings), dtype=tf.float32)
+#     raw_predictions = model(X, training=False)
+
+#     # raw_predictions is a dict of {output_name: tensor} since the model has
+#     # multiple named heads. Convert to numpy and squeeze trailing singleton
+#     # dims only where main() expects 1D (the total-polyphony regression head).
+#     predictions = {}
+#     for k, v in raw_predictions.items():
+#         arr = v.numpy()
+#         if k == "polyphony_reg" and arr.ndim == 2 and arr.shape[1] == 1:
+#             arr = arr[:, 0]
+#         predictions[k] = arr
+
+#     y_true = {
+#         "polyphony": np.array(gt_total),  # shape (N,) — matches predictions["polyphony_reg"]
+#         "min_polyphony": np.array(gt_min),
+#         "max_polyphony": np.array(gt_max),
+#         "species_polyphony": np.array(gt_species), #if species_names else None,
+#         "min_species_polyphony": np.array(gt_min_species),
+#         "max_species_polyphony": np.array(gt_max_species),
+#     }
+
+#     variable_values = {
+#         var: np.array([row[var] for row in variable_rows])
+#         for var in variables
+#     }
+
+#     return y_true, predictions, variable_values
 
 
 def arrays_to_records(y_true, predictions, variable_values=None, species_names=None):
