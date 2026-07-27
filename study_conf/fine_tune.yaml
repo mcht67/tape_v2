@@ -1,8 +1,8 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - 'XCM'
-  - "HSN"
+  # - "HSN"
   # - "PER"
-  # - "UHH"
+  - "UHH"
   # - "NES"
   # - "SSW"
   # - "POW"
@@ -27,7 +27,7 @@ base_config:
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   train.freeze_epochs: 2           # train the head alone for N epochs, then unfreeze
   train.finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
-  train.early_stopping_patience: 10
+  train.early_stopping_patience: 5
   train.early_stopping_delay_epochs: 0
   
   # log.metrics:
@@ -36,8 +36,8 @@ base_config:
 
 hyperparams:
   model:
-    - "BirdSetBirdMAE"
-    # - "BirdSetEfficientNet"
+    # - "BirdSetBirdMAE"
+    - "BirdSetEfficientNet"
     # - NatureLMBEATs
   train.input_feature:
     - "audio"

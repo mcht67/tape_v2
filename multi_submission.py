@@ -64,7 +64,7 @@ def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embe
             sys.exit(1)
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
+def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None, run_on_gpu=False):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
@@ -95,11 +95,16 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None):
     # subprocess.run(
     #     ['/usr/bin/bash', '-c', f'sbatch {dependency_flag}exp_workflow_job.sh {" ".join(arguments)}'],
     #     env=env)
-
-    result = subprocess.run(
-                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} exp_workflow_job_cpu.sh {" ".join(arguments)}'],
+    if run_on_gpu:
+        result = subprocess.run(
+                                ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} exp_workflow_job_gpu.sh {" ".join(arguments)}'],
                                 env=env, capture_output=True, text=True
                             )
+    else:
+        result = subprocess.run(
+                                    ['/usr/bin/bash', '-c', f'sbatch {dependency_flag} exp_workflow_job_cpu.sh {" ".join(arguments)}'],
+                                    env=env, capture_output=True, text=True
+                                )
     if not result.returncode==0:
         print("Stderr:", result.stderr)
     else:
@@ -232,7 +237,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/pooled_embeddings.yaml'
+    study_config_path = 'study_conf/fine_tune.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
@@ -248,6 +253,7 @@ if __name__ == "__main__":
     run_dataset_preparation = False #True #if embeddings else False
     recompute_embeddings = False #True #if embeddings else False
     force_redownload = False
+    run_on_gpu = True
 
     ##########################
     # Submit jobs
@@ -260,4 +266,4 @@ if __name__ == "__main__":
         if embeddings:
             if run_dataset_preparation:
                 prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id)
+        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id, run_on_gpu=run_on_gpu)
