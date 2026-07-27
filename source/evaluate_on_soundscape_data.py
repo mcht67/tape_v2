@@ -195,7 +195,7 @@ def main():
     soundscape_test5s_split = soundscape_test5s_split.cast_column(input_feature, Audio())
 
     # Add min/max polyphony labels to soundscape dataset
-    soundscape_test5s_split = soundscape_test5s_split.map(partial(add_min_max_polyphony, num_species=num_species))
+    # soundscape_test5s_split = soundscape_test5s_split.map(partial(add_min_max_polyphony, num_species=num_species))
 
     plot_save_dir = os.path.join(cfg.path.soundscape_eval_output, f"{subset}_soundscape_polyphony_distribution.png")
     os.makedirs(os.path.dirname(plot_save_dir), exist_ok=True)
