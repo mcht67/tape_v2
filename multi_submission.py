@@ -237,7 +237,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/fine_tune.yaml'
+    study_config_path = 'study_conf/pooled_embeddings.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
@@ -253,7 +253,7 @@ if __name__ == "__main__":
     run_dataset_preparation = False #True #if embeddings else False
     recompute_embeddings = False #True #if embeddings else False
     force_redownload = False
-    run_on_gpu = True
+    run_on_gpu = False
 
     ##########################
     # Submit jobs
