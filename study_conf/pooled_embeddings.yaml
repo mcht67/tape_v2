@@ -1,6 +1,6 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   - "UHH"
-  - "HSN"
+  # - "HSN"
   # - "PER"
   # - "NES"
   # - "POW"
@@ -9,7 +9,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "XCM"
 
 base_config:
-  log.study_name: "Pooled-Embeddings"
+  log.study_name: "Pooled-Embeddings-BirdNet-rerun"
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/PolyBirdMix"
   dataset.max_polyphony: 8
@@ -50,5 +50,5 @@ hyperparams:
     - "NatureLMBEATs"
   objectives:
     - "polyphony_reg"
-    - "polyphony_class"
+    # - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
