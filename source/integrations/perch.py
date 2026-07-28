@@ -368,7 +368,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
             
             # Process batch
             cache_file = os.path.join(temp_cache_dir, f"{embeddings_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
-            batch_processed = batch_dataset.map(embedding_fn, cache_file_name=cache_file)
+            batch_processed = batch_dataset.map(embedding_fn, keep_in_memory=True) #cache_file_name=cache_file)
             
             processed_datasets.append(batch_processed)
     
