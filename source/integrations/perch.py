@@ -43,6 +43,9 @@ def load_perch1_model(model_key):
     else:
         model_config_name = model_configs.ModelConfigName(model_key)
         preset_info = model_configs.get_preset_model_config(model_config_name)
+        if model_key in ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'birdnet_V2.4']:
+            # Set hop size to 1s for birdnet models (otherwise last 2 seconds of audio are ignored as BirdNet expects 3s of audio)
+            preset_info.model_config.hop_size_s = 1.0
         model = preset_info.load_model()
         sampling_rate = preset_info.model_config["sample_rate"]
         print(f"Loaded model {model_key} with sampling rate {sampling_rate}.")
@@ -151,11 +154,13 @@ def embed_example(example, model, model_key, embedding_type, input_feature, samp
 
 #     return example
 
-def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'):
+def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'): #TODO: implement batched embed function perch hoplite provides batch_emebd()in zoo_interface.py
 
     # Early return if audio is empty
     if audio_array is None:
         return None, None
+
+    num_samples = len(audio_array)
 
     with tf.device(device):
         if model_key == 'yamnet':
@@ -165,6 +170,8 @@ def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'):
         else:
             outputs = model.embed(audio_array)
             embeddings = outputs.embeddings
+            print("embeddings:", embeddings.shape)
+            print("pooled embeddings:", outputs.pooled_embeddings(time_pooling='mean', channel_pooling='squeeze').shape)
 
         spatial_embeddings = None
     #     if embeddings.ndim > 1:
@@ -386,7 +393,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
 
 def get_embedding_type(model_key):
     # Define available models
-    perch_hoplite_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'birdnet_V2.4', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves', 'birdaves', 'perch_v2', 'perch_v2_cpu']# added recently???
+    perch_hoplite_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'birdnet_V2.4', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves', 'birdaves']# added recently??? 'perch_v2', 'perch_v2_cpu'
     perch_v2_models = ['perch_v2', 'perch_v2_cpu']
     birdset_models = []
 
