@@ -1,0 +1,5 @@
+name: NatureLMBEATs
+type: birdset
+dimension_type:
+model_cfg:
+  _target_: utils.torch_models.NatureLMBEATs
