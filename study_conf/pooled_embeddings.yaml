@@ -36,7 +36,7 @@ hyperparams:
   embeddings:
     # - "EfficientNet-B1-BirdSet-XCL"
     # - "AudioProtoPNet-20-BirdSet-XCL"
-    # - "birdnet_V2.3"
+    - "birdnet_V2.3"
     # - "birdnet_V2.4"
     # - "vggish"
     # - "perch_8"
@@ -47,7 +47,7 @@ hyperparams:
     # - "Wav2Vec2-Base-BirdSet-XCL"
     # - "perch_v2_cpu"
     # - "perch_v2"
-    - "NatureLMBEATs"
+    # - "NatureLMBEATs"
   objectives:
     - "polyphony_reg"
     # - "polyphony_class"
