@@ -170,8 +170,8 @@ def embed_with_perch1(model, model_key, audio_array, device='/CPU:0'): #TODO: im
         else:
             outputs = model.embed(audio_array)
             embeddings = outputs.embeddings
-            print("embeddings:", embeddings.shape)
-            print("pooled embeddings:", outputs.pooled_embeddings(time_pooling='mean', channel_pooling='squeeze').shape)
+            # print("embeddings:", embeddings.shape)
+            # print("pooled embeddings:", outputs.pooled_embeddings(time_pooling='mean', channel_pooling='squeeze').shape)
 
         spatial_embeddings = None
     #     if embeddings.ndim > 1:
