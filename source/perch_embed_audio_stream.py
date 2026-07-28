@@ -19,32 +19,33 @@ def main():
     # Configuration
     # ===================
 
-    # # Define arguments
-    # parser = argparse.ArgumentParser(
-    #     description="Computes missing perch embeddings and updates dataset."
-    # )
+    # Define arguments
+    parser = argparse.ArgumentParser(
+        description="Computes missing perch embeddings and updates dataset."
+    )
 
-    # parser.add_argument("--huggingface_path", type=str)
-    # parser.add_argument("--dataset_config", type=str)
-    # parser.add_argument("--subset", type=str)
-    # parser.add_argument("--input_features", type=json.loads)
-    # parser.add_argument("--embeddings", type=json.loads)
-    # parser.add_argument('--force_recompute', action='store_true')
-    # args = parser.parse_args()
+    parser.add_argument("--huggingface_path", type=str)
+    parser.add_argument("--dataset_config", type=str)
+    parser.add_argument("--subset", type=str)
+    parser.add_argument("--input_features", type=json.loads)
+    parser.add_argument("--embeddings", type=json.loads)
+    parser.add_argument('--force_recompute', action='store_true')
+    args = parser.parse_args()
 
-    # huggingface_path = args.huggingface_path
-    # dataset_config = args.dataset_config
-    # subset = args.subset
-    # input_features = args.input_features
-    # embedding_models = args.embeddings
-    # force_recompute = args.force_recompute
+    huggingface_path = args.huggingface_path
+    dataset_config = args.dataset_config
+    subset = args.subset
+    input_features = args.input_features
+    embedding_models = args.embeddings
+    force_recompute = args.force_recompute
 
-    huggingface_path = 'mcht67/PolyBirdMix'
-    dataset_config = 'UHH_polyphonic'
-    subset = 'UHH'
-    input_features = ['audio']
-    embedding_models = ['birdnet_V2.3', 'birdnet_V2.4']
-    force_recompute = False
+    # DEBUG
+    # huggingface_path = 'mcht67/PolyBirdMix'
+    # dataset_config = 'UHH_polyphonic'
+    # subset = 'UHH'
+    # input_features = ['audio']
+    # embedding_models = ['birdnet_V2.3', 'birdnet_V2.4']
+    # force_recompute = False
 
     # Exit script if no features or embeddings are passed
     if not embedding_models or not input_features:
@@ -90,7 +91,7 @@ def main():
         local_data_dir = get_local_data_dir(dataset_config=dataset_config, subset=subset)
         if not os.path.exists(local_data_dir):
             print(f"Dataset {dataset_config} not found locally. Downloading from Huggingface...")
-            dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='reuse_cache_if_exists')
+            dataset = load_dataset_with_retry(huggingface_path, dataset_config, token=huggingface_token, download_mode='force_redownload')
         else:
             print(f"Dataset {dataset_config} found locally. Loading from disk: {local_data_dir}...")
             dataset = load_from_disk(local_data_dir)
