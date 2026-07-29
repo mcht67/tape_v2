@@ -252,7 +252,7 @@ if __name__ == "__main__":
     
     # Dataset preparation options
     run_dataset_preparation = True
-    recompute_embeddings = True
+    recompute_embeddings = False
     force_redownload = False
     run_on_gpu = False
     force_exp_rerun = True
