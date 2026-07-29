@@ -49,6 +49,6 @@ hyperparams:
     # - "perch_v2"
     # - "NatureLMBEATs"
   objectives:
-    - "polyphony_reg"
-    # - "polyphony_class"
+    # - "polyphony_reg"
+    - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
