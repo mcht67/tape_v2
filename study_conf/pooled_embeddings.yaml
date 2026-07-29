@@ -45,7 +45,7 @@ hyperparams:
     # - "Bird-MAE-Huge"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    - "perch_v2_cpu"
+    # - "perch_v2_cpu"
     # - "perch_v2"
     # - "NatureLMBEATs"
   objectives:
