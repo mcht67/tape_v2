@@ -73,7 +73,8 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None, 
         "EXP_PARAMS": exp_params,
         "STUDY_NAME": study_name,
         "DEFAULT_DIR": os.getcwd(),
-        "SYNC_INTERVAL": '0'
+        "SYNC_INTERVAL": '0',
+        "FORCE_EXP_RERUN": '1' if force_exp_rerun else '0'
     }
 
     # For debugging and local runs
@@ -144,7 +145,7 @@ def create_exp_params_str(config_dict):
         parts.append(f"-S {key}={formatted}")
     return " ".join(parts)
 
-def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id, run_on_gpu=False):      
+def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id, run_on_gpu=False, force_exp_rerun=False):      
 
     base_config = study_config['base_config']
     hyperparams = study_config['hyperparams']
@@ -177,7 +178,7 @@ def submit_experiment_jobs(study_config, subset, train_config, dependency_job_id
         exp_params = create_exp_params_str(config_overwrites)
         # print("Exp params: ", exp_params)
         print("Submitting experiment for dataset ", train_config, " with hyperparameters: ", hyperparams_config)
-        submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id, run_on_gpu=run_on_gpu)
+        submit_batch_job(arguments, exp_params, study_name, dependency_job_id=dependency_job_id, run_on_gpu=run_on_gpu, force_exp_rerun=force_exp_rerun)
 
 def create_study_remote(study_name: str, base_remote: str = "base-remote"):
     local_config_path = Path(".dvc/config.local")
@@ -254,6 +255,7 @@ if __name__ == "__main__":
     recompute_embeddings = True
     force_redownload = False
     run_on_gpu = False
+    force_exp_rerun = True
 
     ##########################
     # Submit jobs
@@ -266,4 +268,4 @@ if __name__ == "__main__":
         if embeddings:
             if run_dataset_preparation:
                 prep_job_id = submit_dataset_prep_job(study_config, subset, train_config, recompute_embeddings=recompute_embeddings, force_redownload=force_redownload)
-        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id, run_on_gpu=run_on_gpu)
+        submit_experiment_jobs(study_config, subset, train_config, dependency_job_id=prep_job_id, run_on_gpu=run_on_gpu, force_exp_rerun=force_exp_rerun)
