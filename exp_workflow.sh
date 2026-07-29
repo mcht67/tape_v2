@@ -149,7 +149,7 @@ dvc cache dir $DEFAULT_DIR/.dvc/cache &&
 # Run the experiment with passed parameters. Runs with the default parameters if none are passed.
 echo "Running experiment..." &&
 echo "Experiment parameters: $EXP_PARAMS" &&
-if FORCE_EXP_RERUN=1; then
+if [ "$FORCE_EXP_RERUN" = "1" ]; then
   echo "Force experiment rerun is enabled. Running dvc exp run with --force."
   dvc exp run --force \
     --set-param python.complete="$COMPLETE_PYTHON" \

@@ -64,7 +64,7 @@ def submit_dataset_prep_job(study_config, subset, dataset_config, recompute_embe
             sys.exit(1)
 
 # Submit experiment for hyperparameter combination
-def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None, run_on_gpu=False):
+def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None, run_on_gpu=False, force_exp_rerun=False):
 
     # Set dynamic parameters for the batch job as environment variables
     # But dont forget to add the os.environ to the new environment variables otherwise the PATH is not found
