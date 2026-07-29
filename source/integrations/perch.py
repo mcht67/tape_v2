@@ -352,29 +352,39 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
         sampling_rate=sampling_rate,
         device=device
     )
-    
-    # Process in batches
-    processed_datasets = []
-    total_samples = len(dataset)
 
-    with tempfile.TemporaryDirectory() as temp_cache_dir:
-        
-        for i in range(0, total_samples, batch_size):
-            end_idx = min(i + batch_size, total_samples)
-            print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
-            
-            # Select batch
-            batch_dataset = dataset.select(range(i, end_idx))
-            
-            # Process batch
-            cache_file = os.path.join(temp_cache_dir, f"{embeddings_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
-            batch_processed = batch_dataset.map(embedding_fn, keep_in_memory=True) #cache_file_name=cache_file)
-            
-            processed_datasets.append(batch_processed)
+    dataset = dataset.cast_column(input_feature, Audio())
+
+    dataset = dataset.map(
+        embedding_fn,
+        batch_size=batch_size,          # just controls internal batching, not memory retention
+        writer_batch_size=batch_size,   # flush to disk arrow file every N rows
+        keep_in_memory=False,           # default, but be explicit
+        desc=f"Embedding {dataset_split} / {embeddings_key}",
+    )
     
-    # Concatenate all processed batches
-    print(f"Concatenating {len(processed_datasets)} batches...")
-    dataset = concatenate_datasets(processed_datasets)
+    # # Process in batches
+    # processed_datasets = []
+    # total_samples = len(dataset)
+
+    # with tempfile.TemporaryDirectory() as temp_cache_dir:
+        
+    #     for i in range(0, total_samples, batch_size):
+    #         end_idx = min(i + batch_size, total_samples)
+    #         print(f"Processing batch {i//batch_size + 1}/{(total_samples + batch_size - 1)//batch_size}")
+            
+    #         # Select batch
+    #         batch_dataset = dataset.select(range(i, end_idx))
+            
+    #         # Process batch
+    #         cache_file = os.path.join(temp_cache_dir, f"{embeddings_key}_{dataset_split}_batch_{i}_{end_idx}_cache.arrow")
+    #         batch_processed = batch_dataset.map(embedding_fn, keep_in_memory=True) #cache_file_name=cache_file)
+            
+    #         processed_datasets.append(batch_processed)
+    
+    # # Concatenate all processed batches
+    # print(f"Concatenating {len(processed_datasets)} batches...")
+    # dataset = concatenate_datasets(processed_datasets)
 
     # DEBUG: print embeddings dimension
     example = dataset.take(1)

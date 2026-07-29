@@ -5,8 +5,8 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "NES"
   # - "POW"
   - "SSW"
-  - "SNE"
-  - "XCM"
+  # - "SNE"
+  # - "XCM"
 
 base_config:
   log.study_name: "Pooled-Embeddings"
