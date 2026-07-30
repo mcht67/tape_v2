@@ -83,7 +83,7 @@ stages:
     outs:
       - ${path.soundscape_eval_output}
 
-    val_evaluate:
+  val_evaluate:
     cmd: ${python.complete} source/evaluate_on_val_split.py
     deps: 
       - source/evaluate_on_val_split.py
