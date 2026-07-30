@@ -177,13 +177,27 @@ def escape_latex(text: str) -> str:
     return text.replace("_", r"\_").replace("%", r"\%")
 
 
-def fmt(value, decimals=4):
+def fmt(value, decimals=2):
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return "--"
     if float(value).is_integer() and abs(value) >= 100:
         # e.g. support counts
         return f"{int(value)}"
     return f"{value:.{decimals}f}"
+
+
+def fmt_mean_std(mean_value, std_value, decimals=2):
+    """Format a mean value with an optional '$\\pm$ std' suffix.
+
+    The std suffix is omitted when it is unavailable (e.g. NaN, which
+    happens when there is only a single dataset to average over).
+    """
+    mean_str = fmt(mean_value, decimals)
+    if mean_str == "--":
+        return mean_str
+    if std_value is None or (isinstance(std_value, float) and np.isnan(std_value)):
+        return mean_str
+    return f"{mean_str} $\\pm$ {fmt(std_value, decimals)}"
 
 
 def bold(text):
@@ -214,13 +228,10 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
     if sub.empty:
         return ""
 
-    # average over datasets -> index (model, head), columns metric
-    avg = (
-        sub.groupby(["model", "head", "metric"])["value"]
-        .mean()
-        .unstack("metric")
-        .reindex(columns=overview_metrics)
-    )
+    # average (and std) over datasets -> index (model, head), columns metric
+    grouped = sub.groupby(["model", "head", "metric"])["value"]
+    avg = grouped.mean().unstack("metric").reindex(columns=overview_metrics)
+    std = grouped.std().unstack("metric").reindex(columns=overview_metrics)
 
     n_cols = len(overview_metrics)
     col_spec = "ll" + "c" * n_cols
@@ -232,6 +243,7 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
     header = "Backbone & Head & " + " & ".join(header_cells) + r" \\"
 
     # figure out best value per column across the whole table (model+head combos)
+    # "best" is based on the mean, not the std
     best_masks = {}
     for metric in overview_metrics:
         _, direction = metric_info[metric]
@@ -242,9 +254,11 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
     lines.append(r"\centering")
     src_desc = cfg["table_desc"]
     lines.append(
-        rf"\caption{{Results on {src_desc} data, averaged across evaluation subsets, for each model and head type.}}"
+        rf"\caption{{Results on {src_desc} data, averaged (mean $\pm$ std) across evaluation subsets, "
+        rf"for each model and head type.}}"
     )
     lines.append(rf"\label{{tab:overview_{source}}}")
+    lines.append(r"\resizebox{\textwidth}{!}{%")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
     lines.append(r"\toprule")
     lines.append(header)
@@ -257,8 +271,9 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
         for i, head in enumerate(heads_present):
             row_vals = []
             for metric in overview_metrics:
-                val = avg.loc[(model, head), metric] if metric in avg.columns else np.nan
-                cell = fmt(val)
+                mean_val = avg.loc[(model, head), metric] if metric in avg.columns else np.nan
+                std_val = std.loc[(model, head), metric] if metric in std.columns else np.nan
+                cell = fmt_mean_std(mean_val, std_val)
                 mask = best_masks.get(metric)
                 if mask is not None and (model, head) in mask.index and mask.loc[(model, head)]:
                     cell = bold(cell)
@@ -272,6 +287,7 @@ def build_overview_table(long_df: pd.DataFrame, source: str, models) -> str:
         lines.pop()  # no trailing rule before bottomrule
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
+    lines.append(r"}")
     lines.append(r"\end{table*}")
     return "\n".join(lines)
 
