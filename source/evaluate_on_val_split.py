@@ -38,7 +38,7 @@ def main():
     subset = cfg.dataset.subset
 
     log_paths = get_log_paths(cfg)
-    log_dir = Path(cfg.path.val_eval_output) / "logs", #log_paths['eval_log_dir']
+    log_dir = Path(cfg.path.val_eval_output) / "logs" #log_paths['eval_log_dir']
     os.makedirs(log_dir, exist_ok=True)
 
     archive_paths = get_archive_paths(cfg)
