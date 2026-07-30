@@ -7,10 +7,12 @@ path:
   study_subfolder:
   train_output: train_output/${log.study_name}/${path.study_subfolder} # tracked and cached by dvc
   eval_output: eval_output/${log.study_name}/${path.study_subfolder} # tracked and cached by dvc
+  val_eval_output: val_eval_output/${log.study_name}/${path.study_subfolder} # tracked and cached by dvc
   soundscape_eval_output: soundscape_eval_output/${log.study_name}/${path.study_subfolder} # tracked and cached by dvc
-  train_output_to_archive: train_output_to_archive/${log.study_name}/${path.study_subfolder}
-  eval_output_to_archive: eval_output_to_archive/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in eval_output/ to the archive
-  soundscape_eval_output_to_archive: soundscape_eval_output_to_archive/${log.study_name}/${path.study_subfolder} # exp
+  train_output_to_archive: train_output_to_archive/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in train_output_to_archive/ to the archive
+  eval_output_to_archive: eval_output_to_archive/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in eval_output_to_archive/ to the archive
+  val_eval_output_to_archive: val_eval_output_to_archive/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in val_eval_output_to_archive/ to the archive
+  soundscape_eval_output_to_archive: soundscape_eval_output_to_archive/${log.study_name}/${path.study_subfolder} # exp_workflow.sh copies everything in soundscape_eval_output_to_archive/ to the archive
 # ==============================================
 
 # ==============================================  

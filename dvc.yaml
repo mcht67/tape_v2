@@ -82,3 +82,24 @@ stages:
       - train
     outs:
       - ${path.soundscape_eval_output}
+
+    val_evaluate:
+    cmd: ${python.complete} source/evaluate_on_val_split.py
+    deps: 
+      - source/evaluate_on_val_split.py
+      - source/utils/logs.py
+      - source/utils/dataset.py
+      - source/utils/metrics.py
+      - source/utils/evaluation.py
+      - source/utils/torch_evaluation.py
+      # - source/integrations/birdset.oy
+      # - source/integrations/perch.py
+    params:
+      - general.random_seed
+      - dataset
+      - embeddings
+      - model
+      - objectives
+      - train
+    outs:
+      - ${path.val_eval_output}

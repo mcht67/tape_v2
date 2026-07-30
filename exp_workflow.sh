@@ -186,6 +186,12 @@ else
   echo "eval_output_to_archive directory not found, skipping..."
 fi
 
+if [ -d "val_eval_output_to_archive" ]; then
+  rsync -rv val_eval_output_to_archive/ ${ARCHIVE_DIR}
+else
+  echo "val_eval_output_to_archive directory not found, skipping..."
+fi
+
 # Check if soundscape_eval_output exists and rsync if it does
 if [ -d "soundscape_eval_output_to_archive" ]; then
   rsync -rv soundscape_eval_output_to_archive/ ${ARCHIVE_DIR}
