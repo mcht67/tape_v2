@@ -44,7 +44,7 @@ def main():
     archive_paths = get_archive_paths(cfg)
     exp_name = get_dvc_exp_name()
     run_dir = f"{cfg.datetime}_{exp_name}"
-    archive_log_dir = Path(cfg.path.val_eval_output) / run_dir / "logs" #archive_paths['eval_log_dir']
+    archive_log_dir = Path(cfg.path.val_eval_output_to_archive) / run_dir / "logs" #archive_paths['eval_log_dir']
     os.makedirs(archive_log_dir, exist_ok=True)
 
     default_dir = os.environ.get('DEFAULT_DIR', '')
