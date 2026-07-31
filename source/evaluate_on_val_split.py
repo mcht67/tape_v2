@@ -246,22 +246,22 @@ def main():
     print("variable_values:", variable_values)
 
     # Define ouput dir for metrics and results
-    out_dir = os.path.join(default_dir, "archive", cfg.log.study_name, cfg.path.study_subfolder, "eval_results")
+    out_dir = os.path.join(default_dir, "archive", cfg.log.study_name, cfg.path.study_subfolder, "val_eval_results")
     os.makedirs(out_dir, exist_ok=True)
 
     # Store results in a pickle file for later analysis
     records = arrays_to_records(y_true, predictions, variable_values)
     df = pd.json_normalize(records)
-    df.to_pickle(os.path.join(log_dir, f"test_results.pkl"))
+    df.to_pickle(os.path.join(log_dir, f"val_results.pkl"))
 
     if "polyphony_reg" in predictions:
-        df.to_pickle(os.path.join(out_dir, f"{subset}_reg_test_results.pkl"))
+        df.to_pickle(os.path.join(out_dir, f"{subset}_reg_val_results.pkl"))
     if "polyphony_class" in predictions:
-        df.to_pickle(os.path.join(out_dir, f"{subset}_class_test_results.pkl"))
+        df.to_pickle(os.path.join(out_dir, f"{subset}_class_val_results.pkl"))
     if "species_polyphony_reg" in predictions:
-        df.to_pickle(os.path.join(out_dir, f"{subset}_species_reg_test_results.pkl"))
+        df.to_pickle(os.path.join(out_dir, f"{subset}_species_reg_val_results.pkl"))
     if "species_polyphony_class" in predictions:
-        df.to_pickle(os.path.join(out_dir, f"{subset}_species_class_test_results.pkl"))
+        df.to_pickle(os.path.join(out_dir, f"{subset}_species_class_val_results.pkl"))
 
     # Calculate metrics for each objective and save to report
     report = {}
