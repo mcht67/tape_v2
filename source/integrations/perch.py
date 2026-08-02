@@ -404,7 +404,7 @@ def add_embeddings_batchwise(model_key, dataset_split, input_feature, dataset, f
 def get_embedding_type(model_key):
     # Define available models
     perch_hoplite_models = ['birdnet_V2.1', 'birdnet_V2.2', 'birdnet_V2.3', 'birdnet_V2.4', 'perch_8', 'surfperch', 'vggish', 'yamnet', 'humpback', 'multispecies_whale', 'beans_baseline', 'aves', 'birdaves']#, 'perch_v2', 'perch_v2_cpu']# added recently??? 'perch_v2', 'perch_v2_cpu'
-    perch_v2_models = [] ['perch_v2', 'perch_v2_cpu']
+    perch_v2_models = ['perch_v2', 'perch_v2_cpu']
     birdset_models = []
 
     # Get embedding type [perch_hoplite, perch_v2, birdset]
