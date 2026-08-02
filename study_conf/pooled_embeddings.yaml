@@ -37,7 +37,7 @@ hyperparams:
     # - "EfficientNet-B1-BirdSet-XCL"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     - "birdnet_V2.3"
-    - "birdnet_V2.4"
+    # - "birdnet_V2.4"
     # - "vggish"
     # - "perch_8"
     # - "yamnet"
@@ -49,6 +49,6 @@ hyperparams:
     # - "perch_v2"
     # - "NatureLMBEATs"
   objectives:
-    - "polyphony_reg"
+    # - "polyphony_reg"
     - "polyphony_class"
   # dataset.config is added automatically per dataset_config iteration
