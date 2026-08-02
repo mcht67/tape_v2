@@ -14,7 +14,7 @@ base_config:
   dataset.max_polyphony: 8
   train.epochs: 100
   train.learning_rate: 0.001
-  train.early_stopping_patience: 5
+  train.early_stopping_patience: 20
   train.early_stopping_delay_epochs: 35
   path.study_subfolder: ${embeddings.name}/
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
@@ -41,12 +41,12 @@ hyperparams:
     # - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
-    # - "polyphony_reg"
-    # - "polyphony_class"
-    # - "multi_task_v0_polyphony_reg_class"
-    # - "multi_task_v1_add_event_logits_reg"
-    # - "multi_task_v2_add_framewise_polyphony_reg"
-    # - "multi_task_v3_add_event_logits_class" 
+    - "polyphony_reg"
+    - "polyphony_class"
+    - "multi_task_v0_polyphony_reg_class"
+    - "multi_task_v1_add_event_logits_reg"
+    - "multi_task_v2_add_framewise_polyphony_reg"
+    - "multi_task_v3_add_event_logits_class" 
     - "multi_task_v4_add_framewise_polyphony_class"
 
   # dataset.config is added automatically per dataset_config iteration
