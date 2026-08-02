@@ -223,8 +223,19 @@ def main():
         # Build model by calling it on a sample input
         first_example = test_dataset[0]
         print("input features", test_dataset.features)
-        input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
-        sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
+        # input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
+        # print("input_dim:", input_dim)
+        # sample_input = tf.zeros((1, input_dim), dtype=tf.float32)
+        # _ = model(sample_input, training=False)
+
+        first_example_arr = np.array(first_example[input_feature_name])
+        print("raw feature shape:", first_example_arr.shape)
+
+        # Preserve full shape except batch dim, add batch dim of 1
+        sample_shape = (1,) + first_example_arr.shape
+        sample_input = tf.zeros(sample_shape, dtype=tf.float32)
+        print("sample_input shape:", sample_input.shape)
+
         _ = model(sample_input, training=False)
 
         print(f"Loading weights from {checkpoint_path}")
