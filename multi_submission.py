@@ -251,11 +251,11 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = False
-    recompute_embeddings = False
+    run_dataset_preparation = True
+    recompute_embeddings = True
     force_redownload = False
     run_on_gpu = False
-    force_exp_rerun = False
+    force_exp_rerun = True
 
     ##########################
     # Submit jobs
