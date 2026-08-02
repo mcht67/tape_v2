@@ -34,11 +34,11 @@ hyperparams:
     # - "vggish"
     # - "yamnet"
     # - "beans_baseline"
-    # - "EfficientNet-B1-BirdSet-XCL"
+    - "EfficientNet-B1-BirdSet-XCL"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    - "perch_v2_cpu"
+    # - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
     # - "polyphony_reg"
