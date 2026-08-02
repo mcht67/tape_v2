@@ -341,7 +341,6 @@ def get_birdset_id2label(subset, dataset=None):
     #     return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
 
 
-
 def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None, batch_size=1000):
     added_labels = []
 
@@ -352,7 +351,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(
-                lambda batch: {feature_name: [float(p) for p in batch["polyphony"]]},
+                lambda polyphony: {feature_name: [float(p) for p in polyphony]},
                 batched=True,
                 batch_size=batch_size,
                 input_columns=["polyphony"],
@@ -368,7 +367,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
 
         for split in dataset.keys():
             dataset[split] = dataset[split].map(
-                lambda batch: {feature_name: [int(p) for p in batch["polyphony"]]},
+                lambda polyphony: {feature_name: [int(p) for p in polyphony]},
                 batched=True,
                 batch_size=batch_size,
                 input_columns=["polyphony"],
@@ -390,7 +389,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
 
             for split in dataset.keys():
                 dataset[split] = dataset[split].map(
-                    lambda batch: {feature_name: [int(sp) for sp in batch["species_polyphony"]]},
+                    lambda species_polyphony: {feature_name: [int(sp) for sp in species_polyphony]},
                     batched=True,
                     batch_size=batch_size,
                     input_columns=["species_polyphony"],
@@ -406,15 +405,15 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             raise ValueError("Time dimension is required for framewise polyphony and event logits")
 
         # add_event_logits / add_framewise_polyphony only ever read
-        # sources_time_freq_bounds and segment_duration_s
+        # sources_time_freq_bounds and segment_duration_s, so those are the
+        # only columns we need to load for these maps (this is what skips
+        # decoding e.g. the audio column).
         EVENT_LOGITS_INPUT_COLUMNS = ["sources_time_freq_bounds", "segment_duration_s"]
         FRAMEWISE_INPUT_COLUMNS = ["sources_time_freq_bounds", "segment_duration_s"]
 
-        def add_event_logits_batched(batch, num_event_logits, feature_name):
+        def add_event_logits_batched(sources_tfb_batch, seg_dur_batch, num_event_logits, feature_name):
             results = []
-            for sources_tfb, seg_dur in zip(
-                batch["sources_time_freq_bounds"], batch["segment_duration_s"]
-            ):
+            for sources_tfb, seg_dur in zip(sources_tfb_batch, seg_dur_batch):
                 if sources_tfb is not None:
                     all_events = []
                     for events in sources_tfb:
@@ -425,11 +424,9 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                 results.append(event_logits)
             return {feature_name: results}
 
-        def add_framewise_polyphony_batched(batch, num_frames, feature_name):
+        def add_framewise_polyphony_batched(sources_tfb_batch, seg_dur_batch, num_frames, feature_name):
             results = []
-            for sources_tfb, seg_dur in zip(
-                batch["sources_time_freq_bounds"], batch["segment_duration_s"]
-            ):
+            for sources_tfb, seg_dur in zip(sources_tfb_batch, seg_dur_batch):
                 if sources_tfb is not None:
                     framewise_polyphony_array = build_framewise_polyphony(sources_tfb, seg_dur, num_frames)
                 else:

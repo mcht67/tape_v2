@@ -1,8 +1,8 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - "UHH"
-  # - "HSN"
-  - "PER"
-  - "NES"
+  - "HSN"
+  # - "PER"
+  # - "NES"
   # - "SSW"
   # - "POW"
   # - "SNE"
@@ -42,12 +42,12 @@ hyperparams:
     # - "perch_v2_cpu"
     # - "perch_v2"
   objectives:
-    - "polyphony_reg"
-    - "polyphony_class"
+    # - "polyphony_reg"
+    # - "polyphony_class"
     - "multi_task_v0_polyphony_reg_class"
-    - "multi_task_v1_add_event_logits_reg"
-    - "multi_task_v2_add_framewise_polyphony_reg"
-    - "multi_task_v3_add_event_logits_class" 
-    - "multi_task_v4_add_framewise_polyphony_class"
+    # - "multi_task_v1_add_event_logits_reg"
+    # - "multi_task_v2_add_framewise_polyphony_reg"
+    # - "multi_task_v3_add_event_logits_class" 
+    # - "multi_task_v4_add_framewise_polyphony_class"
 
   # dataset.config is added automatically per dataset_config iteration
