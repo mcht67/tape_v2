@@ -340,7 +340,9 @@ def get_birdset_id2label(subset, dataset=None):
     #     print(f"Unique birdset IDs: {sorted(unique_birdset_ids)}")
     #     return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
 
-def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None):
+
+
+def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None, batch_size=1000):
     added_labels = []
 
     # Segment-wise polyphony based label
@@ -349,8 +351,14 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
         feature_name = 'polyphony_reg'
 
         for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda example: {feature_name: float(example["polyphony"])},keep_in_memory=False)
-        
+            dataset[split] = dataset[split].map(
+                lambda batch: {feature_name: [float(p) for p in batch["polyphony"]]},
+                batched=True,
+                batch_size=batch_size,
+                input_columns=["polyphony"],
+                keep_in_memory=True,
+            )
+
         added_labels.append(feature_name)
         print('Done!')
 
@@ -359,8 +367,14 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
         feature_name = 'polyphony_class'
 
         for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony"])},keep_in_memory=False)
-        
+            dataset[split] = dataset[split].map(
+                lambda batch: {feature_name: [int(p) for p in batch["polyphony"]]},
+                batched=True,
+                batch_size=batch_size,
+                input_columns=["polyphony"],
+                keep_in_memory=True,
+            )
+
         added_labels.append(feature_name)
         print('Done!')
 
@@ -372,19 +386,16 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
             birdset_id2label = get_birdset_id2label('', dataset=dataset)
 
         for feature_name in feature_names:
-            # print(f'Add {feature_name} labels...')
-            # add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
-            # species_polyphony_feature = Sequence(Value("int32"))
-
-            # for split in dataset.keys():
-            #     dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
-            #     dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+            print(f'Add {feature_name} labels...')
 
             for split in dataset.keys():
-                dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
-
-            # for split in dataset.keys():
-            #     dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
+                dataset[split] = dataset[split].map(
+                    lambda batch: {feature_name: [int(sp) for sp in batch["species_polyphony"]]},
+                    batched=True,
+                    batch_size=batch_size,
+                    input_columns=["species_polyphony"],
+                    keep_in_memory=True,
+                )
 
             added_labels.append(feature_name)
             print('Done!')
@@ -393,18 +404,60 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
     if 'framewise_polyphony_reg' in labels or 'framewise_polyphony_class' in labels or 'event_logits' in labels:
         if not time_dim:
             raise ValueError("Time dimension is required for framewise polyphony and event logits")
+
+        # add_event_logits / add_framewise_polyphony only ever read
+        # sources_time_freq_bounds and segment_duration_s
+        EVENT_LOGITS_INPUT_COLUMNS = ["sources_time_freq_bounds", "segment_duration_s"]
+        FRAMEWISE_INPUT_COLUMNS = ["sources_time_freq_bounds", "segment_duration_s"]
+
+        def add_event_logits_batched(batch, num_event_logits, feature_name):
+            results = []
+            for sources_tfb, seg_dur in zip(
+                batch["sources_time_freq_bounds"], batch["segment_duration_s"]
+            ):
+                if sources_tfb is not None:
+                    all_events = []
+                    for events in sources_tfb:
+                        all_events.extend(events)
+                    event_logits = build_event_logits(all_events, seg_dur, num_event_logits)
+                else:
+                    event_logits = np.zeros(num_event_logits, dtype=np.float32)
+                results.append(event_logits)
+            return {feature_name: results}
+
+        def add_framewise_polyphony_batched(batch, num_frames, feature_name):
+            results = []
+            for sources_tfb, seg_dur in zip(
+                batch["sources_time_freq_bounds"], batch["segment_duration_s"]
+            ):
+                if sources_tfb is not None:
+                    framewise_polyphony_array = build_framewise_polyphony(sources_tfb, seg_dur, num_frames)
+                else:
+                    framewise_polyphony_array = np.zeros(num_frames, dtype=np.int32)
+                results.append(framewise_polyphony_array)
+            return {feature_name: results}
+
         # Event logits
         if 'event_logits' in labels:
-            print("Add event logits..."
-                  )
+            print("Add event logits...")
             feature_name = 'event_logits'
             num_event_logits = time_dim
 
-            add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, feature_name=feature_name)
+            add_event_logits_fn = partial(
+                add_event_logits_batched,
+                feature_name=feature_name,
+                num_event_logits=num_event_logits,
+            )
             event_logits_feature = Sequence(Value("int32"))
-            
+
             for split in dataset.keys():
-                dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
+                dataset[split] = dataset[split].map(
+                    add_event_logits_fn,
+                    batched=True,
+                    batch_size=batch_size,
+                    input_columns=EVENT_LOGITS_INPUT_COLUMNS,
+                    keep_in_memory=True,
+                )
                 dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
             added_labels.append(feature_name)
             print('Done!')
@@ -416,17 +469,116 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
 
             for feature_name in feature_names:
                 print(f'Add {feature_name} labels...')
-                add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=feature_name)
+
+                add_framewise_polyphony_fn = partial(
+                    add_framewise_polyphony_batched,
+                    feature_name=feature_name,
+                    num_frames=num_frames,
+                )
                 framewise_polyphony_feature = Sequence(Value("int32"))
 
                 for split in dataset.keys():
-                    dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
+                    dataset[split] = dataset[split].map(
+                        add_framewise_polyphony_fn,
+                        batched=True,
+                        batch_size=batch_size,
+                        input_columns=FRAMEWISE_INPUT_COLUMNS,
+                        keep_in_memory=True,
+                    )
                     dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
 
                 added_labels.append(feature_name)
                 print('Done!')
 
     return dataset, added_labels
+
+# def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None):
+#     added_labels = []
+
+#     # Segment-wise polyphony based label
+#     if 'polyphony_reg' in labels:
+#         print('Add polyphony degree reg labels...')
+#         feature_name = 'polyphony_reg'
+
+#         for split in dataset.keys():
+#             dataset[split] = dataset[split].map(lambda example: {feature_name: float(example["polyphony"])},keep_in_memory=False)
+        
+#         added_labels.append(feature_name)
+#         print('Done!')
+
+#     if 'polyphony_class' in labels:
+#         print('Add polyphony degree class labels...')
+#         feature_name = 'polyphony_class'
+
+#         for split in dataset.keys():
+#             dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["polyphony"])},keep_in_memory=False)
+        
+#         added_labels.append(feature_name)
+#         print('Done!')
+
+#     # Species specific polyphony
+#     if 'species_polyphony_reg' in labels or 'species_polyphony_class' in labels:
+#         feature_names = [x for x in ['species_polyphony_reg', 'species_polyphony_class'] if x in labels]
+
+#         if not birdset_id2label:
+#             birdset_id2label = get_birdset_id2label('', dataset=dataset)
+
+#         for feature_name in feature_names:
+#             # print(f'Add {feature_name} labels...')
+#             # add_species_polyphony_fn = partial(add_species_polyphony, birdset_id2label=birdset_id2label, feature_name=feature_name)
+#             # species_polyphony_feature = Sequence(Value("int32"))
+
+#             # for split in dataset.keys():
+#             #     dataset[split] = dataset[split].map(add_species_polyphony_fn, keep_in_memory=False)
+#             #     dataset[split] = dataset[split].cast_column(feature_name, species_polyphony_feature)
+
+#             for split in dataset.keys():
+#                 dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
+
+#             # for split in dataset.keys():
+#             #     dataset[split] = dataset[split].map(lambda example: {feature_name: int(example["species_polyphony"])},keep_in_memory=False)
+
+#             added_labels.append(feature_name)
+#             print('Done!')
+
+#     # Time dimension based labels
+#     if 'framewise_polyphony_reg' in labels or 'framewise_polyphony_class' in labels or 'event_logits' in labels:
+#         if not time_dim:
+#             raise ValueError("Time dimension is required for framewise polyphony and event logits")
+#         # Event logits
+#         if 'event_logits' in labels:
+#             print("Add event logits..."
+#                   )
+#             feature_name = 'event_logits'
+#             num_event_logits = time_dim
+
+#             add_event_logits_fn = partial(add_event_logits, num_event_logits=num_event_logits, feature_name=feature_name)
+#             event_logits_feature = Sequence(Value("int32"))
+            
+#             for split in dataset.keys():
+#                 dataset[split] = dataset[split].map(add_event_logits_fn, keep_in_memory=False)
+#                 dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
+#             added_labels.append(feature_name)
+#             print('Done!')
+
+#         # Framewise polyphony
+#         if 'framewise_polyphony_reg' in labels or 'framewise_polyphony_class' in labels:
+#             feature_names = [x for x in ['framewise_polyphony_reg', 'framewise_polyphony_class'] if x in labels]
+#             num_frames = time_dim
+
+#             for feature_name in feature_names:
+#                 print(f'Add {feature_name} labels...')
+#                 add_framewise_polyphony_fn = partial(add_framewise_polyphony, num_frames=num_frames, feature_name=feature_name)
+#                 framewise_polyphony_feature = Sequence(Value("int32"))
+
+#                 for split in dataset.keys():
+#                     dataset[split] = dataset[split].map(add_framewise_polyphony_fn, keep_in_memory=False)
+#                     dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
+
+#                 added_labels.append(feature_name)
+#                 print('Done!')
+
+#     return dataset, added_labels
 
 def load_dataset_with_retry(path, config, token=None, retries=5, download_mode='reuse_dataset_if_exists'):
     for attempt in range(retries):
