@@ -371,28 +371,28 @@ def main():
 
     print("Input shape:", np.array(dataset['train'][0][input_feature_name]).shape)
 
-    # TODO: Remove after handling in model output processing
-    # Reshape input features if needed based on model requirements
-    if input_feature_name in {
-        "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
-        "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
-        "yamnet_audio_spatial_embeddings",
-        "vggish_audio_spatial_embeddings",
-        "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
-        "beans_baseline_audio_spatial_embeddings",
-        "AST-Birdset-XCL_audio_spatial_embeddings",
+    # # TODO: Remove after handling in model output processing
+    # # Reshape input features if needed based on model requirements
+    # if input_feature_name in {
+    #     "EfficientNet-B1-BirdSet-XCL_audio_spatial_embeddings",
+    #     "AudioProtoPNet-20-BirdSet-XCL_audio_spatial_embeddings",
+    #     "yamnet_audio_spatial_embeddings",
+    #     "vggish_audio_spatial_embeddings",
+    #     "Wav2Vec2-Base-BirdSet-XCL_audio_spatial_embeddings",
+    #     "beans_baseline_audio_spatial_embeddings",
+    #     "AST-Birdset-XCL_audio_spatial_embeddings",
 
-        "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "yamnet_no_noise_audio_spatial_embeddings",
-        "vggish_no_noise_audio_spatial_embeddings",
-        "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
-        "beans_baseline_no_noise_audio_spatial_embeddings",
-        "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
-    }:
-        print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
-        for split in dataset.keys():
-            dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
+    #     "EfficientNet-B1-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "AudioProtoPNet-20-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "yamnet_no_noise_audio_spatial_embeddings",
+    #     "vggish_no_noise_audio_spatial_embeddings",
+    #     "Wav2Vec2-Base-BirdSet-XCL_no_noise_audio_spatial_embeddings",
+    #     "beans_baseline_no_noise_audio_spatial_embeddings",
+    #     "AST-Birdset-XCL_no_noise_audio_spatial_embeddings"
+    # }:
+    #     print(f"Applying reshape to input feature '{input_feature_name}' for all splits...")
+    #     for split in dataset.keys():
+    #         dataset[split] = dataset[split].map(lambda x: reshape_to_tfe(x, input_feature_name), keep_in_memory=False)
 
     print("Input shape after reshape:", np.array(dataset['train'][0][input_feature_name]).shape)
 
@@ -452,6 +452,8 @@ def main():
     input_dim = np.array(dataset['train'][0][input_feature_name]).shape
 
     print(f"Input feature '{input_feature_name}' has shape {input_dim} for the first example. Assuming this is the input shape for the model.")
+
+    birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
 
     # Add labels if more than polyphony degree is requested
     if labels == ['polyphony_reg'] or labels == ['polyphony_class']:
