@@ -12,7 +12,7 @@ import shutil
 
 from utils.logs import SummaryWriter, get_log_paths, get_archive_paths, save_to_report, plot_polyphony_distribution
 from utils.dataset import add_min_max_polyphony, get_local_data_dir, get_birdset_id2label
-from utils.evaluation import collect_predictions, arrays_to_records, update_metrics_table
+from utils.evaluation import collect_predictions, arrays_to_records, build_update_metrics_table
 from utils.metrics import compute_polyphony_range_metrics
 import integrations.birdset as birdset
 import integrations.perch as perch
@@ -280,27 +280,29 @@ def main():
         
         save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
 
-        # Save to metrics overview table
-        for objective in report:
-            if objective == "polyphony_reg" or objective == "species_polyphony_reg":
-                obj_key = "reg"
-            elif objective == "polyphony_class" or objective == "species_polyphony_class":
-                obj_key = "class"
-            metrics_dict = report[objective]
-            table_name = f"soundscape_test_metrics"
-            csv_path = os.path.join(out_dir, f"{table_name}.csv")
+        # # Save to metrics overview table
+        # for objective in report:
+        #     if objective == "polyphony_reg" or objective == "species_polyphony_reg":
+        #         obj_key = "reg"
+        #     elif objective == "polyphony_class" or objective == "species_polyphony_class":
+        #         obj_key = "class"
+        #     metrics_dict = report[objective]
+        #     table_name = f"soundscape_test_metrics"
+        #     csv_path = os.path.join(out_dir, f"{table_name}.csv")
 
-            if study_name == "Pooled-Embeddings-SNR-Range-Effects":
-                column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
-            elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
-                column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
-            elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
-                column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
-            else:
-                column_name = f"{subset}_{obj_key}"
+        #     if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+        #         column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+        #     elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+        #         column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+        #     elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+        #         column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+        #     else:
+        #         column_name = f"{subset}_{obj_key}"
 
-            df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
-            print(f"Saved {table_name} to {csv_path}")
+        #     df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
+        #     print(f"Saved {table_name} to {csv_path}")
+
+        build_update_metrics_table(report, cfg, out_dir, table_name="soundscape_test_metrics")
      
     else:
         print(f"Embeddings have not been precomputed. Computing embeddings on-the-fly using embedding type '{embedding_type}' and dimension type '{embedding_dim_type}'.")

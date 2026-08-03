@@ -12,7 +12,7 @@ import shutil
 from utils.dataset import get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
 from utils.logs import SummaryWriter, save_to_report, get_log_paths, get_archive_paths
 from utils.metrics import compute_polyphony_metrics
-from utils.evaluation import arrays_to_records, collect_predictions, update_metrics_table
+from utils.evaluation import arrays_to_records, collect_predictions, build_update_metrics_table
 from utils.general import get_num_workers
 
 from utils.torch_evaluation import load_torch_model_for_eval, collect_predictions_torch
@@ -300,27 +300,65 @@ def main():
         
     save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
 
-    # Save to metrics overview table
-    for objective in report:
-        if objective == "polyphony_reg" or objective == "species_polyphony_reg":
-            obj_key = "reg"
-        elif objective == "polyphony_class" or objective == "species_polyphony_class":
-            obj_key = "class"
-        metrics_dict = report[objective]
-        table_name = f"test_metrics"
+    build_update_metrics_table(report, cfg, out_dir, table_name="test_metrics")
 
-        if study_name == "Pooled-Embeddings-SNR-Range-Effects":
-            column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
-        elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
-            column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
-        elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
-            column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
-        else:
-            column_name = f"{subset}_{obj_key}"
+    # # Get spatial experiment key for saving metrics to overview table
+    # exp_key = None
+    # if cfg.embeddings.dimension_type == "spatial":
+    #     # Check which experiment is being run 
+    #     if cfg.objectives == ["polyphony_reg"]:
+    #         exp_key = "reg"
+    #     elif cfg.objectives == ["polyphony_class"]:
+    #         exp_key = "class"
+    #     elif cfg.objectives == ["polyphony_reg", "polyphony_class"]:
+    #         exp_key = "multi0"
+    #     elif cfg.objectives == ["polyphony_reg", "event_logits"]:
+    #         exp_key = "reg_event"
+    #     elif cfg.objectives == ["polyphony_class", "event_logits"]:
+    #         exp_key = "class_event"
+    #     elif cfg.objectives == ["polyphony_reg", "framewise_polyphony_reg"]:
+    #         exp_key = "reg_framewise"
+    #     elif cfg.objectives == ["polyphony_class", "framewise_polyphony_class"]:
+    #         exp_key = "class_framewise"
+    #     elif cfg.objectives == ["polyphony_reg", "event_logits", "framewise_polyphony_reg"]:
+    #         exp_key = "reg_event_framewise"
+    #     elif cfg.objectives == ["polyphony_class", "event_logits", "framewise_polyphony_class"]:
+    #         exp_key = "class_event_framewise"
+    #     else:
+    #         exp_key = "unknown_experiment"
 
-        csv_path = os.path.join(out_dir, f"{table_name}.csv")
-        df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
-        print(f"Saved {table_name} to {csv_path}")
+    # # Save to metrics overview table
+    # for objective in report:
+    #     if objective == "polyphony_reg" or objective == "species_polyphony_reg":
+    #         obj_key = "reg"
+    #     elif objective == "polyphony_class" or objective == "species_polyphony_class":
+    #         obj_key = "class"
+    #     elif objective == "event_logits":
+    #         obj_key = "event"
+    #     elif objective == "framewise_polyphony_reg":
+    #         obj_key = "frame_reg"
+    #     elif objective == "framewise_polyphony_class":
+    #         obj_key = "frame_class"
+    #     else:
+    #         obj_key = objective
+        
+    # metrics_dict = report[objective]
+    # table_name = f"test_metrics"
+
+    # if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+    #     column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+    # elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+    #     column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+    # elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+    #     column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+    # elif exp_key is not None:
+    #     column_name = f"{subset}_{exp_key}_{obj_key}"
+    # else:
+    #     column_name = f"{subset}_{obj_key}"
+
+    # csv_path = os.path.join(out_dir, f"{table_name}.csv")
+    # df, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
+    # print(f"Saved {table_name} to {csv_path}")
 
     # for example in dataset['test']:
 

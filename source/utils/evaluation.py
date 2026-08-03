@@ -305,3 +305,64 @@ def update_metrics_table(column_name, metrics_dict, csv_path):
 
     return df, csv_path
 
+def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
+    study_name = cfg.log.get("study_name", None)
+    subset = cfg.dataset.get("subset", "test")
+
+    # Get spatial experiment key for saving metrics to overview table
+    exp_key = None
+    if cfg.embeddings.dimension_type == "spatial":
+        # Check which experiment is being run 
+        if cfg.objectives == ["polyphony_reg"]:
+            exp_key = "reg"
+        elif cfg.objectives == ["polyphony_class"]:
+            exp_key = "class"
+        elif cfg.objectives == ["polyphony_reg", "polyphony_class"]:
+            exp_key = "multi0"
+        elif cfg.objectives == ["polyphony_reg", "event_logits"]:
+            exp_key = "reg_event"
+        elif cfg.objectives == ["polyphony_class", "event_logits"]:
+            exp_key = "class_event"
+        elif cfg.objectives == ["polyphony_reg", "framewise_polyphony_reg"]:
+            exp_key = "reg_framewise"
+        elif cfg.objectives == ["polyphony_class", "framewise_polyphony_class"]:
+            exp_key = "class_framewise"
+        elif cfg.objectives == ["polyphony_reg", "event_logits", "framewise_polyphony_reg"]:
+            exp_key = "reg_event_framewise"
+        elif cfg.objectives == ["polyphony_class", "event_logits", "framewise_polyphony_class"]:
+            exp_key = "class_event_framewise"
+        else:
+            exp_key = "unknown_experiment"
+
+    # Save to metrics overview table
+    for objective in report:
+        if objective == "polyphony_reg" or objective == "species_polyphony_reg":
+            obj_key = "reg"
+        elif objective == "polyphony_class" or objective == "species_polyphony_class":
+            obj_key = "class"
+        elif objective == "event_logits":
+            obj_key = "event"
+        elif objective == "framewise_polyphony_reg":
+            obj_key = "frame_reg"
+        elif objective == "framewise_polyphony_class":
+            obj_key = "frame_class"
+        else:
+            obj_key = objective
+        
+    metrics_dict = report[objective]
+
+    if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+        column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+    elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+        column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+    elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+        column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+    elif exp_key is not None:
+        column_name = f"{subset}_{exp_key}_{obj_key}"
+    else:
+        column_name = f"{subset}_{obj_key}"
+
+    csv_path = os.path.join(output_dir, f"{table_name}.csv")
+    _, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
+    print(f"Saved {table_name} to {csv_path}")
+
