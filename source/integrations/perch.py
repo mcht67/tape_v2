@@ -52,12 +52,67 @@ def load_perch1_model(model_key):
         print("model_config:", preset_info.model_config)
     return model, sampling_rate
 
+# def load_perch2_model(model_key):
+#     if model_key == 'perch_v2_cpu':
+#         model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1')
+#         sampling_rate = 32000
+#     else:
+#          raise Exception(f"Model {model_key} is not a supported perch_v2 model or loading this model is not supported yet!")
+#     return model, sampling_rate
+
+
+from filelock import FileLock  # pip install filelock
+
+PERCH_V2_URL = 'https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1'
+
+# Persistent, shared location -- NOT /tmp
+MODEL_CACHE_ROOT = Path('/beegfs/scratch/cohrt/tape_v2/model_cache')
+MODEL_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def _is_valid_saved_model(path: Path) -> bool:
+    return (path / 'saved_model.pb').exists() or (path / 'saved_model.pbtxt').exists()
+
+
 def load_perch2_model(model_key):
-    if model_key == 'perch_v2_cpu':
-        model = hub.load('https://www.kaggle.com/models/google/bird-vocalization-classifier/tensorFlow2/perch_v2_cpu/1')
-        sampling_rate = 32000
-    else:
-         raise Exception(f"Model {model_key} is not a supported perch_v2 model or loading this model is not supported yet!")
+    if model_key != 'perch_v2_cpu':
+        raise Exception(
+            f"Model {model_key} is not a supported perch_v2 model or "
+            "loading this model is not supported yet!"
+        )
+
+    sampling_rate = 32000
+    local_model_dir = MODEL_CACHE_ROOT / model_key
+    lock_path = str(local_model_dir) + '.lock'
+
+    # Lock so concurrent jobs don't download/extract at the same time
+    with FileLock(lock_path, timeout=600):
+        if not _is_valid_saved_model(local_model_dir):
+            # Wipe any partial/corrupted previous attempt
+            if local_model_dir.exists():
+                shutil.rmtree(local_model_dir)
+
+            # Download to a fresh temp TFHUB cache dir, then copy the
+            # resolved model into our persistent location atomically.
+            with tempfile.TemporaryDirectory(dir=MODEL_CACHE_ROOT) as tmp_cache:
+                os.environ['TFHUB_CACHE_DIR'] = tmp_cache
+                resolved_path = hub.resolve(PERCH_V2_URL)  # downloads+extracts here
+
+                if not _is_valid_saved_model(Path(resolved_path)):
+                    raise RuntimeError(
+                        f"Download of {model_key} did not produce a valid "
+                        f"SavedModel at {resolved_path}"
+                    )
+
+                # Copy to a staging dir first, then atomic rename into place
+                staging_dir = local_model_dir.with_suffix('.staging')
+                if staging_dir.exists():
+                    shutil.rmtree(staging_dir)
+                shutil.copytree(resolved_path, staging_dir)
+                os.rename(staging_dir, local_model_dir)
+
+    # From here on, always load from the persistent local copy
+    model = hub.load(str(local_model_dir))
     return model, sampling_rate
 
 # TODO: implement
