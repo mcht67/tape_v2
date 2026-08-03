@@ -318,19 +318,19 @@ def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
         elif cfg.objectives == ["polyphony_class"]:
             exp_key = "class"
         elif cfg.objectives == ["polyphony_reg", "polyphony_class"]:
-            exp_key = "multi0"
+            exp_key = "multi_v0"
         elif cfg.objectives == ["polyphony_reg", "event_logits"]:
-            exp_key = "reg_event"
+            exp_key = "multi_v1"
         elif cfg.objectives == ["polyphony_class", "event_logits"]:
-            exp_key = "class_event"
+            exp_key = "multi_v2"
         elif cfg.objectives == ["polyphony_reg", "framewise_polyphony_reg"]:
-            exp_key = "reg_framewise"
+            exp_key = "multi_v3"
         elif cfg.objectives == ["polyphony_class", "framewise_polyphony_class"]:
-            exp_key = "class_framewise"
+            exp_key = "multi_v4"
         elif cfg.objectives == ["polyphony_reg", "event_logits", "framewise_polyphony_reg"]:
-            exp_key = "reg_event_framewise"
+            exp_key = "multi_v5"
         elif cfg.objectives == ["polyphony_class", "event_logits", "framewise_polyphony_class"]:
-            exp_key = "class_event_framewise"
+            exp_key = "multi_v6"
         else:
             exp_key = "unknown_experiment"
 
@@ -341,7 +341,7 @@ def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
         elif objective == "polyphony_class" or objective == "species_polyphony_class":
             obj_key = "class"
         elif objective == "event_logits":
-            obj_key = "event"
+            obj_key = "events"
         elif objective == "framewise_polyphony_reg":
             obj_key = "frame_reg"
         elif objective == "framewise_polyphony_class":
