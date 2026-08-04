@@ -311,25 +311,26 @@ def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
 
     # Get spatial experiment key for saving metrics to overview table
     exp_key = None
+    objectives_set = set(cfg.objectives)
     if cfg.embeddings.dimension_type == "spatial":
         # Check which experiment is being run 
-        if cfg.objectives == ["polyphony_reg"]:
+        if objectives_set == {"polyphony_reg"}:
             exp_key = "reg"
-        elif cfg.objectives == ["polyphony_class"]:
+        elif objectives_set == {"polyphony_class"}:
             exp_key = "class"
-        elif cfg.objectives == ["polyphony_reg", "polyphony_class"]:
+        elif objectives_set == {"polyphony_reg", "polyphony_class"}:
             exp_key = "multi_v0"
-        elif cfg.objectives == ["polyphony_reg", "event_logits"]:
+        elif objectives_set == {"polyphony_reg", "event_logits"}:
             exp_key = "multi_v1"
-        elif cfg.objectives == ["polyphony_class", "event_logits"]:
+        elif objectives_set == {"polyphony_class", "event_logits"}:
             exp_key = "multi_v2"
-        elif cfg.objectives == ["polyphony_reg", "framewise_polyphony_reg"]:
+        elif objectives_set == {"polyphony_reg", "framewise_polyphony_reg"}:
             exp_key = "multi_v3"
-        elif cfg.objectives == ["polyphony_class", "framewise_polyphony_class"]:
+        elif objectives_set == {"polyphony_class", "framewise_polyphony_class"}:
             exp_key = "multi_v4"
-        elif cfg.objectives == ["polyphony_reg", "event_logits", "framewise_polyphony_reg"]:
+        elif objectives_set == {"polyphony_reg", "event_logits", "framewise_polyphony_reg"}:
             exp_key = "multi_v5"
-        elif cfg.objectives == ["polyphony_class", "event_logits", "framewise_polyphony_class"]:
+        elif objectives_set == {"polyphony_class", "event_logits", "framewise_polyphony_class"}:
             exp_key = "multi_v6"
         else:
             exp_key = "unknown_experiment"
