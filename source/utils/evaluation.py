@@ -319,19 +319,19 @@ def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
         elif objectives_set == {"polyphony_class"}:
             exp_key = "class"
         elif objectives_set == {"polyphony_reg", "polyphony_class"}:
-            exp_key = "multi_v0"
+            exp_key = "reg_and_class"
         elif objectives_set == {"polyphony_reg", "event_logits"}:
-            exp_key = "multi_v1"
+            exp_key = "reg_and_events"
         elif objectives_set == {"polyphony_class", "event_logits"}:
-            exp_key = "multi_v2"
+            exp_key = "class_and_events"
         elif objectives_set == {"polyphony_reg", "framewise_polyphony_reg"}:
-            exp_key = "multi_v3"
+            exp_key = "reg_and_frame_reg"
         elif objectives_set == {"polyphony_class", "framewise_polyphony_class"}:
-            exp_key = "multi_v4"
+            exp_key = "class_and_frame_class"
         elif objectives_set == {"polyphony_reg", "event_logits", "framewise_polyphony_reg"}:
-            exp_key = "multi_v5"
+            exp_key = "reg_and_events_and_frame_reg"
         elif objectives_set == {"polyphony_class", "event_logits", "framewise_polyphony_class"}:
-            exp_key = "multi_v6"
+            exp_key = "class_and_events_and_frame_class"
         else:
             exp_key = "unknown_experiment"
 
