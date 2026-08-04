@@ -1,12 +1,12 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   - "UHH"
-  # - "HSN"
-  # - "PER"
-  # - "NES"
-  # - "POW"
-  # - "SSW"
-  # - "SNE"
-  # - "XCM"
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
+  - "XCM"
 
 base_config:
   log.study_name: "Spatial-Embeddings"
@@ -39,11 +39,11 @@ hyperparams:
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    # - "perch_v2_cpu"
+    - "perch_v2_cpu"
     # - "perch_v2"
-    - "NatureLMBEATs"
+    # - "NatureLMBEATs"
   objectives:
-    # - "polyphony_reg"
+    - "polyphony_reg"
     # - "polyphony_class"
     # - "multi_task_v0_reg_class"
     # - "multi_task_v1_events_reg"
@@ -51,6 +51,6 @@ hyperparams:
     # - "multi_task_v3_frame_reg"
     # - "multi_task_v4_frame_class" 
     # - "multi_task_v5_events_frame_reg"
-    - "multi_task_v6_events_frame_class"
+    # - "multi_task_v6_events_frame_class"
 
   # dataset.config is added automatically per dataset_config iteration
