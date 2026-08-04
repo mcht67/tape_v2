@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: make_result_tables",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/source/scripts/make_result_tables.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--target_dir", "archive/Pooled-Embeddings",
+        "--out", "results/pooled_embeddings.tex"
+      ]
+    }
+  ]
+}
