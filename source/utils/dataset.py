@@ -355,7 +355,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                 batched=True,
                 batch_size=batch_size,
                 input_columns=["polyphony"],
-                keep_in_memory=True,
+                # keep_in_memory=True,
             )
 
         added_labels.append(feature_name)
@@ -371,7 +371,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                 batched=True,
                 batch_size=batch_size,
                 input_columns=["polyphony"],
-                keep_in_memory=True,
+                # keep_in_memory=True,
             )
 
         added_labels.append(feature_name)
@@ -453,7 +453,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                     batched=True,
                     batch_size=batch_size,
                     input_columns=EVENT_LOGITS_INPUT_COLUMNS,
-                    keep_in_memory=True,
+                    # keep_in_memory=True,
                 )
                 dataset[split] = dataset[split].cast_column(feature_name, event_logits_feature)
             added_labels.append(feature_name)
@@ -480,7 +480,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                         batched=True,
                         batch_size=batch_size,
                         input_columns=FRAMEWISE_INPUT_COLUMNS,
-                        keep_in_memory=True,
+                        # keep_in_memory=True,
                     )
                     dataset[split] = dataset[split].cast_column(feature_name, framewise_polyphony_feature)
 
@@ -840,7 +840,7 @@ def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
             batched=True,
             num_proc=num_workers,
             batch_size=100,
-            keep_in_memory=True
+            # keep_in_memory=True
         )
         print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
