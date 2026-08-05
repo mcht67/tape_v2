@@ -350,20 +350,20 @@ def build_update_metrics_table(report, cfg, output_dir, table_name="metrics"):
         else:
             obj_key = objective
         
-    metrics_dict = report[objective]
+        metrics_dict = report[objective]
 
-    if study_name == "Pooled-Embeddings-SNR-Range-Effects":
-        column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
-    elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
-        column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
-    elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
-        column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
-    elif exp_key is not None:
-        column_name = f"{subset}_{exp_key}_{obj_key}"
-    else:
-        column_name = f"{subset}_{obj_key}"
+        if study_name == "Pooled-Embeddings-SNR-Range-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.snr_range[0]}-{cfg.dataset.snr_range[1]}"
+        elif study_name == "Pooled-Embeddings-Min-SNR-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.min_snr}"
+        elif study_name == "Pooled-Embeddings-Max-Polyphony-Effects":
+            column_name = f"{subset}_{obj_key}_{cfg.dataset.max_polyphony}"
+        elif exp_key is not None:
+            column_name = f"{subset}_{exp_key}_{obj_key}"
+        else:
+            column_name = f"{subset}_{obj_key}"
 
-    csv_path = os.path.join(output_dir, f"{table_name}.csv")
-    _, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
-    print(f"Saved {table_name} to {csv_path}")
+        csv_path = os.path.join(output_dir, f"{table_name}.csv")
+        _, csv_path = update_metrics_table(column_name, metrics_dict, csv_path)
+        print(f"Saved {table_name} to {csv_path}")
 
