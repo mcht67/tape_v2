@@ -18,11 +18,6 @@
 #SBATCH --time=24:00:00
 #SBATCH --partition=standard
 
-##SBATCH --gres=gpu:a100
-##SBATCH --mem=10GB
-##SBATCH --time=00:10:00
-##SBATCH --partition=gpu
-
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=malte.crt@gmail.com

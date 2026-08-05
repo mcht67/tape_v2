@@ -110,7 +110,8 @@ def submit_batch_job(arguments, exp_params, study_name, dependency_job_id=None, 
         print("Stderr:", result.stderr)
     else:
         submitted_job_id = result.stdout.strip().split()[-1]
-        print("Experiment job submitted: ", submitted_job_id)
+        device = "GPU" if run_on_gpu else "CPU"
+        print(f"Experiment job submitted with device {device}: {submitted_job_id}")
 
 # def create_exp_params_str(config_dict):
 #     exp_params_str = ''
