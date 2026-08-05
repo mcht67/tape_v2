@@ -760,3 +760,172 @@ def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
             print(f"After filtering, {split} split has {len(dataset[split])} examples.")
 
     return dataset
+
+def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
+    """
+    Filter the dataset based on polyphony degree and SNR range specified in the config.
+    Combines all active filter criteria into a single pass per split to minimize
+    disk I/O and cache file churn.
+
+    Parameters
+    ----------
+    dataset : DatasetDict
+        The Hugging Face dataset to filter.
+    cfg : dict
+        Configuration dictionary containing filtering criteria.
+    num_workers : int
+        Number of workers to use for parallel processing.
+
+    Returns
+    -------
+    dataset : DatasetDict
+        The filtered dataset.
+    """
+    max_polyphony = cfg.dataset.get('max_polyphony', None)
+    snr_range = cfg.dataset.get('snr_range', None)
+    min_snr = cfg.dataset.get('min_snr', None)
+
+    # Nothing to do
+    if max_polyphony is None and snr_range is None and min_snr is None:
+        return dataset
+
+    for split in dataset.keys():
+        # Normalize column name before building the predicate
+        if max_polyphony is not None:
+            if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
+                dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
+
+        input_columns = []
+        if max_polyphony is not None:
+            input_columns.append('polyphony')
+        if snr_range is not None or min_snr is not None:
+            input_columns.append('snr_dB')
+
+        if not input_columns:
+            continue
+
+        def combined_filter(*columns, _cols=input_columns):
+            col_map = dict(zip(_cols, columns))
+            n = len(columns[0])
+            keep = [True] * n
+
+            if 'polyphony' in col_map:
+                for i, p in enumerate(col_map['polyphony']):
+                    if p > max_polyphony:
+                        keep[i] = False
+
+            if 'snr_dB' in col_map:
+                for i, s in enumerate(col_map['snr_dB']):
+                    if not keep[i]:
+                        continue
+                    if snr_range is not None and not (snr_range[0] <= s <= snr_range[1]):
+                        keep[i] = False
+                    if min_snr is not None and s < min_snr:
+                        keep[i] = False
+
+            return keep
+
+        criteria_desc = []
+        if max_polyphony is not None:
+            criteria_desc.append(f"polyphony <= {max_polyphony}")
+        if snr_range is not None:
+            criteria_desc.append(f"SNR in range {snr_range}")
+        if min_snr is not None:
+            criteria_desc.append(f"SNR >= {min_snr}")
+        print(f"Filtering '{split}' split to include only examples with {', '.join(criteria_desc)}...")
+
+        dataset[split] = dataset[split].filter(
+            combined_filter,
+            input_columns=input_columns,
+            batched=True,
+            num_proc=num_workers,
+            batch_size=100,
+            keep_in_memory=True
+        )
+        print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+
+    return dataset
+
+# def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
+#     """
+#     Filter the dataset based on polyphony degree and SNR range specified in the config.
+#     Combines all active filter criteria into a single pass per split to minimize
+#     disk I/O and cache file churn.
+
+#     Parameters
+#     ----------
+#     dataset : DatasetDict
+#         The Hugging Face dataset to filter.
+#     cfg : dict
+#         Configuration dictionary containing filtering criteria.
+#     num_workers : int
+#         Number of workers to use for parallel processing.
+
+#     Returns
+#     -------
+#     dataset : DatasetDict
+#         The filtered dataset.
+#     """
+#     max_polyphony = cfg.dataset.get('max_polyphony', None)
+#     snr_range = cfg.dataset.get('snr_range', None)
+#     min_snr = cfg.dataset.get('min_snr', None)
+
+#     # Nothing to do
+#     if max_polyphony is None and snr_range is None and min_snr is None:
+#         return dataset
+
+#     for split in dataset.keys():
+#         # Normalize column name before building the predicate
+#         if max_polyphony is not None:
+#             if 'polyphony' not in dataset[split].column_names and 'polyphony_degree' in dataset[split].column_names:
+#                 dataset[split] = dataset[split].rename_column('polyphony_degree', 'polyphony')
+
+#         input_columns = []
+#         if max_polyphony is not None:
+#             input_columns.append('polyphony')
+#         if snr_range is not None or min_snr is not None:
+#             input_columns.append('snr_dB')
+
+#         if not input_columns:
+#             continue
+
+#         def combined_filter(*columns, _cols=input_columns):
+#             col_map = dict(zip(_cols, columns))
+#             n = len(columns[0])
+#             keep = [True] * n
+
+#             if 'polyphony' in col_map:
+#                 for i, p in enumerate(col_map['polyphony']):
+#                     if p > max_polyphony:
+#                         keep[i] = False
+
+#             if 'snr_dB' in col_map:
+#                 for i, s in enumerate(col_map['snr_dB']):
+#                     if not keep[i]:
+#                         continue
+#                     if snr_range is not None and not (snr_range[0] <= s <= snr_range[1]):
+#                         keep[i] = False
+#                     if min_snr is not None and s < min_snr:
+#                         keep[i] = False
+
+#             return keep
+
+#         criteria_desc = []
+#         if max_polyphony is not None:
+#             criteria_desc.append(f"polyphony <= {max_polyphony}")
+#         if snr_range is not None:
+#             criteria_desc.append(f"SNR in range {snr_range}")
+#         if min_snr is not None:
+#             criteria_desc.append(f"SNR >= {min_snr}")
+#         print(f"Filtering '{split}' split to include only examples with {', '.join(criteria_desc)}...")
+
+#         dataset[split] = dataset[split].filter(
+#             combined_filter,
+#             input_columns=input_columns,
+#             batched=True,
+#             num_proc=num_workers,
+#             batch_size=100,
+#         )
+#         print(f"After filtering, {split} split has {len(dataset[split])} examples.")
+
+#     return dataset
