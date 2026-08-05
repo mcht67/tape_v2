@@ -341,7 +341,7 @@ def get_birdset_id2label(subset, dataset=None):
     #     return {birdset_id: None for birdset_id in sorted(unique_birdset_ids)}
 
 
-def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None, batch_size=100):
+def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=None, batch_size=50):
     added_labels = []
 
     # Segment-wise polyphony based label
