@@ -393,7 +393,7 @@ def add_labels(dataset, labels, birdset_id2label=None, time_dim=None, freq_dim=N
                     batched=True,
                     batch_size=batch_size,
                     input_columns=["species_polyphony"],
-                    keep_in_memory=True,
+                    # keep_in_memory=True,
                 )
 
             added_labels.append(feature_name)

@@ -17,7 +17,7 @@ from utils.losses import create_losses_from_objectives, setup_loss_scheduler, co
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
 from datasets import disable_caching
-disable_caching()
+# disable_caching()
 
 tf.keras.backend.clear_session()
 
@@ -446,6 +446,21 @@ def main():
     # Add labels
     #################################
     print("Adding labels to dataset based on objectives config...")
+
+    # DEBUG
+    import datasets
+    from datasets import config
+
+    print("HF_DATASETS_CACHE (config):", config.HF_DATASETS_CACHE)
+    print("HF_CACHE_HOME:", config.HF_CACHE_HOME)
+    print("HF_HOME env:", __import__("os").environ.get("HF_HOME"))
+    print("HF_DATASETS_CACHE env:", __import__("os").environ.get("HF_DATASETS_CACHE"))
+
+    # Most reliable check: ask the actual dataset object where it's writing
+    print("Cache files for this split:", dataset["train"].cache_files)
+
+    import shutil
+    print(shutil.disk_usage("/beegfs/scratch/cohrt/.cache/huggingface"))
 
     # Get input dim
     # input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
