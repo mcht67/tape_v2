@@ -2,12 +2,17 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
+import os
+
+# Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
+# has to be set before datasets is imported, otherwise it will not take effect
+os.environ["TMPDIR"] = f"/beegfs/scratch/cohrt/.tmp/job_{os.environ['SLURM_JOB_ID']}"
+os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
 from datasets import concatenate_datasets, load_from_disk
 from omegaconf import OmegaConf
-import os
 from hydra.utils import instantiate
 import json
-import shutil
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths, get_archive_paths
 from utils.general import reshape_tensor_data, get_num_workers
@@ -15,9 +20,9 @@ from utils.config import set_random_seeds, Params
 from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, filter_dataset_by_polyphony_and_snr
 from utils.losses import create_losses_from_objectives, setup_loss_scheduler, compute_species_count_class_weights
 
-# Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
+# Disable caching to avoid huggingface caching, forces huggingface to store data in tmp_dir
 from datasets import disable_caching
-# disable_caching()
+disable_caching()
 
 tf.keras.backend.clear_session()
 
@@ -488,6 +493,12 @@ def main():
     # DEBUG
     import datasets
     from datasets import config
+
+    job_id = os.environ.get("SLURM_JOB_ID", "local")
+    cache_dir = f"/beegfs/scratch/cohrt/.cache/job_caches/huggingface_job_{job_id}"
+    os.makedirs(cache_dir, exist_ok=True)
+    datasets.config.HF_DATASETS_CACHE = cache_dir
+    os.environ["HF_DATASETS_CACHE"] = cache_dir
 
     print("HF_DATASETS_CACHE (config):", config.HF_DATASETS_CACHE)
     print("HF_CACHE_HOME:", config.HF_CACHE_HOME)
