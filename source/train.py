@@ -11,7 +11,8 @@ load_dotenv('global.env')
 huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
 print("HF_DATASETS_CACHE:", huggingface_cache_dir)
 slurm_job_id = os.environ.get("SLURM_JOB_ID", "local")
-os.environ["TMPDIR"] = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+tmp_dir = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+os.environ["TMPDIR"] =  tmp_dir #f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
 os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
 from datasets import concatenate_datasets, load_from_disk
@@ -498,12 +499,6 @@ def main():
     # DEBUG
     import datasets
     from datasets import config
-
-    job_id = os.environ.get("SLURM_JOB_ID", "local")
-    cache_dir = f"/beegfs/scratch/cohrt/.cache/job_caches/huggingface_job_{job_id}"
-    os.makedirs(cache_dir, exist_ok=True)
-    datasets.config.HF_DATASETS_CACHE = cache_dir
-    os.environ["HF_DATASETS_CACHE"] = cache_dir
 
     print("HF_DATASETS_CACHE (config):", config.HF_DATASETS_CACHE)
     print("HF_CACHE_HOME:", config.HF_CACHE_HOME)
