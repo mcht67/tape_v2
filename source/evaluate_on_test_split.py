@@ -6,6 +6,12 @@ import tensorflow as tf
 import torch
 from hydra.utils import instantiate
 from dotenv import load_dotenv
+
+# Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
+# has to be set before datasets is imported, otherwise it will not take effect
+os.environ["TMPDIR"] = f"/beegfs/scratch/cohrt/.tmp/job_{os.environ['SLURM_JOB_ID']}"
+os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+
 from datasets import load_from_disk, Audio
 import shutil
 
@@ -19,7 +25,7 @@ from utils.torch_evaluation import load_torch_model_for_eval, collect_prediction
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
 from datasets import disable_caching
-# disable_caching()
+disable_caching()
 
 def main():
 
