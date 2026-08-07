@@ -3,10 +3,13 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import os
+from dotenv import load_dotenv
 
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
-os.environ["TMPDIR"] = f"/beegfs/scratch/cohrt/.tmp/job_{os.environ['SLURM_JOB_ID']}"
+load_dotenv('global.env')
+huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
+os.environ["TMPDIR"] = f"{huggingface_cache_dir}/.tmp/job_{os.environ['SLURM_JOB_ID']}"
 os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
 from datasets import concatenate_datasets, load_from_disk
