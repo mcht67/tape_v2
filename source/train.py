@@ -28,30 +28,33 @@ def get_tf_datasets(dataset, features, labels, batch_size):
 
     return train_dataset, test_dataset, val_dataset
 
-def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
+def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False, num_workers=get_num_workers(gb_per_worker=5, cpu_percentage=0.8)):
     if split_name not in dataset:
         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
 
-    # Keep only the columns actually needed
     feature_list = features if isinstance(features, list) else [features]
     cols_to_keep = set(feature_list) | set(labels)
     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
     split = dataset[split_name].remove_columns(cols_to_remove)
 
-    # Remove duplicated labels if any
     labels = list(set(labels))
 
-    # Check for None values and report which columns are affected
-    none_cols = []
-    for col in cols_to_keep:
-        if any(v is None for v in split[col]):
-            none_cols.append(col)
-    
+    # Cheap, metadata-only null check (no data materialization)
+    none_cols = [col for col in cols_to_keep if split.data.column(col).null_count > 0]
     print("None columns: ", none_cols)
 
     if none_cols:
         print(f"[WARNING] Columns with None values found: {none_cols}. Filtering out affected rows.")
-        split = split.filter(lambda row: all(row[col] is not None for col in none_cols))
+        split = split.filter(
+            lambda batch: [
+                all(v is not None for v in vals)
+                for vals in zip(*(batch[c] for c in none_cols))
+            ],
+            batched=True,
+            batch_size=1000,
+            input_columns=none_cols,
+            num_proc=num_workers,
+        )
         print(f"[INFO] Remaining rows after filtering: {len(split)}")
 
     return split.to_tf_dataset(
@@ -59,8 +62,42 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
         label_cols=labels,
         batch_size=batch_size,
         shuffle=shuffle,
-        prefetch=False
+        prefetch=False,
     )
+
+# def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size, shuffle=False):
+#     if split_name not in dataset:
+#         raise ValueError(f"Split {split_name} not found in dataset. Available splits: {dataset.keys()}")
+
+#     # Keep only the columns actually needed
+#     feature_list = features if isinstance(features, list) else [features]
+#     cols_to_keep = set(feature_list) | set(labels)
+#     cols_to_remove = [c for c in dataset[split_name].column_names if c not in cols_to_keep]
+#     split = dataset[split_name].remove_columns(cols_to_remove)
+
+#     # Remove duplicated labels if any
+#     labels = list(set(labels))
+
+#     # Check for None values and report which columns are affected
+#     none_cols = []
+#     for col in cols_to_keep:
+#         if any(v is None for v in split[col]):
+#             none_cols.append(col)
+    
+#     print("None columns: ", none_cols)
+
+#     if none_cols:
+#         print(f"[WARNING] Columns with None values found: {none_cols}. Filtering out affected rows.")
+#         split = split.filter(lambda row: all(row[col] is not None for col in none_cols))
+#         print(f"[INFO] Remaining rows after filtering: {len(split)}")
+
+#     return split.to_tf_dataset(
+#         columns=features,
+#         label_cols=labels,
+#         batch_size=batch_size,
+#         shuffle=shuffle,
+#         prefetch=False
+#     )
 
 def apply_batched_reshape(dataset, features, input_dim, pooling_strategy, suffix, batch_size=100):
     """Apply reshape_tensor_data in batches to avoid PyArrow offset overflow"""
@@ -402,13 +439,14 @@ def main():
     #####################################
     # Update model and objectives config
     #####################################
+
+    # Get birdset ids
+    # TODO: remove and use ClassLabels from dataset instead of hardcoding
+    birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
+    num_species = len(birdset_id2label)
+
     if 'species_polyphony_reg' in objectives_cfg or 'species_polyphony_class' in objectives_cfg:
         
-        # Get birdset ids
-        # TODO: remove and use ClassLabels from dataset instead of hardcoding
-        birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
-        num_species = len(birdset_id2label)
-
         # Save mapping
         mapping = {i: (bird_id, birdset_id2label[bird_id]) for i, bird_id in enumerate(birdset_id2label)}
         path = os.path.join(log_dir, "species_polyphony_mapping.json")
@@ -457,7 +495,7 @@ def main():
     print("HF_DATASETS_CACHE env:", __import__("os").environ.get("HF_DATASETS_CACHE"))
 
     # Most reliable check: ask the actual dataset object where it's writing
-    print("Cache files for this split:", dataset["train"].cache_files)
+    print("Cache files for this split:", dataset["train"].cache_files[0])
 
     import shutil
     print(shutil.disk_usage("/beegfs/scratch/cohrt/.cache/huggingface"))
@@ -467,8 +505,6 @@ def main():
     input_dim = np.array(dataset['train'][0][input_feature_name]).shape
 
     print(f"Input feature '{input_feature_name}' has shape {input_dim} for the first example. Assuming this is the input shape for the model.")
-
-    birdset_id2label = get_birdset_id2label(subset, dataset=dataset)
 
     # Add labels if more than polyphony degree is requested
     if labels == ['polyphony_reg'] or labels == ['polyphony_class']:
