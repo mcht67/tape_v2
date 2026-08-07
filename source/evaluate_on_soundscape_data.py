@@ -7,10 +7,13 @@ from dotenv import load_dotenv
 
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
-load_dotenv('global.env')
-huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
-os.environ["TMPDIR"] = f"{huggingface_cache_dir}/.tmp/job_{os.environ['SLURM_JOB_ID']}"
-os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+# load_dotenv('global.env')
+# huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
+# slurm_job_id = os.environ.get("SLURM_JOB_ID", "local")
+# tmp_dir = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+# print("TMPDIR:", tmp_dir)
+# os.environ["TMPDIR"] =  tmp_dir #f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+# os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
 from datasets import Audio, load_from_disk
 import torch
@@ -29,7 +32,7 @@ from utils.torch_evaluation import load_torch_model_for_eval, collect_prediction
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
 from datasets import disable_caching
-disable_caching()
+# disable_caching()
 
 def main():
 

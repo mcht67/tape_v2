@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
 load_dotenv('global.env')
-huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
-print("HF_DATASETS_CACHE:", huggingface_cache_dir)
-slurm_job_id = os.environ.get("SLURM_JOB_ID", "local")
-tmp_dir = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
-os.environ["TMPDIR"] =  tmp_dir #f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
-os.makedirs(os.environ["TMPDIR"], exist_ok=True)
+# huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
+# slurm_job_id = os.environ.get("SLURM_JOB_ID", "local")
+# tmp_dir = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+# print("TMPDIR:", tmp_dir)
+# os.environ["TMPDIR"] =  tmp_dir #f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
+# os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
 from datasets import concatenate_datasets, load_from_disk
 from omegaconf import OmegaConf
@@ -28,7 +28,7 @@ from utils.losses import create_losses_from_objectives, setup_loss_scheduler, co
 
 # Disable caching to avoid huggingface caching, forces huggingface to store data in tmp_dir
 from datasets import disable_caching
-disable_caching()
+# disable_caching()
 
 tf.keras.backend.clear_session()
 
