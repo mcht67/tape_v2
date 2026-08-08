@@ -44,8 +44,8 @@ hyperparams:
     # - "NatureLMBEATs"
   objectives:
     # - "polyphony_reg"
-    - "polyphony_class"
-    # - "multi_task_v0_reg_class"
+    # - "polyphony_class"
+    - "multi_task_v0_reg_class"
     # - "multi_task_v1_events_reg"
     # - "multi_task_v2_events_class"
     # - "multi_task_v3_frame_reg"
