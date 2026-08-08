@@ -49,8 +49,8 @@ hyperparams:
     # - "multi_task_v1_events_reg"
     # - "multi_task_v2_events_class"
     # - "multi_task_v3_frame_reg"
-    - "multi_task_v4_frame_class" 
-    # - "multi_task_v5_events_frame_reg"
+    # - "multi_task_v4_frame_class" 
+    - "multi_task_v5_events_frame_reg"
     # - "multi_task_v6_events_frame_class"
 
   # dataset.config is added automatically per dataset_config iteration
