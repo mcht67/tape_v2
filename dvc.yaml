@@ -2,47 +2,47 @@
 
 stages:
 
-  train:
-    cmd: ${python.complete} source/train.py 
-    deps:
-      - source/train.py
-      - source/utils/logs.py
-      - source/utils/general.py
-      - source/utils/config.py
-      - source/utils/dataset.py
-      - source/utils/losses.py
-    params:
-      - general.random_seed
-      - dataset
-      - model
-      - objectives
-      - train
-      - log
-    outs:
-      - ${path.train_output}
-
   # train:
-  #   cmd: ${python.complete} source/torch_train.py
+  #   cmd: ${python.complete} source/train.py 
   #   deps:
   #     - source/train.py
-  #.    - source/utils/general.py
   #     - source/utils/logs.py
+  #     - source/utils/general.py
   #     - source/utils/config.py
   #     - source/utils/dataset.py
-  #     - source/utils/metrics.py
-  #     - source/utils/torch_losses.py
-  #     - source/utils/torch_models.py
-  #     - source/utils/torch_logging.py
+  #     - source/utils/losses.py
   #   params:
   #     - general.random_seed
   #     - dataset
   #     - model
-  #     - head
   #     - objectives
   #     - train
   #     - log
   #   outs:
   #     - ${path.train_output}
+
+  train:
+    cmd: ${python.complete} source/torch_train.py
+    deps:
+      - source/train.py
+  .    - source/utils/general.py
+      - source/utils/logs.py
+      - source/utils/config.py
+      - source/utils/dataset.py
+      - source/utils/metrics.py
+      - source/utils/torch_losses.py
+      - source/utils/torch_models.py
+      - source/utils/torch_logging.py
+    params:
+      - general.random_seed
+      - dataset
+      - model
+      - head
+      - objectives
+      - train
+      - log
+    outs:
+      - ${path.train_output}
 
   evaluate:
     cmd: ${python.complete} source/evaluate_on_test_split.py
