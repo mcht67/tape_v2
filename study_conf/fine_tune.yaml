@@ -1,13 +1,14 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  # - 'XCM'
-  # - "HSN"
-  # - "PER"
+  
   - "UHH"
-  # - "NES"
-  # - "SSW"
+  # - "HSN"
+  # - "NES 
   # - "POW"
   # - "SNE"
-
+  # - "PER"
+  # - "SSW"
+  # - 'XCM'
+  
 base_config:
   log.study_name: "Fine-Tuning"
   # embeddings.dimension_type: pooled
