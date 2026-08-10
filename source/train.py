@@ -360,7 +360,9 @@ def main():
     load_checkpoint_path = cfg.train.load_checkpoint_path if 'load_checkpoint_path' in cfg.train else  None
     load_history_path = cfg.train.load_history_path if 'load_history_path' in cfg.train else None
 
+    input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.input_feature_name
+    input_feature_name = input_feature_name if input_feature_name else input_feature
     total_epochs = cfg.train.epochs
     initial_epoch = cfg.train.initial_epoch if 'initial_epoch' in cfg.train and cfg.train.initial_epoch else 0
     learning_rate = cfg.train.learning_rate
