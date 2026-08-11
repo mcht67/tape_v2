@@ -53,7 +53,7 @@ stages:
       - source/utils/metrics.py
       - source/utils/evaluation.py
       - source/utils/torch_evaluation.py
-      # - source/integrations/birdset.oy
+      # - source/integrations/birdset.py
       # - source/integrations/perch.py
     params:
       - general.random_seed

@@ -15,7 +15,7 @@ import shutil
 
 from utils.general import get_num_workers
 from utils.config import set_random_seeds, Params
-from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, load_dataset_with_retry
+from utils.dataset import add_labels, get_birdset_id2label, get_local_data_dir, load_dataset_with_retry, filter_dataset_by_polyphony_and_snr
 
 from utils.logs import get_log_paths, get_archive_paths, build_confusion_matrix_specs
 from utils.metrics import compute_polyphony_metrics, prepare_event_logits_for_cm
