@@ -25,7 +25,7 @@ stages:
     cmd: ${python.complete} source/torch_train.py
     deps:
       - source/train.py
-  .    - source/utils/general.py
+      - source/utils/general.py
       - source/utils/logs.py
       - source/utils/config.py
       - source/utils/dataset.py
