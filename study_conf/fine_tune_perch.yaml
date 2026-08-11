@@ -21,12 +21,10 @@ base_config:
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
-  model:
-    name: perch_v2
-    type: perch_v2
-    dimension_type:
   backbone:
     name: perch_v2 
+  model:
+   - default
   head:
     _target_: model.SimpleMLP     # or model.TemporalCNN
     hidden_units: [512, 256]
@@ -44,8 +42,8 @@ base_config:
   #   - val_accuracy # use val_accuracy if only one objective is used
 
 hyperparams:
-  model:
-    - "perch_v2"
+  # model:
+  #   - "perch_v2"
     # - "BirdSetBirdMAE"
     # - "BirdSetEfficientNet"
     # - NatureLMBEATs
