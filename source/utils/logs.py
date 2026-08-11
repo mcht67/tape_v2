@@ -1639,7 +1639,7 @@ class CustomSummaryWriterCallback(tf.keras.callbacks.Callback):
     #     except Exception as e:
     #         print(f"Failed to log confusion matrix for '{spec['name']}': {e}")
 
-    @tf.function
+    # @tf.function
     def predict_batch(self, batch_x):
         return self.model(batch_x, training=False)
 

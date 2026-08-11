@@ -4,10 +4,11 @@ from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import os
 from dotenv import load_dotenv
+import shutil
 
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
-load_dotenv('global.env')
+# load_dotenv('global.env')
 # huggingface_cache_dir = os.environ.get("HF_DATASETS_CACHE", "/beegfs/scratch/cohrt/.cache/huggingface/datasets")
 # slurm_job_id = os.environ.get("SLURM_JOB_ID", "local")
 # tmp_dir = f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
@@ -15,10 +16,17 @@ load_dotenv('global.env')
 # os.environ["TMPDIR"] =  tmp_dir #f"{huggingface_cache_dir}/.tmp/job_{slurm_job_id}"
 # os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
-from datasets import concatenate_datasets, load_from_disk
+from datasets import concatenate_datasets, load_from_disk, Audio
 from omegaconf import OmegaConf
-from hydra.utils import instantiate
+from hydra.utils import instantiate, get_class
 import json
+
+# BioacousticsModel/HopliteBackbone must live in the same module as the
+# SimpleMLP/TemporalCNN heads referenced by cfg.model._target_ (e.g. "model.py"),
+# since they're used together for the raw-audio / full-model fine-tuning path.
+# Adjust this import path if you place them in a separate module.
+from model import BioacousticsModel, HopliteBackbone
+from perch_hoplite.zoo import model_configs as hoplite_model_configs
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths, get_archive_paths
 from utils.general import reshape_tensor_data, get_num_workers
@@ -323,10 +331,43 @@ def build_log_metrics(objectives_to_log):
 
     return log_metrics
 
+def build_new_model(precomputed_embeddings, model_cfg, backbone_cfg, head_cfg,
+                     objectives_cfg, freeze_encoder):
+    """Returns an uncompiled, freshly-instantiated model.
+
+    precomputed_embeddings=True: unchanged behavior -- cfg.model._target_
+    (e.g. model.SimpleMLP) is instantiated directly as the whole model,
+    exactly as in existing configs/experiments.
+
+    precomputed_embeddings=False: builds a BioacousticsModel wrapping a
+    perch_hoplite backbone (cfg.backbone.name) and a head (cfg.head._target_,
+    e.g. model.TemporalCNN). The head class is resolved via get_class()
+    rather than instantiate(), since BioacousticsModel needs the class
+    itself (it builds the head internally once it knows the backbone's
+    output shape) -- the rest of cfg.head's fields are passed through as
+    head_kwargs.
+    """
+    if precomputed_embeddings:
+        return instantiate(model_cfg)
+
+    head_target = head_cfg._target_
+    head_cls = get_class(head_target)
+    head_kwargs = {k: v for k, v in head_cfg.items() if k != "_target_"}
+    print("head_kwargs:", head_kwargs)
+    print("head_cls:", head_cls)
+    return BioacousticsModel(
+        backbone_name=backbone_cfg.name,
+        head_cls=head_cls,
+        objectives_cfg=objectives_cfg,
+        head_kwargs=head_kwargs,
+        trainable_backbone=not freeze_encoder,
+    )
+
+
 def main():
 
     # Configuration
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_tf_test.yaml")
 
     # Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter
     params = Params()
@@ -376,6 +417,25 @@ def main():
     model_cfg = cfg.model
     model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
+
+    # --- Precomputed-embeddings vs. full raw-audio fine-tuning ---
+    # Default True: existing configs that only set cfg.model (head as the
+    # whole model) keep working unchanged. Set to False + provide cfg.backbone
+    # and cfg.head to fine-tune a real backbone end-to-end instead.
+    precomputed_embeddings = cfg.train.precomputed_embeddings if 'precomputed_embeddings' in cfg.train else True
+    freeze_encoder = cfg.train.freeze_encoder if 'freeze_encoder' in cfg.train else True
+    freeze_epochs = cfg.train.freeze_epochs if 'freeze_epochs' in cfg.train else None
+    finetune_learning_rate = cfg.train.finetune_learning_rate if 'finetune_learning_rate' in cfg.train else None
+
+    backbone_cfg = cfg.backbone if 'backbone' in cfg else None
+    head_cfg = cfg.head if 'head' in cfg else None
+    if not precomputed_embeddings and (backbone_cfg is None or head_cfg is None):
+        raise ValueError(
+            "precomputed_embeddings=False requires both cfg.backbone (with a "
+            "'name' matching a perch_hoplite preset, e.g. 'perch_v2') and "
+            "cfg.head (with a '_target_' pointing to SimpleMLP or TemporalCNN, "
+            "same as cfg.model does for the precomputed-embeddings path)."
+        )
     
     # #################################
     # # Load dataset
@@ -389,6 +449,10 @@ def main():
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
     dataset = load_from_disk(dataset_dir)
+
+    # DEBUG: TODO: remove after testing
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))
 
     num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
     dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
@@ -485,7 +549,10 @@ def main():
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
 
     # Set objectives config in model config for easy access when building model and losses
+    # if precomputed_embeddings:
     model_cfg.objectives_cfg = objectives_cfg
+    # else:
+    #     head_cfg.objectives_cfg = objectives_cfg
 
     labels = list(objectives_cfg.keys()) #[objectives_cfg[x]['label'] for x in objectives_cfg]
 
@@ -510,10 +577,13 @@ def main():
     # Most reliable check: ask the actual dataset object where it's writing
     print("Cache files for this split:", dataset["train"].cache_files[0])
 
-    import shutil
-    print(shutil.disk_usage("/beegfs/scratch/cohrt/.cache/huggingface"))
+    # import shutil
+    # print(shutil.disk_usage("/beegfs/scratch/cohrt/.cache/huggingface"))
 
-    # Get input dim
+    # Get input dim. NOTE: for raw-audio mode (precomputed_embeddings=False)
+    # this is just the raw waveform's shape, not the model's actual input
+    # dim -- it's only used as a fallback below and gets overwritten with
+    # the real head input dim after model creation.
     # input_dim = tf.squeeze(np.array(dataset['train'][0][input_feature_name])).shape
     input_dim = np.array(dataset['train'][0][input_feature_name]).shape
 
@@ -522,10 +592,60 @@ def main():
     # Add labels if more than polyphony degree is requested
     if labels == ['polyphony_reg'] or labels == ['polyphony_class']:
         labels = ['polyphony']
-    else:        
-        # Compute additional labels
-        time_dim = input_dim[0] if len(input_dim) > 1 else None
-        freq_dim = input_dim[1] if len(input_dim) > 2 else None
+    else:
+        framewise_objectives = {"framewise_polyphony_reg", "framewise_polyphony_class", "event_logits"}
+        needs_frame_dims = bool(framewise_objectives & set(labels))
+
+        if precomputed_embeddings:
+            # Existing behavior: read straight off the precomputed array's shape.
+            time_dim = input_dim[0] if len(input_dim) > 1 else None
+            freq_dim = input_dim[1] if len(input_dim) > 2 else None
+        elif needs_frame_dims:
+            # Raw-audio mode + a framewise objective: time_dim/freq_dim must
+            # come from a real backbone forward pass, since they depend on
+            # the backbone's internal spatial grid, not on anything in the
+            # dataset. Cheap standalone probe -- NOT the training model --
+            # so this loads the backbone a second time (the real model is
+            # built later, after add_labels); acceptable one-time cost,
+            # cached downloads make repeat runs fast. See HopliteBackbone
+            # in model.py for what spatial_embeddings actually contains.
+            print(f"Probing backbone '{backbone_cfg.name}' for time_dim/freq_dim "
+                  f"needed by framewise objective(s) {framewise_objectives & set(labels)}...")
+            probe_backbone = HopliteBackbone(backbone_cfg.name)
+
+            sample_feat = dataset['train'][0][input_feature_name]
+            if isinstance(sample_feat, dict) and 'array' in sample_feat:
+                sample_array = np.asarray(sample_feat['array'], dtype=np.float32)
+                native_sr = sample_feat.get('sampling_rate', probe_backbone.sample_rate)
+            else:
+                sample_array = np.asarray(sample_feat, dtype=np.float32)
+                native_sr = probe_backbone.sample_rate  # assumed already correct
+
+            if native_sr != probe_backbone.sample_rate:
+                import librosa
+                sample_array = librosa.resample(
+                    sample_array, orig_sr=native_sr, target_sr=probe_backbone.sample_rate
+                )
+
+            probe_waveform = tf.constant(sample_array[np.newaxis, :], dtype=tf.float32)
+            probe_out = probe_backbone.embed(probe_waveform)
+            spatial = probe_out["spatial_embeddings"]
+            if spatial is None:
+                raise ValueError(
+                    f"Backbone '{backbone_cfg.name}' has no spatial structure "
+                    f"(HopliteBackbone.has_structure() is False for it), so "
+                    f"framewise objectives {framewise_objectives & set(labels)} "
+                    f"can't be computed. Use a backbone that preserves structure "
+                    f"(e.g. 'perch_v2'), or drop these objectives."
+                )
+            time_dim = int(spatial.shape[1])
+            freq_dim = int(spatial.shape[2]) if len(spatial.shape) == 4 else None
+            print(f"Probed time_dim={time_dim}, freq_dim={freq_dim} from backbone spatial_embeddings.")
+            del probe_backbone  # done with it -- real model built later, separately
+        else:
+            # Raw-audio mode, no framewise objective -- these dims are unused.
+            time_dim, freq_dim = None, None
+
         dataset, added_labels = add_labels(dataset, labels, birdset_id2label=birdset_id2label, time_dim=time_dim, freq_dim=freq_dim)
 
         print("Added labels: ", added_labels)
@@ -535,6 +655,35 @@ def main():
         if missing_labels:
             raise Exception("Not all requested labels could be computed.")
     
+    ###########################################
+    # Raw-audio mode: cast the audio column to the backbone's expected
+    # sample rate. Looked up from perch_hoplite's preset metadata directly
+    # (not by instantiating HopliteBackbone) to avoid loading the full
+    # model twice -- BioacousticsModel below loads it for real, once.
+    ###########################################
+    if not precomputed_embeddings:
+        backbone_sample_rate = hoplite_model_configs.get_preset_model_config(
+            backbone_cfg.name
+        ).model_config.sample_rate
+        print(f"Casting '{input_feature_name}' to raw audio at {backbone_sample_rate}Hz "
+              f"for backbone '{backbone_cfg.name}'.")
+        for split in dataset:
+            if 'sources_audio' in dataset[split].column_names:
+                dataset[split] = dataset[split].remove_columns(['sources_audio'])
+            dataset[split] = dataset[split].cast_column(
+                input_feature_name, Audio(sampling_rate=backbone_sample_rate)
+            )
+        # to_tf_dataset() needs a plain numeric column, not the {'array',
+        # 'sampling_rate'} dict an Audio feature decodes to -- extract the
+        # array explicitly. NOTE: assumes fixed-length clips (same
+        # assumption the precomputed-embedding path already makes); ragged
+        # variable-length audio would need padding logic added here.
+        def _extract_waveform(example, feature_name=input_feature_name):
+            example[feature_name] = np.asarray(example[feature_name]["array"], dtype=np.float32)
+            return example
+        for split in dataset:
+            dataset[split] = dataset[split].map(_extract_waveform)
+
     ###########################################
     # Transform dataset to tensorflow datasets 
     ###########################################
@@ -612,8 +761,15 @@ def main():
     elif load_checkpoint_path and os.path.isfile(load_checkpoint_path):
 
         print(f"Loading weights from {load_checkpoint_path}")
-        model = instantiate(model_cfg)
-        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
+        model = build_new_model(precomputed_embeddings, model_cfg, backbone_cfg,
+                                 head_cfg, objectives_cfg, freeze_encoder)
+        # run_eagerly required for raw-audio mode: BioacousticsModel's
+        # backbone bypass (_raw_embed, in model.py) uses numpy ops that only
+        # work on concrete tensors, not the symbolic tensors model.fit()
+        # traces call() with by default. Precomputed-embedding mode doesn't
+        # need this -- SimpleMLP/TemporalCNN are pure TF ops, keep them graph-compiled.
+        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics,
+                       run_eagerly=not precomputed_embeddings)
         
         # Initialize variables with forward pass
         sample_batch = next(iter(train_dataset))
@@ -624,9 +780,10 @@ def main():
         print(f"Resuming from epoch {initial_epoch}")
     else:
         print("Creating new model")
-        model = instantiate(model_cfg)
+        model = build_new_model(precomputed_embeddings, model_cfg, backbone_cfg,
+                                 head_cfg, objectives_cfg, freeze_encoder)
         print("Model config:")
-        print(model_cfg)
+        print(model_cfg if precomputed_embeddings else {"backbone": backbone_cfg, "head": head_cfg})
         # Initialize new model with forward pass
         sample_batch = next(iter(train_dataset))
         print(sample_batch[0].shape)  # full shape including all dims ( without batch dimension)
@@ -636,11 +793,19 @@ def main():
         # _ = model(tf.zeros((1, 20, 8, 1280)), training=False) 
         # _ = model(tf.zeros((input_dim)), training=False)
         _ = model(sample_batch[0], training=False)
+        if not precomputed_embeddings:
+            # input_dim above was just the raw waveform shape -- overwrite
+            # with the real head input dim now that the backbone has run once.
+            wants_spatial = getattr(get_class(head_cfg._target_), "takes_spatial_embeddings", False)
+            input_dim = model.backbone.get_head_input_size(pooled=not wants_spatial)
+            print(f"Real head input dim from backbone '{backbone_cfg.name}': {input_dim}")
         print(f"New model has {len(model.trainable_variables)} trainable variables")
         print(f"Compiling model with losses: {losses}")
         print(f"Compile metrics: {compile_metrics}")
 
-        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics)
+        # See note on run_eagerly above the other compile() call.
+        model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics,
+                      run_eagerly=not precomputed_embeddings)
         
         previous_history = None
         initial_epoch = 0
@@ -687,11 +852,37 @@ def main():
 
     print(f"Starting training for {total_epochs} epochs from initial epoch {initial_epoch} with learning rate {learning_rate} and batch size {batch_size} on {input_feature_name} with input shape {input_dim}.")
 
-    history = model.fit(train_dataset, 
-                        validation_data=val_dataset, 
-                        epochs=total_epochs,
-                        initial_epoch=initial_epoch, 
-                        callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
+    staged_finetuning = (not precomputed_embeddings) and freeze_encoder and freeze_epochs is not None
+    if staged_finetuning and freeze_epochs > initial_epoch:
+        print(f"Phase 1: training with frozen backbone, epochs {initial_epoch} -> {freeze_epochs}")
+        history = model.fit(train_dataset,
+                            validation_data=val_dataset,
+                            epochs=freeze_epochs,
+                            initial_epoch=initial_epoch,
+                            callbacks=callbacks)
+
+        print(f"Unfreezing backbone for fine-tuning"
+              + (f" (encoder lr={finetune_learning_rate})" if finetune_learning_rate else ""))
+        model.set_backbone_trainable(True)
+        # Recompile is required here: Keras fixes the trainable-variable list
+        # at compile() time, unlike torch's optimizer param groups, which
+        # re-read requires_grad on the fly -- see torch_train.py's freeze/
+        # unfreeze loop for the equivalent behavior without a recompile.
+        model.compile(optimizer=Adam(finetune_learning_rate or learning_rate),
+                        loss=losses, metrics=compile_metrics, run_eagerly=True)
+
+        print(f"Phase 2: training with unfrozen backbone, epochs {freeze_epochs} -> {total_epochs}")
+        history = model.fit(train_dataset,
+                            validation_data=val_dataset,
+                            epochs=total_epochs,
+                            initial_epoch=freeze_epochs,
+                            callbacks=callbacks)
+    else:
+        history = model.fit(train_dataset, 
+                            validation_data=val_dataset, 
+                            epochs=total_epochs,
+                            initial_epoch=initial_epoch, 
+                            callbacks=callbacks) #LossWeightScheduler(switch_epochs=[0,10,20,30,40], event_loss_weights=[1.0, 1.0, 1.0, 0.5, 0.1], count_loss_weights=[0.1, 0.5, 1.0, 1.0, 2.0])
 
 
     # Copy log files and subfolders to archive directory for later analysis

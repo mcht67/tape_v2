@@ -1,0 +1,58 @@
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  
+  - "UHH"
+  # - "HSN"
+  # - "NES 
+  # - "POW"
+  # - "SNE"
+  # - "PER"
+  # - "SSW"
+  # - 'XCM'
+  
+base_config:
+  log.study_name: "Fine-Tuning"
+  # embeddings.dimension_type: pooled
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  dataset.max_polyphony: 8
+  dataset.min_snr: -10
+  train.epochs: 100
+  train.learning_rate: 0.001
+  path.study_subfolder: ${model.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+  model:
+    name: perch_v2
+    type: perch_v2
+    dimension_type:
+  backbone:
+    name: perch_v2 
+  head:
+    _target_: model.SimpleMLP     # or model.TemporalCNN
+    hidden_units: [512, 256]
+  dropout_rate: 0.3
+  train.batch_size: 32
+  train.backend: torch
+  train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
+  train.freeze_epochs: 5           # train the head alone for N epochs, then unfreeze
+  train.finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
+  train.early_stopping_patience: 5
+  train.early_stopping_delay_epochs: 5
+  
+  # log.metrics:
+  #   - val_loss
+  #   - val_accuracy # use val_accuracy if only one objective is used
+
+hyperparams:
+  model:
+    - "perch_v2"
+    # - "BirdSetBirdMAE"
+    # - "BirdSetEfficientNet"
+    # - NatureLMBEATs
+  train.input_feature:
+    - "audio"
+    # - "no_noise_audio"
+  objectives:
+    - "polyphony_reg"
+    # - "polyphony_class"
+  # dataset.config is added automatically per dataset_config iteration

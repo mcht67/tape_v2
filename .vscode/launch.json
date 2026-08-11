@@ -1,6 +1,24 @@
 {
   "version": "0.2.0",
   "configurations": [
+
+      {
+      "name": "Python: perch_embed",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/source/perch_embed_audio_stream.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--huggingface_path", "mcht67/PolyBirdMix",
+        "--dataset_config", "polyphonic",
+        "--subset", "HSN",
+        "--input_features", "[\"audio\"]",
+        "--embeddings", "[\"perch_v2_cpu\"]",
+        "--force_recompute"
+      ]
+    },
+    
+
     {
       "name": "Python: make_result_tables",
       "type": "debugpy",
