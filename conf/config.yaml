@@ -46,6 +46,7 @@ defaults:
   - objectives: default #empty # should be defined in multi_submission
   - train: 'default'
   - log: 'default'
+  - backbone: default
   # - evaluation: 'default'
   - _self_
 
