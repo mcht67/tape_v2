@@ -76,6 +76,12 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
         )
         print(f"[INFO] Remaining rows after filtering: {len(split)}")
 
+    # DEBUG | TODO: remove after testing
+    print(split.features)
+    for c in cols_to_keep:
+        lengths = {len(x) if hasattr(x, '__len__') else None for x in split[c][:20]}
+        print(c, split.features[c], "sample lengths:", lengths)
+
     return split.to_tf_dataset(
         columns=features,
         label_cols=labels,
@@ -367,7 +373,7 @@ def build_new_model(precomputed_embeddings, model_cfg, backbone_cfg, head_cfg,
 def main():
 
     # Configuration
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_tf_test.yaml")
 
     # Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter
     params = Params()
@@ -687,6 +693,10 @@ def main():
     ###########################################
     # Transform dataset to tensorflow datasets 
     ###########################################
+
+    # DEBUG | TODO: remove after testing
+    print(dataset.features)
+    print(type(dataset[0][input_feature_name]), dataset[0][input_feature_name])
 
     # Get tensorflow datasets
     train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
