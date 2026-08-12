@@ -694,10 +694,6 @@ def main():
     # Transform dataset to tensorflow datasets 
     ###########################################
 
-    # DEBUG | TODO: remove after testing
-    print(dataset.features)
-    print(type(dataset[0][input_feature_name]), dataset[0][input_feature_name])
-
     # Get tensorflow datasets
     train_dataset, test_dataset, val_dataset = get_tf_datasets(dataset, input_feature_name, labels, batch_size)
     if num_batches_train: train_dataset = train_dataset.take(num_batches_train) # take fewer batches to reduce train dataset size
