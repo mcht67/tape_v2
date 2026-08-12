@@ -29,7 +29,7 @@ base_config:
   head:
     _target_: model.SimpleMLP     # or model.TemporalCNN
     hidden_units: [512, 256]
-  dropout_rate: 0.3
+    dropout_rate: 0.3
   train.batch_size: 32
   train.backend: torch
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
