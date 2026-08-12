@@ -18,7 +18,7 @@ base_config:
   train.precomputed_embeddings: false
   train.epochs: 100
   train.learning_rate: 0.001
-  path.study_subfolder: ${model.name}/
+  path.study_subfolder: ${backbone.name}/
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
