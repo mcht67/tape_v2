@@ -12,3 +12,4 @@ backend:
 freeze_encoder: 
 freeze_epochs:
 finetune_learning_rate:
+precomputed_embeddings:
