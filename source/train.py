@@ -373,7 +373,7 @@ def build_new_model(precomputed_embeddings, model_cfg, backbone_cfg, head_cfg,
 def main():
 
     # Configuration
-    cfg = OmegaConf.load("params_tf_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
 
     # Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter
     params = Params()
