@@ -25,7 +25,7 @@ import json
 # SimpleMLP/TemporalCNN heads referenced by cfg.model._target_ (e.g. "model.py"),
 # since they're used together for the raw-audio / full-model fine-tuning path.
 # Adjust this import path if you place them in a separate module.
-from model import BioacousticsModel, HopliteBackbone
+from model import BioacousticsModel, HopliteBackbone, build_new_model
 from perch_hoplite.zoo import model_configs as hoplite_model_configs
 
 from utils.logs import RegressionAccuracy, RegressionCountPrecision, RegressionCountRecall, RegressionCountF1, ClassificationAccuracy, ClassificationCountPrecision, ClassificationCountRecall, ClassificationCountF1, CustomSummaryWriter, CustomSummaryWriterCallback, build_confusion_matrix_specs, ModelAndHistorySaver, get_log_paths, get_archive_paths
@@ -75,12 +75,6 @@ def get_tf_dataset_from_split(dataset, split_name, features, labels, batch_size,
             num_proc=num_workers,
         )
         print(f"[INFO] Remaining rows after filtering: {len(split)}")
-
-    # DEBUG | TODO: remove after testing
-    print(split.features)
-    for c in cols_to_keep:
-        lengths = {len(x) if hasattr(x, '__len__') else None for x in split[c][:20]}
-        print(c, split.features[c], "sample lengths:", lengths)
 
     return split.to_tf_dataset(
         columns=features,
@@ -337,39 +331,6 @@ def build_log_metrics(objectives_to_log):
 
     return log_metrics
 
-def build_new_model(precomputed_embeddings, model_cfg, backbone_cfg, head_cfg,
-                     objectives_cfg, freeze_encoder):
-    """Returns an uncompiled, freshly-instantiated model.
-
-    precomputed_embeddings=True: unchanged behavior -- cfg.model._target_
-    (e.g. model.SimpleMLP) is instantiated directly as the whole model,
-    exactly as in existing configs/experiments.
-
-    precomputed_embeddings=False: builds a BioacousticsModel wrapping a
-    perch_hoplite backbone (cfg.backbone.name) and a head (cfg.head._target_,
-    e.g. model.TemporalCNN). The head class is resolved via get_class()
-    rather than instantiate(), since BioacousticsModel needs the class
-    itself (it builds the head internally once it knows the backbone's
-    output shape) -- the rest of cfg.head's fields are passed through as
-    head_kwargs.
-    """
-    if precomputed_embeddings:
-        return instantiate(model_cfg)
-
-    head_target = head_cfg._target_
-    head_cls = get_class(head_target)
-    head_kwargs = {k: v for k, v in head_cfg.items() if k != "_target_"}
-    print("head_kwargs:", head_kwargs)
-    print("head_cls:", head_cls)
-    return BioacousticsModel(
-        backbone_name=backbone_cfg.name,
-        head_cls=head_cls,
-        objectives_cfg=objectives_cfg,
-        head_kwargs=head_kwargs,
-        trainable_backbone=not freeze_encoder,
-    )
-
-
 def main():
 
     # Configuration
@@ -425,10 +386,13 @@ def main():
     objectives_cfg = cfg.objectives
 
     # --- Precomputed-embeddings vs. full raw-audio fine-tuning ---
-    # Default True: existing configs that only set cfg.model (head as the
-    # whole model) keep working unchanged. Set to False + provide cfg.backbone
-    # and cfg.head to fine-tune a real backbone end-to-end instead.
-    precomputed_embeddings = cfg.train.precomputed_embeddings if 'precomputed_embeddings' in cfg.train else True
+    # Detected from cfg.train.backend, same field evaluate_on_test_split.py
+    # already uses to distinguish 'torch' from TF -- 'perch' is a third
+    # value meaning "TF + BioacousticsModel wrapping a perch_hoplite
+    # backbone", vs. the TF default meaning "cfg.model as the whole model,
+    # trained on precomputed embeddings" (unchanged, existing behavior).
+    backend = cfg.train.get("backend", "tensorflow")
+    precomputed_embeddings = (backend != "perch")
     freeze_encoder = cfg.train.freeze_encoder if 'freeze_encoder' in cfg.train else True
     freeze_epochs = cfg.train.freeze_epochs if 'freeze_epochs' in cfg.train else None
     finetune_learning_rate = cfg.train.finetune_learning_rate if 'finetune_learning_rate' in cfg.train else None
@@ -437,7 +401,7 @@ def main():
     head_cfg = cfg.head if 'head' in cfg else None
     if not precomputed_embeddings and (backbone_cfg is None or head_cfg is None):
         raise ValueError(
-            "precomputed_embeddings=False requires both cfg.backbone (with a "
+            "cfg.train.backend='perch' requires both cfg.backbone (with a "
             "'name' matching a perch_hoplite preset, e.g. 'perch_v2') and "
             "cfg.head (with a '_target_' pointing to SimpleMLP or TemporalCNN, "
             "same as cfg.model does for the precomputed-embeddings path)."
@@ -555,10 +519,7 @@ def main():
         print(f"Using {num_species} species and {num_classes} classes for species polyphony classification based on config and dataset.")
 
     # Set objectives config in model config for easy access when building model and losses
-    # if precomputed_embeddings:
     model_cfg.objectives_cfg = objectives_cfg
-    # else:
-    #     head_cfg.objectives_cfg = objectives_cfg
 
     labels = list(objectives_cfg.keys()) #[objectives_cfg[x]['label'] for x in objectives_cfg]
 
@@ -582,9 +543,6 @@ def main():
 
     # Most reliable check: ask the actual dataset object where it's writing
     print("Cache files for this split:", dataset["train"].cache_files[0])
-
-    # import shutil
-    # print(shutil.disk_usage("/beegfs/scratch/cohrt/.cache/huggingface"))
 
     # Get input dim. NOTE: for raw-audio mode (precomputed_embeddings=False)
     # this is just the raw waveform's shape, not the model's actual input
@@ -775,7 +733,7 @@ def main():
         # traces call() with by default. Precomputed-embedding mode doesn't
         # need this -- SimpleMLP/TemporalCNN are pure TF ops, keep them graph-compiled.
         model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics,
-                       run_eagerly=not precomputed_embeddings)
+                      run_eagerly=not precomputed_embeddings)
         
         # Initialize variables with forward pass
         sample_batch = next(iter(train_dataset))
@@ -812,7 +770,7 @@ def main():
         # See note on run_eagerly above the other compile() call.
         model.compile(optimizer=Adam(learning_rate), loss=losses, metrics=compile_metrics,
                       run_eagerly=not precomputed_embeddings)
-        
+
         previous_history = None
         initial_epoch = 0
 
@@ -875,7 +833,7 @@ def main():
         # re-read requires_grad on the fly -- see torch_train.py's freeze/
         # unfreeze loop for the equivalent behavior without a recompile.
         model.compile(optimizer=Adam(finetune_learning_rate or learning_rate),
-                        loss=losses, metrics=compile_metrics, run_eagerly=True)
+                      loss=losses, metrics=compile_metrics, run_eagerly=True)
 
         print(f"Phase 2: training with unfrozen backbone, epochs {freeze_epochs} -> {total_epochs}")
         history = model.fit(train_dataset,

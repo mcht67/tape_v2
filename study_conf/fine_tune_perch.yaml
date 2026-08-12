@@ -31,7 +31,7 @@ base_config:
     hidden_units: [512, 256]
     dropout_rate: 0.3
   train.batch_size: 32
-  train.backend: torch
+  train.backend: perch
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   train.freeze_epochs: 5           # train the head alone for N epochs, then unfreeze
   train.finetune_learning_rate: 1e-5   # optional; lower LR for the encoder

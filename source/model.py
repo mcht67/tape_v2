@@ -823,6 +823,40 @@ from tensorflow.keras.saving import register_keras_serializable
 from perch_hoplite.zoo import model_configs
 
 
+def _to_plain_config(obj):
+    """Recursively converts any OmegaConf DictConfig/ListConfig found in
+    obj -- including nested inside plain dicts/lists -- to plain dict/list,
+    so anything derived from it is JSON-safe for Keras's
+    model.save()/get_config(). No-op on values that are already plain
+    Python, or if omegaconf isn't installed.
+
+    Needed because SimpleMLP/TemporalCNN happen to already be safe from this
+    (their objectives_cfg dict-comprehension in __init__ incidentally
+    rebuilds a plain dict), but BioacousticsModel.get_config() stores
+    objectives_cfg/head_kwargs directly -- without this, passing Hydra's
+    cfg.objectives straight through fails model.save() with "Cannot
+    serialize object ... of type DictConfig".
+
+    Recurses into plain dict/list too, not just OmegaConf containers:
+    confirmed empirically that `{k: v for k, v in some_dictconfig.items()}`
+    produces a plain dict whose VALUES are still un-converted ListConfig/
+    DictConfig objects (e.g. hidden_units: [512, 256] stayed a ListConfig
+    even after being pulled into a plain dict by train.py's
+    build_new_model()) -- checking only the top-level type misses this.
+    """
+    try:
+        from omegaconf import OmegaConf
+    except ImportError:
+        return obj
+    if OmegaConf.is_config(obj):
+        return OmegaConf.to_container(obj, resolve=True)
+    if isinstance(obj, dict):
+        return {k: _to_plain_config(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_plain_config(v) for v in obj]
+    return obj
+
+
 # ---------------------------------------------------------------------------
 # 1. Heads -- unchanged from model.py, copied verbatim. Do not edit these;
 #    add new head behavior in a new class instead (as with the torch
@@ -1303,6 +1337,14 @@ class BioacousticsModel(tf.keras.Model):
         objectives_cfg = _to_plain_config(objectives_cfg)
         head_kwargs = _to_plain_config(head_kwargs)
 
+        if not (isinstance(head_cls, type) and issubclass(head_cls, tf.keras.Model)):
+            raise TypeError(
+                f"head_cls={head_cls!r} isn't a tf.keras.Model subclass. This "
+                f"usually means cfg.head._target_ points at a torch class "
+                f"(e.g. 'utils.torch_models.SimpleMLPHead') instead of the TF "
+                f"one -- use 'model.SimpleMLP' or 'model.TemporalCNN'."
+            )
+
         wants_spatial = getattr(head_cls, "takes_spatial_embeddings", False)
         if wants_spatial and not self.backbone.has_structure():
             raise ValueError(
@@ -1314,6 +1356,20 @@ class BioacousticsModel(tf.keras.Model):
         self._wants_spatial = wants_spatial
 
         resolved_head_kwargs = dict(head_kwargs or {})
+        # objectives_cfg is always supplied by BioacousticsModel itself (the
+        # parameter above), never by cfg.head -- if it's also in head_kwargs
+        # (a common copy-paste mistake from a torch-shaped head config, whose
+        # head class embeds objectives_cfg as a constructor field), that's a
+        # config error worth surfacing clearly rather than crashing on a
+        # duplicate-keyword TypeError two frames deeper.
+        if "objectives_cfg" in resolved_head_kwargs:
+            raise ValueError(
+                "head_kwargs already contains 'objectives_cfg' -- remove it "
+                "from cfg.head; BioacousticsModel supplies it separately from "
+                "cfg.objectives. (This usually means cfg.head was copied from "
+                "a torch-style head config, whose head class embeds "
+                "objectives_cfg as a constructor field -- the TF heads don't.)"
+            )
         resolved_head_kwargs.setdefault("input_dim", self.backbone.get_head_input_size(pooled=not wants_spatial))
         self.head = head_cls(objectives_cfg=objectives_cfg, **resolved_head_kwargs)
 
@@ -1379,6 +1435,49 @@ class BioacousticsModel(tf.keras.Model):
         return cls(head_cls=head_cls, **config)
 
 
+def build_new_model(precomputed_embeddings, model_cfg, backbone_cfg, head_cfg,
+                     objectives_cfg, freeze_encoder):
+    """Returns an uncompiled, freshly-instantiated model.
+
+    precomputed_embeddings=True: unchanged behavior -- cfg.model._target_
+    (e.g. model.SimpleMLP) is instantiated directly as the whole model,
+    exactly as in existing configs/experiments that train on precomputed
+    embeddings.
+
+    precomputed_embeddings=False: builds a BioacousticsModel wrapping a
+    perch_hoplite backbone (cfg.backbone.name) and a head (cfg.head._target_,
+    e.g. model.TemporalCNN). The head class is resolved via get_class()
+    rather than instantiate(), since BioacousticsModel needs the class
+    itself (it builds the head internally once it knows the backbone's
+    output shape) -- the rest of cfg.head's fields are passed through as
+    head_kwargs.
+
+    Callers derive precomputed_embeddings from cfg.train.backend (== 'perch'
+    means False), the same way evaluate_on_test_split.py already checks
+    backend == 'torch' -- this function itself doesn't know about 'backend'
+    at all, just which of the two branches to build, mirroring
+    torch_train.py's precomputed_embeddings/freeze_encoder naming.
+
+    Shared by train.py and evaluate_on_test_split.py -- previously
+    duplicated in both; keep it here as the single source of truth.
+    """
+    from hydra.utils import instantiate, get_class
+
+    if precomputed_embeddings:
+        return instantiate(model_cfg)
+
+    head_target = head_cfg._target_
+    head_cls = get_class(head_target)
+    head_kwargs = {k: v for k, v in head_cfg.items() if k != "_target_"}
+    return BioacousticsModel(
+        backbone_name=backbone_cfg.name,
+        head_cls=head_cls,
+        objectives_cfg=objectives_cfg,
+        head_kwargs=head_kwargs,
+        trainable_backbone=not freeze_encoder,
+    )
+
+
 # ---------------------------------------------------------------------------
 # 4. Usage
 # ---------------------------------------------------------------------------
@@ -1424,37 +1523,3 @@ model.set_backbone_trainable(True)
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-5), loss=..., metrics=...)  # required after trainable toggle
 model.fit(train_ds, epochs=5)
 """
-
-
-def _to_plain_config(obj):
-    """Recursively converts any OmegaConf DictConfig/ListConfig found in
-    obj -- including nested inside plain dicts/lists -- to plain dict/list,
-    so anything derived from it is JSON-safe for Keras's
-    model.save()/get_config(). No-op on values that are already plain
-    Python, or if omegaconf isn't installed.
- 
-    Needed because SimpleMLP/TemporalCNN happen to already be safe from this
-    (their objectives_cfg dict-comprehension in __init__ incidentally
-    rebuilds a plain dict), but BioacousticsModel.get_config() stores
-    objectives_cfg/head_kwargs directly -- without this, passing Hydra's
-    cfg.objectives straight through fails model.save() with "Cannot
-    serialize object ... of type DictConfig".
- 
-    Recurses into plain dict/list too, not just OmegaConf containers:
-    confirmed empirically that `{k: v for k, v in some_dictconfig.items()}`
-    produces a plain dict whose VALUES are still un-converted ListConfig/
-    DictConfig objects (e.g. hidden_units: [512, 256] stayed a ListConfig
-    even after being pulled into a plain dict by train.py's
-    build_new_model()) -- checking only the top-level type misses this.
-    """
-    try:
-        from omegaconf import OmegaConf
-    except ImportError:
-        return obj
-    if OmegaConf.is_config(obj):
-        return OmegaConf.to_container(obj, resolve=True)
-    if isinstance(obj, dict):
-        return {k: _to_plain_config(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_to_plain_config(v) for v in obj]
-    return obj

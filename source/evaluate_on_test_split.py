@@ -4,8 +4,10 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 import torch
-from hydra.utils import instantiate
 from dotenv import load_dotenv
+
+from model import BioacousticsModel, build_new_model
+from perch_hoplite.zoo import model_configs as hoplite_model_configs
 
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
@@ -32,12 +34,13 @@ from utils.torch_evaluation import load_torch_model_for_eval, collect_prediction
 from datasets import disable_caching
 # disable_caching()
 
+
 def main():
 
     #################################
     # Configuration
     #################################
-    cfg = OmegaConf.load("params.yaml")
+    cfg = OmegaConf.load("params_tf_test.yaml")
     print(cfg)
 
     study_name = cfg.log.study_name
@@ -63,6 +66,22 @@ def main():
     model_cfg = cfg.model
     model_cfg.pop("name", None)
     objectives_cfg = cfg.objectives
+
+    # Same mode switch as train.py: cfg.train.backend='perch' means TF +
+    # BioacousticsModel wrapping a perch_hoplite backbone; must match
+    # whatever the checkpoint being evaluated was actually trained with.
+    # (backend is read again, same value, down where the torch/TF split
+    # happens below -- kept as one read here since backbone_cfg/head_cfg
+    # need it earlier.)
+    backend = cfg.train.get("backend", "tensorflow")
+    precomputed_embeddings = (backend != "perch")
+    backbone_cfg = cfg.backbone if 'backbone' in cfg else None
+    head_cfg = cfg.head if 'head' in cfg else None
+    if not precomputed_embeddings and (backbone_cfg is None or head_cfg is None):
+        raise ValueError(
+            "cfg.train.backend='perch' requires both cfg.backbone (name) "
+            "and cfg.head (_target_), same as train.py."
+        )
 
     input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
@@ -132,6 +151,23 @@ def main():
 
     test_dataset = dataset['test']
 
+    if not precomputed_embeddings:
+        backbone_sample_rate = hoplite_model_configs.get_preset_model_config(
+            backbone_cfg.name
+        ).model_config.sample_rate
+        print(f"Casting '{input_feature_name}' to raw audio at {backbone_sample_rate}Hz "
+              f"for backbone '{backbone_cfg.name}'.")
+        if 'sources_audio' in test_dataset.column_names:
+            test_dataset = test_dataset.remove_columns(['sources_audio'])
+        test_dataset = test_dataset.cast_column(
+            input_feature_name, Audio(sampling_rate=backbone_sample_rate)
+        )
+
+        def _extract_waveform(example, feature_name=input_feature_name):
+            example[feature_name] = np.asarray(example[feature_name]["array"], dtype=np.float32)
+            return example
+        test_dataset = test_dataset.map(_extract_waveform)
+
     if test_dataset is None:
         raise RuntimeError("Dataset failed to load after all retry attempts. Check network/cache or force redownload in dataset preparation.")
 
@@ -198,8 +234,6 @@ def main():
     # Load model
     #################################
 
-    backend = cfg.train.get("backend", "tensorflow")
-
     print(cfg.model) 
 
     if backend == "torch":
@@ -227,11 +261,21 @@ def main():
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
 
         # Define model
-        # Set objectives config in model config for easy access when building model and losses
-        model_cfg.objectives_cfg = objectives_cfg
-        model = instantiate(model_cfg)
+        if precomputed_embeddings:
+            # Set objectives config in model config for easy access when building model and losses
+            model_cfg.objectives_cfg = objectives_cfg
+        model = build_new_model(precomputed_embeddings, model_cfg, backbone_cfg,
+                                 head_cfg, objectives_cfg,
+                                 freeze_encoder=True)  # irrelevant for eval; weights loaded below regardless of what's trainable
 
-        # Build model by calling it on a sample input
+        # Build model by calling it on a sample input. Works unchanged for
+        # raw-audio mode too: input_feature_name's column is already a plain
+        # float32 waveform array by this point (cast+extracted above), so
+        # this just reads whatever shape is actually there -- (160000,) for
+        # raw audio vs. (4, 1536)-ish for precomputed embeddings -- and
+        # BioacousticsModel.call() runs eagerly here (this script never
+        # calls .fit()/.compile(), so the run_eagerly issue from training
+        # doesn't apply).
         first_example = test_dataset[0]
         print("input features", test_dataset.features)
         # input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
