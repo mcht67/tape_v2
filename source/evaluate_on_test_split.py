@@ -40,7 +40,7 @@ def main():
     #################################
     # Configuration
     #################################
-    cfg = OmegaConf.load("params_tf_test.yaml")
+    cfg = OmegaConf.load("params.yaml")
     print(cfg)
 
     study_name = cfg.log.study_name
@@ -292,6 +292,9 @@ def main():
         print("sample_input shape:", sample_input.shape)
 
         _ = model(sample_input, training=False)
+
+        # DEBUG: TODO: remove after testing
+        checkpoint_path = "tmp/1786548404-89721-MacBook-Pro-von-Malte.local/train_output/Fine-Tuning/perch_v2/checkpoints/best.weights.h5"
 
         print(f"Loading weights from {checkpoint_path}")
         model.load_weights(checkpoint_path)
