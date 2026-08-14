@@ -5,6 +5,9 @@ import tensorflow as tf
 from hydra.utils import instantiate
 from dotenv import load_dotenv
 
+from model import BioacousticsModel, build_new_model
+from perch_hoplite.zoo import model_configs as hoplite_model_configs
+
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
 # has to be set before datasets is imported, otherwise it will not take effect
 # load_dotenv('global.env')
@@ -69,6 +72,22 @@ def main():
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
 
+    # Same mode switch as train.py: cfg.train.backend='perch' means TF +
+    # BioacousticsModel wrapping a perch_hoplite backbone, running
+    # end-to-end on raw audio -- same idea as the existing backend=='torch'
+    # handling below, which also runs end-to-end on raw audio and bypasses
+    # the separate "precomputed vs. on-the-fly embedding" distinction that
+    # only applies to the older birdset/perch integrations path.
+    backend = cfg.train.get("backend", "tensorflow")
+    precomputed_embeddings = (backend != "perch")
+    backbone_cfg = cfg.backbone if 'backbone' in cfg else None
+    head_cfg = cfg.head if 'head' in cfg else None
+    if not precomputed_embeddings and (backbone_cfg is None or head_cfg is None):
+        raise ValueError(
+            "cfg.train.backend='perch' requires both cfg.backbone (name) "
+            "and cfg.head (_target_), same as train.py."
+        )
+
     if subset == "XCM" or subset == "XCL":
         print("Note: The XCM and XCL datasets do not have soundscape data. Skipping evaluation on soundscape data.")
         # Create empty test directory for consistent dvc tracking
@@ -107,6 +126,23 @@ def main():
  
     soundscape_test5s_split = soundscape_test_dataset['test_5s']
     print(soundscape_test5s_split)
+
+    if not precomputed_embeddings:
+        backbone_sample_rate = hoplite_model_configs.get_preset_model_config(
+            backbone_cfg.name
+        ).model_config.sample_rate
+        print(f"Casting '{input_feature_name}' to raw audio at {backbone_sample_rate}Hz "
+              f"for backbone '{backbone_cfg.name}'.")
+        if 'sources_audio' in soundscape_test5s_split.column_names:
+            soundscape_test5s_split = soundscape_test5s_split.remove_columns(['sources_audio'])
+        soundscape_test5s_split = soundscape_test5s_split.cast_column(
+            input_feature_name, Audio(sampling_rate=backbone_sample_rate)
+        )
+
+        def _extract_waveform(example, feature_name=input_feature_name):
+            example[feature_name] = np.asarray(example[feature_name]["array"], dtype=np.float32)
+            return example
+        soundscape_test5s_split = soundscape_test5s_split.map(_extract_waveform)
 
     #################################
     # Update objectives config based on dataset
@@ -149,8 +185,6 @@ def main():
     # Load model
     #################################
 
-    backend = cfg.train.get("backend", "tensorflow")
-
     if backend == "torch":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {device}")
@@ -173,10 +207,15 @@ def main():
             raise ValueError(f"Checkpoint not found at {checkpoint_path}. Please make sure to run the training script first to save the best model checkpoint for later evaluation.")
 
         # Define model
-        model_cfg.objectives_cfg = objectives_cfg
-        model = instantiate(cfg.model)
+        if precomputed_embeddings:
+            model_cfg.objectives_cfg = objectives_cfg
+        model = build_new_model(precomputed_embeddings, model_cfg, backbone_cfg,
+                                 head_cfg, objectives_cfg,
+                                 freeze_encoder=True)  # irrelevant for eval; weights loaded below regardless of what's trainable
 
-        # Build model by calling it on a sample input
+        # Build model by calling it on a sample input. Works unchanged for
+        # raw-audio mode too: input_feature_name's column is already a plain
+        # float32 waveform array by this point (cast+extracted above).
         first_example = soundscape_test5s_split[0]
         print("input features", soundscape_test5s_split.features)
         # input_dim = int(tf.squeeze(np.array(first_example[input_feature_name])).shape[0])
@@ -207,13 +246,17 @@ def main():
     # Minimum polyphony degree: get number of species active in soundscape
     # Maximum polyphony degree: get total number of events that occur in the soundscape
 
-    # Check if embeddings have been precomputed
-    if not input_feature in soundscape_test5s_split.features:
-        print(f"Feature '{input_feature}' not found in soundscape dataset. Can not run evaluation.")
-        return
-    
-    # Cast input_feature to Audio
-    soundscape_test5s_split = soundscape_test5s_split.cast_column(input_feature, Audio())
+    # Check if embeddings have been precomputed -- only relevant to the
+    # older on-the-fly embedding fallback below (birdset/perch
+    # integrations); the raw-audio path (backend=='perch') bypasses that
+    # fallback entirely and already cast+extracted input_feature_name above.
+    if precomputed_embeddings:
+        if not input_feature in soundscape_test5s_split.features:
+            print(f"Feature '{input_feature}' not found in soundscape dataset. Can not run evaluation.")
+            return
+
+        # Cast input_feature to Audio
+        soundscape_test5s_split = soundscape_test5s_split.cast_column(input_feature, Audio())
 
     # Add min/max polyphony labels to soundscape dataset
     # soundscape_test5s_split = soundscape_test5s_split.map(partial(add_min_max_polyphony, num_species=num_species))
@@ -222,9 +265,9 @@ def main():
     os.makedirs(os.path.dirname(plot_save_dir), exist_ok=True)
     plot_polyphony_distribution(soundscape_test5s_split, save_path=plot_save_dir)
 
-    embeddings_precomputed = input_feature_name in soundscape_test5s_split.features
+    embeddings_precomputed = precomputed_embeddings and (input_feature_name in soundscape_test5s_split.features)
 
-    if backend == "torch" or embeddings_precomputed:
+    if backend == "torch" or backend == "perch" or embeddings_precomputed:
 
         if backend == "torch":
             # The fine-tuned torch model embeds + predicts end-to-end from raw
@@ -239,6 +282,15 @@ def main():
                 batch_size=cfg.train.get("eval_batch_size", 32), variables=[],
                 truth_columns=truth_columns, birdset_id2label=birdset_id2label,
             )
+        elif backend == "perch":
+            # Same idea as the torch case above: BioacousticsModel runs
+            # end-to-end on raw audio, no precomputed/on-the-fly distinction
+            # needed -- input_feature_name was already cast+extracted to raw
+            # waveform earlier. collect_predictions() is agnostic to what's
+            # actually in that column, so this call is identical to the
+            # "embeddings_precomputed" branch below.
+            print("Running the TF BioacousticsModel end-to-end on raw audio (batched) for soundscape evaluation...")
+            y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, birdset_id2label=birdset_id2label)
         else:
             print(f"Embeddings have been precomputed and stored in feature '{input_feature_name}'. Using precomputed embeddings for evaluation.")
             y_true, predictions, variable_values = collect_predictions(model, soundscape_test5s_split, input_feature_name, birdset_id2label=birdset_id2label)
