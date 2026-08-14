@@ -293,9 +293,6 @@ def main():
 
         _ = model(sample_input, training=False)
 
-        # DEBUG: TODO: remove after testing
-        checkpoint_path = "tmp/1786548404-89721-MacBook-Pro-von-Malte.local/train_output/Fine-Tuning/perch_v2/checkpoints/best.weights.h5"
-
         print(f"Loading weights from {checkpoint_path}")
         model.load_weights(checkpoint_path)
         print("Model loaded successfully.")
