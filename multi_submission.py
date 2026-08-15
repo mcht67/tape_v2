@@ -255,8 +255,8 @@ if __name__ == "__main__":
     run_dataset_preparation = False
     recompute_embeddings = False
     force_redownload = False
-    run_on_gpu = False
-    force_exp_rerun = True
+    run_on_gpu = True
+    force_exp_rerun = False
 
     ##########################
     # Submit jobs

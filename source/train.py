@@ -420,10 +420,6 @@ def main():
     print("dataset_dir:", dataset_dir)
     dataset = load_from_disk(dataset_dir)
 
-    # DEBUG: TODO: remove after testing
-    for split in dataset.keys():
-        dataset[split] = dataset[split].select(range(10))
-
     num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
     dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
 
@@ -532,8 +528,6 @@ def main():
     #################################
     print("Adding labels to dataset based on objectives config...")
 
-    # DEBUG
-    import datasets
     from datasets import config
 
     print("HF_DATASETS_CACHE (config):", config.HF_DATASETS_CACHE)
