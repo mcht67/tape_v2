@@ -69,6 +69,7 @@ def main():
     objectives_cfg = cfg.objectives
     input_feature = cfg.train.input_feature
     input_feature_name = cfg.train.get("input_feature_name", input_feature)
+    input_feature_name = input_feature_name if input_feature_name is not None else input_feature
     embedding_type = cfg.embeddings.type
     embedding_dim_type = cfg.embeddings.dimension_type
 
