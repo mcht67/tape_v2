@@ -10,18 +10,27 @@
 #SBATCH --output=./logs/slurm/slurm-%j.out
 
 # Resources needed
-#SBATCH --ntasks=1
-#SBATCH --nodes=1
-#SBATCH --cpus-per-task=16
+##SBATCH --ntasks=1
+##SBATCH --nodes=1
+##SBATCH --cpus-per-task=16
 
 ##SBATCH --mem=100GB
 ##SBATCH --time=00:30:00
 ##SBATCH --partition=standard
 
-#SBATCH --gres=gpu:a100
-#SBATCH --mem=256GB
-#SBATCH --time=04:00:00
-#SBATCH --partition=gpu
+##SBATCH --gres=gpu:a100
+##SBATCH --mem=64GB
+##SBATCH --time=10:00:00
+##SBATCH --partition=gpu
+
+# Resources needed
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=64GB
+#SBATCH --time=10:00:00
+#SBATCH --partition=ex_scioi_a100nv
 
 # Get email notifications for job status
 #SBATCH --mail-type=ALL
