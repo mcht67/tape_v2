@@ -1,9 +1,31 @@
+from omegaconf import OmegaConf
+from pathlib import Path
+import sys
+import os
+os.environ.setdefault('TF_FORCE_GPU_ALLOW_GROWTH', 'true')
+
+# Configuration
+cfg = OmegaConf.load("params.yaml")
+
+# Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter
+params = Params()
+
+checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.evaluation else None
+train_output_path = cfg.path.train_output if 'train_output' in cfg.path else None
+
+if checkpoint_dir is not None:
+        print("Skipping training because checkpoint_dir is specified.")
+        # Ensure train output directory exists for dvc tracking (even if empty)
+        if train_output_path is not None:
+            Path(train_output_path).mkdir(parents=True, exist_ok=True)
+        sys.exit(0)
+
+
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 import numpy as np
 import os
-from dotenv import load_dotenv
 import shutil
 
 # Set temporary directory for HuggingFace datasets cache to avoid conflicts in parallel runs
@@ -17,7 +39,6 @@ import shutil
 # os.makedirs(os.environ["TMPDIR"], exist_ok=True)
 
 from datasets import concatenate_datasets, load_from_disk, Audio
-from omegaconf import OmegaConf
 from hydra.utils import instantiate, get_class
 import json
 
@@ -406,6 +427,15 @@ def main():
             "cfg.head (with a '_target_' pointing to SimpleMLP or TemporalCNN, "
             "same as cfg.model does for the precomputed-embeddings path)."
         )
+
+    #################################
+    # Handle GPU
+    #################################
+    gpus = tf.config.list_physical_devices('GPU')
+    print(f"GPUs available: {gpus}")
+    if not gpus:
+        print("WARNING: No GPU found, training on CPU")
+    
     
     # #################################
     # # Load dataset
@@ -769,17 +799,6 @@ def main():
         initial_epoch = 0
 
     model.summary()
-
-    #################################
-    # Handle GPU
-    #################################
-    gpus = tf.config.list_physical_devices('GPU')
-    print(f"GPUs available: {gpus}")
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    if not gpus:
-        print("WARNING: No GPU found, training on CPU")
 
     #################################
     # Callbacks
