@@ -53,6 +53,7 @@ stages:
       - source/utils/metrics.py
       - source/utils/evaluation.py
       - source/utils/torch_evaluation.py
+      - ${path.train_output}
       # - source/integrations/birdset.py
       # - source/integrations/perch.py
     params:
@@ -62,6 +63,7 @@ stages:
       - model
       - objectives
       - train
+      - evaluation
     outs:
       - ${path.eval_output}
 
@@ -74,12 +76,14 @@ stages:
       - source/utils/torch_evaluation.py
       - source/utils/metrics.py
       - source/utils/evaluation.py
+      - ${path.train_output}
     params:
       - general.random_seed
       - dataset
       - model
       - objectives
       - train
+      - evaluation
     outs:
       - ${path.soundscape_eval_output}
 
@@ -92,6 +96,7 @@ stages:
       - source/utils/metrics.py
       - source/utils/evaluation.py
       - source/utils/torch_evaluation.py
+      - ${path.train_output}
       # - source/integrations/birdset.oy
       # - source/integrations/perch.py
     params:
@@ -101,5 +106,6 @@ stages:
       - model
       - objectives
       - train
+      - evaluation
     outs:
       - ${path.val_eval_output}
