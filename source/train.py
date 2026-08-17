@@ -7,9 +7,6 @@ os.environ.setdefault('TF_FORCE_GPU_ALLOW_GROWTH', 'true')
 # Configuration
 cfg = OmegaConf.load("params.yaml")
 
-# Load the hyperparameters from the "params.yaml" file for usage with Tensorboard SummaryWriter
-params = Params()
-
 checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.evaluation else None
 train_output_path = cfg.path.train_output if 'train_output' in cfg.path else None
 
@@ -449,6 +446,10 @@ def main():
     dataset_dir = os.path.join(default_dir, local_data_dir)
     print("dataset_dir:", dataset_dir)
     dataset = load_from_disk(dataset_dir)
+
+    # DEBUG TODO: remove
+    for split in dataset.keys():
+        dataset[split] = dataset[split].select(range(10))
 
     num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
     dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
