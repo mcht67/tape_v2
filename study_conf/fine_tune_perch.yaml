@@ -34,7 +34,7 @@ base_config:
   train.backend: perch
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning
   train.freeze_epochs: 5           # train the head alone for N epochs, then unfreeze
-  train.finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
+  train.finetune_learning_rate: 3e-6 #1e-5   # optional; lower LR for the encoder
   train.early_stopping_patience: 5
   train.early_stopping_delay_epochs: 5
   
