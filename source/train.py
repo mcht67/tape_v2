@@ -840,14 +840,31 @@ def main():
                             callbacks=callbacks)
 
         print(f"Unfreezing backbone for fine-tuning"
-              + (f" (encoder lr={finetune_learning_rate})" if finetune_learning_rate else ""))
+            + (f" (encoder lr={finetune_learning_rate})" if finetune_learning_rate else ""))
         model.set_backbone_trainable(True)
+
+        target_lr = finetune_learning_rate or learning_rate
+        warmup_epochs = 3  # tune as needed
+        steps_per_epoch = tf.data.experimental.cardinality(train_dataset).numpy()
+        # fallback if cardinality is unknown (e.g. -1 for some pipelines):
+        if steps_per_epoch <= 0:
+            steps_per_epoch = 1510  # or pass this in explicitly from your data config
+
+        decay_epochs = 20 # max(1, 100 - freeze_epochs - warmup_epochs)  # tune to expected stop point
+
+        lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=0.0,
+            decay_steps=decay_epochs * steps_per_epoch,
+            warmup_target=target_lr,
+            warmup_steps=warmup_epochs * steps_per_epoch,
+        )
+
         # Recompile is required here: Keras fixes the trainable-variable list
         # at compile() time, unlike torch's optimizer param groups, which
         # re-read requires_grad on the fly -- see torch_train.py's freeze/
         # unfreeze loop for the equivalent behavior without a recompile.
-        model.compile(optimizer=Adam(finetune_learning_rate or learning_rate),
-                      loss=losses, metrics=compile_metrics, run_eagerly=True)
+        model.compile(optimizer=Adam(lr_schedule),
+                    loss=losses, metrics=compile_metrics, run_eagerly=True)
 
         print(f"Phase 2: training with unfrozen backbone, epochs {freeze_epochs} -> {total_epochs}")
         history = model.fit(train_dataset,
