@@ -23,6 +23,8 @@ base_config:
     - polyphony_class
   head:
     _target_: utils.torch_models.SimpleMLPHead
+    hidden_units: [512, 256]
+    dropout_rate: 0.3
   train.batch_size: 32
   train.backend: torch
   train.freeze_encoder: true  # freeze the encoder for the first `freeze_epochs` epochs, then unfreeze for fine-tuning

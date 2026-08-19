@@ -255,6 +255,9 @@ def main():
         print(f"Dataset {train_config} found locally. Loading from disk: {local_data_dir}...")
         dataset = load_from_disk(local_data_dir)
 
+    # DEBUG, TODO: remove this after debugging
+    dataset = dataset.select(range(10))
+
     num_workers = get_num_workers(gb_per_worker=5, cpu_percentage=0.8)
     dataset = filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=num_workers)
 
@@ -318,7 +321,8 @@ def main():
     model = instantiate(model_cfg)
     head_input_size = model.get_head_input_size()
     head_cfg.input_size = head_input_size
-    head_cfg.objectives_cfg = objectives_cfg   # must match the head's actual constructor param name
+    head_cfg.objectives_cfg = objectives_cfg 
+    print("Head config:", head_cfg)
     head = instantiate(head_cfg)
     model.replace_head(head)
 
