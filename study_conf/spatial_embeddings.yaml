@@ -1,7 +1,7 @@
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   # - "UHH"
-  # - "HSN"
-  - "PER"
+  - "HSN"
+  # - "PER"
   # - "NES"
   # - "POW"
   # - "SSW"
@@ -47,9 +47,9 @@ hyperparams:
     - "polyphony_class"
     # - "multi_task_v0_reg_class"
     # - "multi_task_v1_events_reg"
-    - "multi_task_v2_events_class"
+    # - "multi_task_v2_events_class"
     # - "multi_task_v3_frame_reg"
-    - "multi_task_v4_frame_class" 
+    # - "multi_task_v4_frame_class" 
     # - "multi_task_v5_events_frame_reg"
     - "multi_task_v6_events_frame_class"
 
