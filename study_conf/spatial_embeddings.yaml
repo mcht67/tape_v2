@@ -2,11 +2,11 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   # - "UHH"
   # - "HSN"
   # - "PER"
-  - "NES"
+  # - "NES"
   # - "POW"
-  - "SSW"
+  # - "SSW"
   # - "SNE"
-  # - "XCM"
+  - "XCM"
 
 base_config:
   log.study_name: "Spatial-Embeddings"
@@ -45,8 +45,8 @@ hyperparams:
   objectives:
     # - "polyphony_reg"
     # - "polyphony_class"
-    # - "multi_task_v0_reg_class"
-    - "multi_task_v1_events_reg"
+    - "multi_task_v0_reg_class"
+    # - "multi_task_v1_events_reg"
     # - "multi_task_v2_events_class"
     # - "multi_task_v3_frame_reg"
     # - "multi_task_v4_frame_class" 
