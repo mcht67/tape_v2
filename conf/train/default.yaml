@@ -9,7 +9,9 @@ initial_epoch:
 num_batches_train: 
 num_batches_val: 
 backend:
+precomputed_embeddings:
 freeze_encoder: 
 freeze_epochs:
 finetune_learning_rate:
-precomputed_embeddings:
+finetune_warmup_epochs:
+finetune_decay_epochs:

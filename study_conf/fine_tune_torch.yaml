@@ -32,6 +32,8 @@ base_config:
   train.finetune_learning_rate: 1e-5   # optional; lower LR for the encoder
   train.early_stopping_patience: 5
   train.early_stopping_delay_epochs: 5
+  train.finetune_warmup_epochs: 3
+  train.finetune_decay_epochs: 15
   
   # log.metrics:
   #   - val_loss
@@ -40,8 +42,8 @@ base_config:
 hyperparams:
   model:
     # - "BirdSetBirdMAE"
-    # - "BirdSetEfficientNet"
-    - NatureLMBEATs
+    - "BirdSetEfficientNet"
+    # - "NatureLMBEATs"
   train.input_feature:
     - "audio"
     # - "no_noise_audio"
