@@ -395,6 +395,12 @@ def main():
             dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
             print(f"[DEBUG] post-cast features[{input_feature_name}]: {dataset[split].features[input_feature_name]}")
 
+        def _extract_waveform(example, feature_name=input_feature_name):
+                    example[feature_name] = np.asarray(example[feature_name]["array"], dtype=np.float32)
+                    return example
+        for split in dataset:
+                    dataset[split] = dataset[split].map(_extract_waveform)
+
     print(dataset['train'].features)
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
