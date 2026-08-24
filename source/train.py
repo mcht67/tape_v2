@@ -411,9 +411,14 @@ def main():
     # trained on precomputed embeddings" (unchanged, existing behavior).
     backend = cfg.train.get("backend", "tensorflow")
     precomputed_embeddings = (backend != "perch")
+
     freeze_encoder = cfg.train.freeze_encoder if 'freeze_encoder' in cfg.train else True
     freeze_epochs = cfg.train.freeze_epochs if 'freeze_epochs' in cfg.train else None
     finetune_learning_rate = cfg.train.finetune_learning_rate if 'finetune_learning_rate' in cfg.train else None
+    finetune_warmup_epochs = cfg.train.get("finetune_warmup_epochs", 3)
+    finetune_decay_epochs = cfg.train.get("finetune_decay_epochs", 15)   # tune to your typical early-stop epoch
+    finetune_min_lr_ratio = cfg.train.get("finetune_min_lr_ratio", 0.01)
+
 
     backbone_cfg = cfg.backbone if 'backbone' in cfg else None
     head_cfg = cfg.head if 'head' in cfg else None
@@ -844,13 +849,13 @@ def main():
         model.set_backbone_trainable(True)
 
         target_lr = finetune_learning_rate or learning_rate
-        warmup_epochs = 3  # tune as needed
+        warmup_epochs = finetune_warmup_epochs  # tune as needed
         steps_per_epoch = tf.data.experimental.cardinality(train_dataset).numpy()
         # fallback if cardinality is unknown (e.g. -1 for some pipelines):
         if steps_per_epoch <= 0:
             steps_per_epoch = 1510  # or pass this in explicitly from your data config
 
-        decay_epochs = 20 # max(1, 100 - freeze_epochs - warmup_epochs)  # tune to expected stop point
+        decay_epochs = finetune_decay_epochs # max(1, 100 - freeze_epochs - warmup_epochs)  # tune to expected stop point
 
         lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
             initial_learning_rate=0.0,
