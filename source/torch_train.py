@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import math
 
 import numpy as np
 import torch
@@ -176,6 +177,29 @@ class EarlyStopper:
             if self.wait >= self.patience:
                 self.should_stop = True
 
+def encoder_lr_schedule(epoch, freeze_epochs, target_lr,
+                         warmup_epochs=3, decay_epochs=15, min_lr_ratio=0.0):
+    """
+    Encoder LR as a pure function of the global epoch index. Only meaningful
+    once epoch >= freeze_epochs (the encoder is frozen -- and gets no
+    gradient -- before that, so the returned value there is unused).
+
+    - First `warmup_epochs` after unfreezing: linear ramp 0 -> target_lr.
+    - After that: cosine decay from target_lr down to target_lr * min_lr_ratio
+      over `decay_epochs`, then held flat at the floor.
+    """
+    if epoch < freeze_epochs:
+        return target_lr  # unused while frozen (requires_grad=False)
+
+    since_unfreeze = epoch - freeze_epochs
+    if since_unfreeze < warmup_epochs:
+        return target_lr * (since_unfreeze + 1) / warmup_epochs
+
+    t = min(since_unfreeze - warmup_epochs, decay_epochs)
+    cos_factor = 0.5 * (1 + math.cos(math.pi * t / decay_epochs))
+    min_lr = target_lr * min_lr_ratio
+    return min_lr + (target_lr - min_lr) * cos_factor
+
 
 # ----------------------------------------------------------------------------
 # Main
@@ -208,6 +232,11 @@ def main():
     early_stopping_delay_epochs = cfg.train.get("early_stopping_delay_epochs", 0)
     num_batches_train = cfg.train.get("num_batches_train", None)
     num_batches_val = cfg.train.get("num_batches_val", None)
+
+    freeze_epochs = cfg.train.get("freeze_epochs", None)
+    finetune_learning_rate = cfg.train.get("finetune_learning_rate", None)
+    finetune_warmup_epochs = cfg.train.get("finetune_warmup_epochs", 3)
+    finetune_decay_epochs = cfg.train.get("finetune_decay_epochs", 20)
 
     huggingface_path = cfg.dataset.huggingface_path
     load_checkpoint_path = cfg.train.get("load_checkpoint_path", None)
@@ -421,13 +450,17 @@ def main():
         head_params = [p for p in model.parameters() if p.requires_grad]
         encoder_params = [p for p in model.parameters() if not p.requires_grad]
         optimizer = torch.optim.Adam([
-            {"params": head_params, "lr": learning_rate},
-            {"params": encoder_params, "lr": finetune_learning_rate or learning_rate},
+            {"params": head_params, "lr": learning_rate, "name": "head"},
+            {"params": encoder_params, "lr": finetune_learning_rate or learning_rate, "name": "encoder"},
         ])
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    loss_weight_scheduler = setup_loss_scheduler_torch(objectives_cfg, losses)
+        loss_weight_scheduler = setup_loss_scheduler_torch(objectives_cfg, losses)
+
+    encoder_param_group = None
+    if freeze_encoder and freeze_epochs is not None:
+        encoder_param_group = next(g for g in optimizer.param_groups if g.get("name") == "encoder")
 
     ###################################################
     # Resume
@@ -486,6 +519,16 @@ def main():
             for p in model.parameters():
                 p.requires_grad = True
             encoder_unfrozen = True
+
+        if encoder_param_group is not None and epoch >= freeze_epochs:
+            target_lr = finetune_learning_rate or learning_rate
+            new_lr = encoder_lr_schedule(
+                epoch, freeze_epochs, target_lr,
+                warmup_epochs=finetune_warmup_epochs,
+                decay_epochs=finetune_decay_epochs
+            )
+            encoder_param_group["lr"] = new_lr
+            print(f"Epoch {epoch + 1}: encoder lr = {new_lr:.2e}")
 
         print(f"Epoch {epoch + 1}\n-------------------------------")
         epoch_start = time.time()

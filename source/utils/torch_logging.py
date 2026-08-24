@@ -467,7 +467,7 @@ class TorchSummaryWriterLogger:
 class ModelAndHistorySaverTorch:
     """Torch equivalent of logs.ModelAndHistorySaver."""
 
-    def __init__(self, checkpoint_dir, loss_objects, previous_history=None, keep_last_n=5):
+    def __init__(self, checkpoint_dir, loss_objects, previous_history=None, keep_last_n=1):
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.combined_history = {k: list(v) for k, v in previous_history.items()} if previous_history else {}
