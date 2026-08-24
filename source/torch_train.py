@@ -462,11 +462,11 @@ def main():
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-        loss_weight_scheduler = setup_loss_scheduler_torch(objectives_cfg, losses)
-
     encoder_param_group = None
     if freeze_encoder and freeze_epochs is not None:
         encoder_param_group = next(g for g in optimizer.param_groups if g.get("name") == "encoder")
+
+    loss_weight_scheduler = setup_loss_scheduler_torch(objectives_cfg, losses)
 
     ###################################################
     # Resume
