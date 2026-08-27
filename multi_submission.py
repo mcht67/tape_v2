@@ -239,7 +239,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/spatial_embeddings.yaml'
+    study_config_path = 'study_conf/fine_tune_torch.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
@@ -252,10 +252,10 @@ if __name__ == "__main__":
     create_study_remote(study_name, base_remote="base-remote")
     
     # Dataset preparation options
-    run_dataset_preparation = True
-    recompute_embeddings = True
+    run_dataset_preparation = False
+    recompute_embeddings = False
     force_redownload = False
-    run_on_gpu = False
+    run_on_gpu = True
     force_exp_rerun = False
 
     ##########################

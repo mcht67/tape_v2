@@ -31,8 +31,8 @@ from utils.torch_logging import TorchSummaryWriterLogger, ModelAndHistorySaverTo
 from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 
 # Disable caching to avoid huggingface caching issues when running multiple experiments in parallel
-from datasets import disable_caching
-disable_caching()
+# from datasets import disable_caching
+# disable_caching()
 
 
 # ----------------------------------------------------------------------------
