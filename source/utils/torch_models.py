@@ -634,59 +634,73 @@ class BirdSetEfficientNet(torch.nn.Module):
     
     def get_sampling_rate(self):
         return self.sampling_rate
-       
 class BirdSetBirdMAE(torch.nn.Module):
     """
-    Wrapper for pretrained Bird-MAE Model. Original model: https://huggingface.co/DBD-research-group/Bird-MAE-Base
+    Wrapper for pretrained Bird-MAE Model. Original model: https://huggingface.co/DBD-research-group/Bird-MAE-Huge
     """
-    def __init__(self, pretrained_model_path="DBD-research-group/Bird-MAE-Huge"):
+    def __init__(self, pretrained_model_path="DBD-research-group/Bird-MAE-Huge", pooling="mean"):
         super().__init__()
-        
-        # Load pretrained model and feature extractor
-        self.model = AutoModel.from_pretrained(pretrained_model_path,trust_remote_code=True)
+
+        self.model = AutoModel.from_pretrained(pretrained_model_path, trust_remote_code=True)
         self.feature_extractor = AutoFeatureExtractor.from_pretrained(pretrained_model_path, trust_remote_code=True)
         self.output_head = None
+        self.pooling = pooling  # None / False -> spatial only, "mean", "cls"
 
-        # Init config
+        # Always disable internal pooling — we handle pooling ourselves below,
+        # so we always get the full raw token sequence back.
+        self.model.global_pool = None
+
         self.config = self.model.config
         self.sampling_rate = 32000
 
-    # def preprocess(self, audio):
-    #     mel_spectrogram = self.feature_extractor(audio)
-    #     return mel_spectrogram
-    
+        self.time_patches = self.config.img_size_x // self.config.patch_size
+        self.freq_patches = self.config.img_size_y // self.config.patch_size
+
     def preprocess(self, audio):
         device = next(self.parameters()).device
-        # Feature extractor returns a dict-like BatchFeature, extract the tensor
         mel_spectrogram = self.feature_extractor(audio, return_tensors="pt")
-        # mel_spectrogram = inputs["input_values"]  # or "input_features" depending on the model
         mel_spectrogram = mel_spectrogram.to(device)
         return mel_spectrogram
-    
+
     def forward(self, audio):
-        """Forward pass with automatic preprocessing and optional pooling and output head"""
         logits = None
         device = next(self.parameters()).device
         audio = audio.to(device)
         mel_spectrogram = self.preprocess(audio)
         outputs = self.model(mel_spectrogram)
-        last_hidden_state = outputs.last_hidden_state  # (batch, embedding)
-        spatial_embeddings = None
-        pooled_embeddings = last_hidden_state
 
-        # Heads that declare `takes_spatial_embeddings = True` (e.g. MultiTaskHead)
-        # get the frame-wise sequence; everything else gets the pooled vector
-        # (previously this always passed the full sequence, which silently broke
-        # any single-vector head such as SimpleRegressionHead).
+        tokens = outputs.last_hidden_state        # (B, 1+N, D), unnormalized since global_pool=None
+        cls_token = tokens[:, 0]
+        patch_tokens = tokens[:, 1:]
+
+        spatial_embeddings = patch_tokens.reshape(
+            patch_tokens.shape[0], self.time_patches, self.freq_patches, -1
+        )
+
+        pooled_embeddings = None
+
+        if self.output_head is not None and getattr(self.output_head, "takes_spatial_embeddings", False):
+            x = spatial_embeddings
+        elif not self.pooling:
+            x = spatial_embeddings
+        elif self.pooling == "mean":
+            pooled_embeddings = self.model.fc_norm(patch_tokens.mean(dim=1))
+            x = pooled_embeddings
+        elif self.pooling == "cls":
+            pooled_embeddings = self.model.norm(cls_token)
+            x = pooled_embeddings
+        else:
+            raise ValueError(f"Pooling option {self.pooling} not supported")
+
         if self.output_head:
-            head_input = spatial_embeddings if getattr(self.output_head, "takes_spatial_embeddings", False) else pooled_embeddings
-            logits = self.output_head(head_input)
+            logits = self.output_head(x)
+
         return EmbeddingModelOutput(
             pooled_embeddings=pooled_embeddings,
             spatial_embeddings=spatial_embeddings,
             logits=logits
         )
-    
+
     def freeze_encoder(self):
         for param in self.model.parameters():
             param.requires_grad = False
@@ -697,8 +711,70 @@ class BirdSetBirdMAE(torch.nn.Module):
     def get_head_input_size(self):
         return self.config.embed_dim
     
-    def get_sampling_rate(self):
-        return self.sampling_rate
+# class BirdSetBirdMAE(torch.nn.Module):
+#     """
+#     Wrapper for pretrained Bird-MAE Model. Original model: https://huggingface.co/DBD-research-group/Bird-MAE-Base
+#     """
+#     def __init__(self, pretrained_model_path="DBD-research-group/Bird-MAE-Huge"):
+#         super().__init__()
+        
+#         # Load pretrained model and feature extractor
+#         self.model = AutoModel.from_pretrained(pretrained_model_path,trust_remote_code=True)
+#         self.feature_extractor = AutoFeatureExtractor.from_pretrained(pretrained_model_path, trust_remote_code=True)
+#         self.output_head = None
+
+#         # Init config
+#         self.config = self.model.config
+#         self.sampling_rate = 32000
+
+#     # def preprocess(self, audio):
+#     #     mel_spectrogram = self.feature_extractor(audio)
+#     #     return mel_spectrogram
+    
+#     def preprocess(self, audio):
+#         device = next(self.parameters()).device
+#         # Feature extractor returns a dict-like BatchFeature, extract the tensor
+#         mel_spectrogram = self.feature_extractor(audio, return_tensors="pt")
+#         # mel_spectrogram = inputs["input_values"]  # or "input_features" depending on the model
+#         mel_spectrogram = mel_spectrogram.to(device)
+#         return mel_spectrogram
+    
+#     def forward(self, audio):
+#         """Forward pass with automatic preprocessing and optional pooling and output head"""
+#         logits = None
+#         device = next(self.parameters()).device
+#         audio = audio.to(device)
+#         mel_spectrogram = self.preprocess(audio)
+#         outputs = self.model(mel_spectrogram)
+#         last_hidden_state = outputs.last_hidden_state  # (batch, embedding)
+#         spatial_embeddings = None
+#         pooled_embeddings = last_hidden_state
+
+#         # Heads that declare `takes_spatial_embeddings = True` (e.g. MultiTaskHead)
+#         # get the frame-wise sequence; everything else gets the pooled vector
+#         # (previously this always passed the full sequence, which silently broke
+#         # any single-vector head such as SimpleRegressionHead).
+#         if self.output_head:
+#             head_input = spatial_embeddings if getattr(self.output_head, "takes_spatial_embeddings", False) else pooled_embeddings
+#             logits = self.output_head(head_input)
+#         return EmbeddingModelOutput(
+#             pooled_embeddings=pooled_embeddings,
+#             spatial_embeddings=spatial_embeddings,
+#             logits=logits
+#         )
+    
+#     def freeze_encoder(self):
+#         for param in self.model.parameters():
+#             param.requires_grad = False
+
+#     def replace_head(self, new_head: torch.nn.Module):
+#         self.output_head = new_head
+
+#     def get_head_input_size(self):
+#         return self.config.embed_dim
+    
+#     def get_sampling_rate(self):
+#         return self.sampling_rate
     
 class BirdSetAudioProtoPNet(torch.nn.Module):
     """
