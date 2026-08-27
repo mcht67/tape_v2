@@ -42,7 +42,7 @@ hyperparams:
     # - "perch_v2_cpu"
     # - "perch_v2"
     # - "NatureLMBEATs"
-      - "BirdSetBirdMAE"
+      - "Bird-MAE-Huge"
   objectives:
     - "polyphony_reg"
     # - "polyphony_class"
