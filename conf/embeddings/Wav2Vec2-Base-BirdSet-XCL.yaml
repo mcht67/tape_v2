@@ -2,6 +2,6 @@ name: Wav2Vec2-Base-BirdSet-XCL
 type: birdset
 dimension_type:
 model_cfg:
-  _target_: torch_models.BirdSetWav2Vec2
+  _target_: utils.torch_models.BirdSetWav2Vec2
   pooling: mean
   pretrained_model_path: DBD-research-group/Wav2Vec2-Base-BirdSet-XCL

@@ -2,5 +2,5 @@ name: Bird-MAE-Huge
 type: birdset
 dimension_type:
 model_cfg:
-  _target_: torch_models.BirdSetBirdMAE
+  _target_: utils.torch_models.BirdSetBirdMAE
   pretrained_model_path: DBD-research-group/Bird-MAE-Huge

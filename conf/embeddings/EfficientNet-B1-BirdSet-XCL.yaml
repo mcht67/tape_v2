@@ -1,6 +1,6 @@
 name: EfficientNet-B1-BirdSet-XCL
 dimension_type:
 model_cfg:
-  _target_: torch_models.BirdSetEfficientNet
+  _target_: utils.torch_models.BirdSetEfficientNet
   pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
 type: birdset
