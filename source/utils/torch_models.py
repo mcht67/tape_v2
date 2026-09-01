@@ -830,10 +830,10 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
 
         spatial_embeddings = last_hidden_state.permute(0, 3, 2, 1) # (batch, time, freq, embeddings) to match other models
 
-        print("Spectrogram shape:", mel_spectrogram.shape)   # (batch, channels, H, W)
-        print("Last hidden state shape:", last_hidden_state.shape)  # expect (batch, embedding, freq, time)
-        print("Pooled output shape:", pooled_output.shape if pooled_output is not None else None)  # expect (batch, embedding)
-        print("Spatial embeddings shape:", spatial_embeddings.shape)  # expect (batch, time, freq, embedding)
+        # print("Spectrogram shape:", mel_spectrogram.shape)   # (batch, channels, H, W)
+        # print("Last hidden state shape:", last_hidden_state.shape)  # expect (batch, embedding, freq, time)
+        # print("Pooled output shape:", pooled_output.shape if pooled_output is not None else None)  # expect (batch, embedding)
+        # print("Spatial embeddings shape:", spatial_embeddings.shape)  # expect (batch, time, freq, embedding)
         
         return EmbeddingModelOutput(
         pooled_embeddings=pooled_output,
