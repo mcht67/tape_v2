@@ -18,6 +18,6 @@ perch_models:
   - perch_v2_cpu
 birdset_models:
     birdset_efficient_net:
-      _target_: torch_models.BirdSetEfficientNet
+      _target_: utils.torch_models.BirdSetEfficientNet
       pretrained_model_path: DBD-research-group/EfficientNet-B1-BirdSet-XCL
 force_recompute: True
