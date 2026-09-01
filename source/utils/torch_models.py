@@ -874,7 +874,7 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
                 raise ValueError(f"Pooling option {self.pooling} not supported")
             
             # Calculate input size
-            self._head_input_size = x.shape
+            self._head_input_size = x.shape[-1]  # Last dimension is the embedding size
             
         return self._head_input_size
     
