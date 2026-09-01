@@ -897,6 +897,9 @@ class BirdSetAudioProtoPNet(torch.nn.Module):
                     return
         self.output_head = AudioProtoNetClassificationHead(self.config)
 
+    def get_sampling_rate(self):
+        return self.sampling_rate
+
 class BirdSetAST(torch.nn.Module):
     """
     Wrapper for pretrained BirdSet AST Model. Original model: https://huggingface.co/DBD-research-group/AST-BirdSet-XCM
