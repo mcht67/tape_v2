@@ -711,6 +711,9 @@ class BirdSetBirdMAE(torch.nn.Module):
 
     def get_head_input_size(self):
         return self.config.embed_dim
+
+    def get_sampling_rate(self):
+        return self.sampling_rate
     
 # class BirdSetBirdMAE(torch.nn.Module):
 #     """
