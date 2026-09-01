@@ -634,6 +634,7 @@ class BirdSetEfficientNet(torch.nn.Module):
     
     def get_sampling_rate(self):
         return self.sampling_rate
+    
 class BirdSetBirdMAE(torch.nn.Module):
     """
     Wrapper for pretrained Bird-MAE Model. Original model: https://huggingface.co/DBD-research-group/Bird-MAE-Huge

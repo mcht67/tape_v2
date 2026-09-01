@@ -349,7 +349,7 @@ def main():
     ###################################################
     print(model_cfg)
     model = instantiate(model_cfg)
-    head_input_size = model.get_head_input_size()
+    head_input_size = int(model.get_head_input_size())
     head_cfg.input_size = head_input_size
     head_cfg.objectives_cfg = objectives_cfg 
     print("Head config:", head_cfg)
