@@ -41,8 +41,8 @@ base_config:
 
 hyperparams:
   model:
-    - "AudioProtoPNet"
-    # - "BirdSetBirdMAE"
+    # - "AudioProtoPNet"
+    - "BirdSetBirdMAE"
     # - "BirdSetEfficientNet"
     # - "NatureLMBEATs"
   train.input_feature:
