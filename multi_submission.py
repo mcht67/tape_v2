@@ -239,7 +239,7 @@ if __name__ == "__main__":
     ##########################
     
     # Load study configuration
-    study_config_path = 'study_conf/fine_tune_torch.yaml'
+    study_config_path = 'study_conf/spatial_embeddings.yaml'
 
     with open(study_config_path) as f:
         study_config = yaml.safe_load(f)
