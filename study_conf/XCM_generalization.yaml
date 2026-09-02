@@ -22,7 +22,9 @@ base_config:
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/EfficientNet-B1-BirdSet-XCL/20260727_150139_mopey-pupa/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/AudioProtoPNet-20-BirdSet-XCL/20260727_150140_moral-froe/checkpoints"
+
+  # EfficientNet-B1-BirdSet-XCL: "EfficientNet-B1-BirdSet-XCL/20260727_150139_mopey-pupa/checkpoints/Au" 
 
   # BirdMAE: "Bird-MAE-Huge/20260727_151617_weepy-quey/checkpoints"
 
@@ -39,8 +41,8 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    - "EfficientNet-B1-BirdSet-XCL"
-    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "EfficientNet-B1-BirdSet-XCL"
+    - "AudioProtoPNet-20-BirdSet-XCL"
     # - "birdnet_V2.3"
     # - "birdnet_V2.4"
     # - "vggish"
