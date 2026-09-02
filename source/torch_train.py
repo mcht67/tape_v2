@@ -42,13 +42,19 @@ from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 class HFDatasetWrapper(Dataset):
     """
     Wraps a HuggingFace dataset split for multi-objective training. Returns
-    (feature_tensor, {objective_name: label_tensor, ...}) per item, matching
+    (feature_tensor, {objective_name: label_tensor, ...}) per batch, matching
     what train.py's `to_tf_dataset(columns=..., label_cols=labels)` produced,
     just torch-side.
+
+    Optimized for HF `datasets`' batched/columnar access: implements
+    __getitems__ (plural) so the DataLoader hands us the whole list of
+    indices for a batch in one call, instead of calling __getitem__ once
+    per index. Combined with .with_format("torch"), this does one vectorized
+    Arrow read per batch instead of batch_size separate Python-level lookups.
     """
 
     def __init__(self, hf_dataset, feature_col, objective_names):
-        self.dataset = hf_dataset
+        self.dataset = hf_dataset.with_format("torch")
         self.feature_col = feature_col
         self.objective_names = objective_names
 
@@ -56,25 +62,30 @@ class HFDatasetWrapper(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
+        # Kept for compatibility (e.g. if something indexes a single
+        # example directly), but the DataLoader will prefer __getitems__
+        # below whenever it's available.
         item = self.dataset[idx]
-
-        feat = item[self.feature_col]
-        if isinstance(feat, dict) and "array" in feat:
-            feat = feat["array"]
-        feature_tensor = torch.tensor(feat, dtype=torch.float32)
-
-        labels = {}
-        for obj_name in self.objective_names:
-            value = item[obj_name]
-            dtype = torch.long if obj_name.endswith("_class") else torch.float32
-            labels[obj_name] = torch.tensor(value, dtype=dtype)
-
+        feature_tensor = item[self.feature_col].float()
+        labels = {
+            obj_name: (item[obj_name].long() if obj_name.endswith("_class")
+                       else item[obj_name].float())
+            for obj_name in self.objective_names
+        }
         return feature_tensor, labels
 
+    def __getitems__(self, indices):
+        # Batched fetch: one Arrow read for the whole batch instead of
+        # len(indices) separate row lookups.
+        batch = self.dataset[indices]  # dict of stacked tensors, keyed by column
 
-def collate_fn(batch):
-    """Default collate handles nested dicts fine, this just documents intent."""
-    return default_collate(batch)
+        feature_tensor = batch[self.feature_col].float()
+        labels = {
+            obj_name: (batch[obj_name].long() if obj_name.endswith("_class")
+                       else batch[obj_name].float())
+            for obj_name in self.objective_names
+        }
+        return feature_tensor, labels
 
 
 def get_torch_dataloaders(dataset, feature_col, objective_names, batch_size, num_workers=2):
@@ -83,9 +94,59 @@ def get_torch_dataloaders(dataset, feature_col, objective_names, batch_size, num
         ds = HFDatasetWrapper(dataset[split], feature_col, objective_names)
         loaders[split] = DataLoader(
             ds, batch_size=batch_size, shuffle=shuffle,
-            num_workers=num_workers, pin_memory=True, collate_fn=collate_fn,
+            num_workers=num_workers, pin_memory=True,
+            # No collate_fn: __getitems__ already returns properly batched,
+            # stacked tensors, so default_collate has nothing left to do.
         )
     return loaders["train"], loaders["test"], loaders["validation"]
+
+# class HFDatasetWrapper(Dataset):
+#     """
+#     Wraps a HuggingFace dataset split for multi-objective training. Returns
+#     (feature_tensor, {objective_name: label_tensor, ...}) per item, matching
+#     what train.py's `to_tf_dataset(columns=..., label_cols=labels)` produced,
+#     just torch-side.
+#     """
+
+#     def __init__(self, hf_dataset, feature_col, objective_names):
+#         self.dataset = hf_dataset
+#         self.feature_col = feature_col
+#         self.objective_names = objective_names
+
+#     def __len__(self):
+#         return len(self.dataset)
+
+#     def __getitem__(self, idx):
+#         item = self.dataset[idx]
+
+#         feat = item[self.feature_col]
+#         if isinstance(feat, dict) and "array" in feat:
+#             feat = feat["array"]
+#         feature_tensor = torch.tensor(feat, dtype=torch.float32)
+
+#         labels = {}
+#         for obj_name in self.objective_names:
+#             value = item[obj_name]
+#             dtype = torch.long if obj_name.endswith("_class") else torch.float32
+#             labels[obj_name] = torch.tensor(value, dtype=dtype)
+
+#         return feature_tensor, labels
+
+
+# def collate_fn(batch):
+#     """Default collate handles nested dicts fine, this just documents intent."""
+#     return default_collate(batch)
+
+
+# def get_torch_dataloaders(dataset, feature_col, objective_names, batch_size, num_workers=2):
+#     loaders = {}
+#     for split, shuffle in (("train", True), ("validation", False), ("test", False)):
+#         ds = HFDatasetWrapper(dataset[split], feature_col, objective_names)
+#         loaders[split] = DataLoader(
+#             ds, batch_size=batch_size, shuffle=shuffle,
+#             num_workers=num_workers, pin_memory=True, collate_fn=collate_fn,
+#         )
+#     return loaders["train"], loaders["test"], loaders["validation"]
 
 
 # ----------------------------------------------------------------------------
@@ -388,39 +449,25 @@ def main():
 
     sampling_rate = model.get_sampling_rate()
     if not precomputed_embeddings:
+
+        def _extract_waveform(batch, feature_name=input_feature_name):
+            batch[feature_name] = [
+                np.asarray(item["array"], dtype=np.float32) for item in batch[feature_name]
+            ]
+            return batch
+
         for split in dataset:
             if 'sources_audio' in dataset[split].column_names:
                 dataset[split] = dataset[split].remove_columns(['sources_audio'])
-            print(f"[DEBUG] casting column: {input_feature_name!r}")
             dataset[split] = dataset[split].cast_column(input_feature_name, Audio(sampling_rate=sampling_rate))
-            print(f"[DEBUG] post-cast features[{input_feature_name}]: {dataset[split].features[input_feature_name]}")
-
-        def _extract_waveform(example, feature_name=input_feature_name):
-                    example[feature_name] = np.asarray(example[feature_name]["array"], dtype=np.float32)
-                    return example
-        for split in dataset:
-                    dataset[split] = dataset[split].map(_extract_waveform)
-
-    print(dataset['train'].features)
+            dataset[split] = dataset[split].map(
+                _extract_waveform, batched=True, num_proc=num_workers, batch_size=100
+            )
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
-        objective_names=objectives_list, batch_size=batch_size,
-    )
-
-    ds = train_loader.dataset  # your wrapper class, built with the EfficientNet sampling_rate=32000 cast
-
-    bad = []
-    for i in range(len(ds)):
-        try:
-            x, y = ds[i]
-            if not isinstance(x, torch.Tensor):
-                bad.append((i, type(x)))
-        except Exception as e:
-            bad.append((i, "EXC", str(e)))
-
-    print(f"{len(bad)} bad out of {len(ds)}")
-    print(bad[:20])
+        objective_names=objectives_list, batch_size=batch_size, num_workers=num_workers
+    ) 
 
     freeze_encoder = cfg.train.get("freeze_encoder", True)
     if freeze_encoder:
