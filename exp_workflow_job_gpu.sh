@@ -28,8 +28,8 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=24
-#SBATCH --mem=64GB
-#SBATCH --time=24:00:00
+#SBATCH --mem=128GB
+#SBATCH --time=76:00:00
 #SBATCH --partition=ex_scioi_a100nv
 
 # Get email notifications for job status
