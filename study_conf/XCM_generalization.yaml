@@ -5,13 +5,12 @@
 
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
   - "UHH"
-  # - "HSN"
-  # - "PER"
-  # - "NES"
-  # - "POW"
-  # - "SSW"
-  # - "SNE"
-
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
 
 base_config:
   log.study_name: "XCM-Generalization"
@@ -23,7 +22,9 @@ base_config:
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/perch_8/20260804_092931_nival-foil/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/perch_v2_cpu/20260805_122817_taped-pons/checkpoints"
+  
+  #perch8: "archive/Pooled-Embeddings/perch_8/20260804_092931_nival-foil/checkpoints"
 
 hyperparams:
   model:
@@ -37,13 +38,13 @@ hyperparams:
     # - "birdnet_V2.3"
     # - "birdnet_V2.4"
     # - "vggish"
-    - "perch_8"
+    # - "perch_8"
     # - "yamnet"
     # - "beans_baseline"
     # - "Bird-MAE-Huge"
     # - "AST-Birdset-XCL"
     # - "Wav2Vec2-Base-BirdSet-XCL"
-    # - "perch_v2_cpu"
+    - "perch_v2_cpu"
     # - "perch_v2"
     # - "NatureLMBEATs"
   objectives:
