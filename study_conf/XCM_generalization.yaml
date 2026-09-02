@@ -22,15 +22,15 @@ base_config:
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/NatureLMBEATs/20260731_055904_flory-geum/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/EfficientNet-B1-BirdSet-XCL/20260727_150139_mopey-pupa/checkpoints"
 
   # BirdMAE: "Bird-MAE-Huge/20260727_151617_weepy-quey/checkpoints"
 
   # NatureLMBEATs: "NatureLMBEATs/20260731_055904_flory-geum/checkpoints"
   
-  # perchv2: "archive/Pooled-Embeddings/perch_v2_cpu/20260805_122817_taped-pons/checkpoints"
+  # perchv2: "perch_v2_cpu/20260805_122817_taped-pons/checkpoints"
   
-  # perch8: "archive/Pooled-Embeddings/perch_8/20260804_092931_nival-foil/checkpoints"
+  # perch8: "perch_8/20260804_092931_nival-foil/checkpoints"
 
 hyperparams:
   model:
@@ -39,7 +39,7 @@ hyperparams:
     - "audio"
     # - "no_noise_audio"
   embeddings:
-    # - "EfficientNet-B1-BirdSet-XCL"
+    - "EfficientNet-B1-BirdSet-XCL"
     # - "AudioProtoPNet-20-BirdSet-XCL"
     # - "birdnet_V2.3"
     # - "birdnet_V2.4"
@@ -52,7 +52,7 @@ hyperparams:
     # - "Wav2Vec2-Base-BirdSet-XCL"
     # - "perch_v2_cpu"
     # - "perch_v2"
-    - "NatureLMBEATs"
+    # - "NatureLMBEATs"
   objectives:
     - "polyphony_reg"
     # - "polyphony_class"
