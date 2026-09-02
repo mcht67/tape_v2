@@ -40,50 +40,41 @@ from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 # ----------------------------------------------------------------------------
 
 class HFDatasetWrapper(Dataset):
-    """
-    Wraps a HuggingFace dataset split for multi-objective training. Returns
-    (feature_tensor, {objective_name: label_tensor, ...}) per batch, matching
-    what train.py's `to_tf_dataset(columns=..., label_cols=labels)` produced,
-    just torch-side.
-
-    Optimized for HF `datasets`' batched/columnar access: implements
-    __getitems__ (plural) so the DataLoader hands us the whole list of
-    indices for a batch in one call, instead of calling __getitem__ once
-    per index. Combined with .with_format("torch"), this does one vectorized
-    Arrow read per batch instead of batch_size separate Python-level lookups.
-    """
     def __init__(self, hf_dataset, feature_col, objective_names):
-        self.dataset = hf_dataset.with_format(
-            "torch", columns=[feature_col] + list(objective_names)
-        )
+        # No with_format("torch") -- datasets' torch formatter has a bug
+        # where it unconditionally imports torchvision.io.VideoReader on
+        # any tensorize call if torchvision is installed, even for
+        # non-video data. Convert to tensors ourselves instead.
+        keep_cols = {feature_col, *objective_names}
+        drop_cols = [c for c in hf_dataset.column_names if c not in keep_cols]
+        self.dataset = hf_dataset.remove_columns(drop_cols) if drop_cols else hf_dataset
         self.feature_col = feature_col
         self.objective_names = objective_names
 
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, idx):
-        # Kept for compatibility (e.g. if something indexes a single
-        # example directly), but the DataLoader will prefer __getitems__
-        # below whenever it's available.
-        item = self.dataset[idx]
-        feature_tensor = item[self.feature_col].float()
+    def __getitems__(self, indices):
+        batch = self.dataset[indices]  # dict of lists/np arrays, keyed by column
+
+        feature_tensor = torch.as_tensor(np.asarray(batch[self.feature_col]), dtype=torch.float32)
         labels = {
-            obj_name: (item[obj_name].long() if obj_name.endswith("_class")
-                       else item[obj_name].float())
+            obj_name: torch.as_tensor(
+                np.asarray(batch[obj_name]),
+                dtype=torch.long if obj_name.endswith("_class") else torch.float32,
+            )
             for obj_name in self.objective_names
         }
         return feature_tensor, labels
 
-    def __getitems__(self, indices):
-        # Batched fetch: one Arrow read for the whole batch instead of
-        # len(indices) separate row lookups.
-        batch = self.dataset[indices]  # dict of stacked tensors, keyed by column
-
-        feature_tensor = batch[self.feature_col].float()
+    def __getitem__(self, idx):
+        item = self.dataset[idx]
+        feature_tensor = torch.as_tensor(np.asarray(item[self.feature_col]), dtype=torch.float32)
         labels = {
-            obj_name: (batch[obj_name].long() if obj_name.endswith("_class")
-                       else batch[obj_name].float())
+            obj_name: torch.as_tensor(
+                item[obj_name],
+                dtype=torch.long if obj_name.endswith("_class") else torch.float32,
+            )
             for obj_name in self.objective_names
         }
         return feature_tensor, labels
