@@ -41,10 +41,6 @@ from utils.torch_models import MultiTaskTemporalCNNHead, MultiTaskSimpleMLPHead
 
 class HFDatasetWrapper(Dataset):
     def __init__(self, hf_dataset, feature_col, objective_names):
-        # No with_format("torch") -- datasets' torch formatter has a bug
-        # where it unconditionally imports torchvision.io.VideoReader on
-        # any tensorize call if torchvision is installed, even for
-        # non-video data. Convert to tensors ourselves instead.
         keep_cols = {feature_col, *objective_names}
         drop_cols = [c for c in hf_dataset.column_names if c not in keep_cols]
         self.dataset = hf_dataset.remove_columns(drop_cols) if drop_cols else hf_dataset
@@ -53,19 +49,6 @@ class HFDatasetWrapper(Dataset):
 
     def __len__(self):
         return len(self.dataset)
-
-    def __getitems__(self, indices):
-        batch = self.dataset[indices]  # dict of lists/np arrays, keyed by column
-
-        feature_tensor = torch.as_tensor(np.asarray(batch[self.feature_col]), dtype=torch.float32)
-        labels = {
-            obj_name: torch.as_tensor(
-                np.asarray(batch[obj_name]),
-                dtype=torch.long if obj_name.endswith("_class") else torch.float32,
-            )
-            for obj_name in self.objective_names
-        }
-        return feature_tensor, labels
 
     def __getitem__(self, idx):
         item = self.dataset[idx]
@@ -78,6 +61,24 @@ class HFDatasetWrapper(Dataset):
             for obj_name in self.objective_names
         }
         return feature_tensor, labels
+
+    def __getitems__(self, indices):
+        batch = self.dataset[indices]
+        features = batch[self.feature_col]
+        label_lists = {obj_name: batch[obj_name] for obj_name in self.objective_names}
+
+        results = []
+        for i in range(len(indices)):
+            feature_tensor = torch.as_tensor(np.asarray(features[i]), dtype=torch.float32)
+            labels = {
+                obj_name: torch.as_tensor(
+                    np.asarray(label_lists[obj_name][i]),
+                    dtype=torch.long if obj_name.endswith("_class") else torch.float32,
+                )
+                for obj_name in self.objective_names
+            }
+            results.append((feature_tensor, labels))
+        return results
 
 
 def get_torch_dataloaders(dataset, feature_col, objective_names, batch_size, num_workers=2):
