@@ -21,28 +21,28 @@ stages:
   #   outs:
   #     - ${path.train_output}
 
-  # train:
-  #   cmd: ${python.complete} source/torch_train.py
-  #   deps:
-  #     - source/train.py
-  #     - source/utils/general.py
-  #     - source/utils/logs.py
-  #     - source/utils/config.py
-  #     - source/utils/dataset.py
-  #     - source/utils/metrics.py
-  #     - source/utils/torch_losses.py
-  #     - source/utils/torch_models.py
-  #     - source/utils/torch_logging.py
-  #   params:
-  #     - general.random_seed
-  #     - dataset
-  #     - model
-  #     - head
-  #     - objectives
-  #     - train
-  #     - log
-  #   outs:
-  #     - ${path.train_output}
+  train:
+    cmd: ${python.complete} source/torch_train.py
+    deps:
+      - source/train.py
+      - source/utils/general.py
+      - source/utils/logs.py
+      - source/utils/config.py
+      - source/utils/dataset.py
+      - source/utils/metrics.py
+      - source/utils/torch_losses.py
+      - source/utils/torch_models.py
+      - source/utils/torch_logging.py
+    params:
+      - general.random_seed
+      - dataset
+      - model
+      - head
+      - objectives
+      - train
+      - log
+    outs:
+      - ${path.train_output}
 
   evaluate:
     cmd: ${python.complete} source/evaluate_on_test_split.py
@@ -53,7 +53,7 @@ stages:
       - source/utils/metrics.py
       - source/utils/evaluation.py
       - source/utils/torch_evaluation.py
-      - ${path.train_output}
+      # - ${path.train_output}
       # - source/integrations/birdset.py
       # - source/integrations/perch.py
     params:
@@ -76,7 +76,7 @@ stages:
       - source/utils/torch_evaluation.py
       - source/utils/metrics.py
       - source/utils/evaluation.py
-      - ${path.train_output}
+      # - ${path.train_output}
     params:
       - general.random_seed
       - dataset
@@ -96,7 +96,7 @@ stages:
       - source/utils/metrics.py
       - source/utils/evaluation.py
       - source/utils/torch_evaluation.py
-      - ${path.train_output}
+      # - ${path.train_output}
       # - source/integrations/birdset.oy
       # - source/integrations/perch.py
     params:
