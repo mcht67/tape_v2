@@ -52,9 +52,10 @@ class HFDatasetWrapper(Dataset):
     per index. Combined with .with_format("torch"), this does one vectorized
     Arrow read per batch instead of batch_size separate Python-level lookups.
     """
-
     def __init__(self, hf_dataset, feature_col, objective_names):
-        self.dataset = hf_dataset.with_format("torch")
+        self.dataset = hf_dataset.with_format(
+            "torch", columns=[feature_col] + list(objective_names)
+        )
         self.feature_col = feature_col
         self.objective_names = objective_names
 
@@ -463,6 +464,14 @@ def main():
             dataset[split] = dataset[split].map(
                 _extract_waveform, batched=True, num_proc=num_workers, batch_size=100
             )
+
+    # Drop any columns that aren't the input feature or one of the objectives
+    keep_cols = {input_feature_name, *objectives_list}
+    for split in dataset:
+        drop_cols = [c for c in dataset[split].column_names if c not in keep_cols]
+        if drop_cols:
+            dataset[split] = dataset[split].remove_columns(drop_cols)
+      
 
     train_loader, test_loader, val_loader = get_torch_dataloaders(
         dataset=dataset, feature_col=input_feature_name,
