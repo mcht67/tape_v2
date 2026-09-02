@@ -43,12 +43,10 @@ def main():
     cfg = OmegaConf.load("params.yaml")
     print(cfg)
 
-    study_name = cfg.log.study_name
-
-    huggingface_path = cfg.dataset.huggingface_path
     train_config = cfg.dataset.train_config
-    soundscape_dataset_config = cfg.dataset.soundscape_config
     subset = cfg.dataset.subset
+    checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.path else None
+    run_from_checkpoint = True if checkpoint_dir else False
 
     log_paths = get_log_paths(cfg)
     log_dir = log_paths['eval_log_dir']
@@ -58,10 +56,13 @@ def main():
     archive_log_dir = archive_paths['eval_log_dir']
     os.makedirs(archive_log_dir, exist_ok=True)
 
-    default_dir = os.environ.get('DEFAULT_DIR', '')
-    checkpoint_dir = log_paths['checkpoint_dir']
-    if not os.path.exists(checkpoint_dir):
-        checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
+    if run_from_checkpoint and os.path.exists(checkpoint_dir):
+        print(f"Run with checkpoint_dir: {checkpoint_dir}")
+    else:
+        default_dir = os.environ.get('DEFAULT_DIR', '')
+        checkpoint_dir = log_paths['checkpoint_dir']
+        if not os.path.exists(checkpoint_dir):
+            checkpoint_dir = os.path.join(default_dir, checkpoint_dir)
     
     model_cfg = cfg.model
     model_cfg.pop("name", None)
@@ -88,6 +89,12 @@ def main():
     input_feature_name = input_feature_name if input_feature_name is not None else input_feature
     # embedding_type = cfg.embeddings.type
     # embedding_dim_type = cfg.embeddings.dimension_type
+
+    evaluation_checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.evaluation else None
+    if evaluation_checkpoint_dir is not None:
+        if os.path.exists(evaluation_checkpoint_dir):
+            checkpoint_dir = evaluation_checkpoint_dir
+            print(f"Using evaluation checkpoint_dir: {checkpoint_dir}")
 
     #################################
     # Setup
@@ -233,6 +240,8 @@ def main():
     #################################
     # Load model
     #################################
+
+    
 
     print(cfg.model) 
 

@@ -94,6 +94,12 @@ def main():
         # Create empty test directory for consistent dvc tracking
         os.makedirs(log_dir, exist_ok=True)
         return
+
+    evaluation_checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.evaluation else None
+    if evaluation_checkpoint_dir is not None:
+        if os.path.exists(evaluation_checkpoint_dir):
+            checkpoint_dir = evaluation_checkpoint_dir
+            print(f"Using evaluation checkpoint_dir: {checkpoint_dir}")
     
     #################################
     # Setup
