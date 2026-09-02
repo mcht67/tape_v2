@@ -1,0 +1,52 @@
+# XCM-Generalization study config
+#
+# Tests the generalization of the XCM model to other datasets, 
+# by loading the model trained on XCM and evaluating it on other datasets.
+
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  - "UHH"
+  # - "HSN"
+  # - "PER"
+  # - "NES"
+  # - "POW"
+  # - "SSW"
+  # - "SNE"
+
+
+base_config:
+  log.study_name: "XCM-Generalization"
+  embeddings.dimension_type: pooled
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  dataset.max_polyphony: 8
+  dataset.min_snr: -10
+  path.study_subfolder: ${embeddings.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/perch_8/20260804_092931_nival-foil/checkpoints"
+
+hyperparams:
+  model:
+    - "SimpleMLP"
+  train.input_feature:
+    - "audio"
+    # - "no_noise_audio"
+  embeddings:
+    # - "EfficientNet-B1-BirdSet-XCL"
+    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "birdnet_V2.3"
+    # - "birdnet_V2.4"
+    # - "vggish"
+    - "perch_8"
+    # - "yamnet"
+    # - "beans_baseline"
+    # - "Bird-MAE-Huge"
+    # - "AST-Birdset-XCL"
+    # - "Wav2Vec2-Base-BirdSet-XCL"
+    # - "perch_v2_cpu"
+    # - "perch_v2"
+    # - "NatureLMBEATs"
+  objectives:
+    - "polyphony_reg"
+    # - "polyphony_class"
+  # dataset.config is added automatically per dataset_config iteration
