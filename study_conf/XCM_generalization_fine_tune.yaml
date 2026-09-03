@@ -1,0 +1,44 @@
+# XCM-Generalization study config
+#
+# Tests the generalization of the XCM model to other datasets, 
+# by loading the model trained on XCM and evaluating it on other datasets.
+
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  - "UHH"
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
+
+base_config:
+  log.study_name: "XCM-Generalization-fine-tune"
+  embeddings.dimension_type: pooled
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  dataset.max_polyphony: 8
+  dataset.min_snr: -10
+  path.study_subfolder: ${embeddings.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/AudioProtoPNet/20260901_164600_fussy-knit/checkpoints"
+
+  # AudioProtoPNet: "AudioProtoPNet/20260901_164600_fussy-knit/checkpoints"
+
+hyperparams:
+  model:
+    - "SimpleMLP"
+  train.input_feature:
+    - "audio"
+    # - "no_noise_audio"
+  embeddings:
+    # - "EfficientNet-B1-BirdSet-XCL"
+    # - "AudioProtoPNet-20-BirdSet-XCL"
+    # - "Bird-MAE-Huge"
+    # - "perch_v2_cpu"
+    # - "NatureLMBEATs"
+  objectives:
+    - "polyphony_reg"
+    # - "polyphony_class"
+  # dataset.config is added automatically per dataset_config iteration
