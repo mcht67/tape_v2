@@ -22,7 +22,9 @@ base_config:
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
     - polyphony_class
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/AST-Birdset-XCL/20260727_152017_peaty-drum/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Pooled-Embeddings/Wav2Vec2-Base-BirdSet-XCL/20260727_152147_wrier-care/checkpoints"
+
+  # Wav2Vec2-Base-BirdSet-XCL: "Wav2Vec2-Base-BirdSet-XCL/20260727_152147_wrier-care/checkpoints"
 
   # AST-Birdset-XCL: "AST-Birdset-XCL/20260727_152017_peaty-drum/checkpoints"
 
@@ -62,8 +64,8 @@ hyperparams:
     # - "yamnet"
     # - "beans_baseline"
     # - "Bird-MAE-Huge"
-    - "AST-Birdset-XCL"
-    # - "Wav2Vec2-Base-BirdSet-XCL"
+    # - "AST-Birdset-XCL"
+    - "Wav2Vec2-Base-BirdSet-XCL"
     # - "perch_v2_cpu"
     # - "perch_v2"
     # - "NatureLMBEATs"
