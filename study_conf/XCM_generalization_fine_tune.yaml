@@ -4,13 +4,13 @@
 # by loading the model trained on XCM and evaluating it on other datasets.
 
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  - "UHH"
-  # - "HSN"
-  # - "PER"
-  # - "NES"
-  # - "POW"
-  # - "SSW"
-  # - "SNE"
+  # - "UHH"
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
 
 base_config:
   log.study_name: "XCM-Generalization-fine-tune"
