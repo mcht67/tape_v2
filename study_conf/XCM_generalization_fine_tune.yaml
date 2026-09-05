@@ -4,7 +4,7 @@
 # by loading the model trained on XCM and evaluating it on other datasets.
 
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  # - "UHH"
+  - "UHH"
   - "HSN"
   - "PER"
   - "NES"
@@ -27,15 +27,16 @@ base_config:
     _target_: utils.torch_models.SimpleMLPHead
     hidden_units: [512, 256]
     dropout_rate: 0.3
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/AudioProtoPNet/20260901_164600_fussy-knit/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/BirdSetEfficientNet/20260825_110947_typed-amah/checkpoints"
 
   # AudioProtoPNet: "AudioProtoPNet/20260901_164600_fussy-knit/checkpoints"
+  # BirdSetEfficientNet: "BirdSetEfficientNet/20260825_110947_typed-amah/checkpoints"
 
 hyperparams:
   model:
-    - "AudioProtoPNet"
+    # - "AudioProtoPNet"
     # - "BirdSetBirdMAE"
-    # - "BirdSetEfficientNet"
+    - "BirdSetEfficientNet"
     # - "NatureLMBEATs"
   train.input_feature:
     - "audio"
