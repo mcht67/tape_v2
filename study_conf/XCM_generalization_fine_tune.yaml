@@ -27,18 +27,19 @@ base_config:
     _target_: utils.torch_models.SimpleMLPHead
     hidden_units: [512, 256]
     dropout_rate: 0.3
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/NatureLMBEATs/20260825_233926_leafy-grot/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/BirdSetBirdMAE/20260902_212904_bluer-says/checkpoints"
 
   # AudioProtoPNet: "AudioProtoPNet/20260901_164600_fussy-knit/checkpoints"
   # BirdSetEfficientNet: "BirdSetEfficientNet/20260825_110947_typed-amah/checkpoints"
   # NatureLMBEATs: "NatureLMBEATs/20260825_233926_leafy-grot/checkpoints"
+  # BirdMAE: "BirdSetBirdMAE/20260902_212904_bluer-says/checkpoints"
 
 hyperparams:
   model:
     # - "AudioProtoPNet"
-    # - "BirdSetBirdMAE"
+    - "BirdSetBirdMAE"
     # - "BirdSetEfficientNet"
-    - "NatureLMBEATs"
+    # - "NatureLMBEATs"
   train.input_feature:
     - "audio"
     # - "no_noise_audio"
