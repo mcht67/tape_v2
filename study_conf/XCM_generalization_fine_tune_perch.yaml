@@ -1,0 +1,48 @@
+# XCM-Generalization study config (perch / TensorFlow backend)
+#
+# Tests the generalization of an XCM-fine-tuned perch backbone to other
+# datasets, by loading the model fine-tuned end-to-end on XCM (raw audio,
+# train.backend: perch) and evaluating it on other datasets.
+#
+# Counterpart to XCM_generalization_fine_tune.yaml, which does the same
+# thing for the torch (precomputed-embedding) BirdSet backbones.
+
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  - "UHH"
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
+
+base_config:
+  log.study_name: "XCM-Generalization-fine-tune"
+  # embeddings.dimension_type: pooled  # not used for backend: perch (raw audio, no precomputed embeddings)
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  dataset.max_polyphony: 8
+  dataset.min_snr: -10
+  train.precomputed_embeddings: false
+  path.study_subfolder: ${backbone.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+    - polyphony_class
+  train.backend: perch
+  backbone:
+    name: perch_v2
+  model:
+    - default
+  head:
+    _target_: model.SimpleMLP
+    hidden_units: [512, 256]
+    dropout_rate: 0.3
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning/perch_v2/20260819_101106_wrier-jogs/checkpoints"
+
+hyperparams:
+  train.input_feature:
+    - "audio"
+    # - "no_noise_audio"
+  objectives:
+    - "polyphony_reg"
+    # - "polyphony_class"
+  # dataset.config is added automatically per dataset_config iteration
