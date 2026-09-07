@@ -8,13 +8,13 @@
 # thing for the torch (precomputed-embedding) BirdSet backbones.
 
 dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
-  - "UHH"
-  - "HSN"
-  - "PER"
+  # - "UHH"
+  # - "HSN"
+  # - "PER"
   - "NES"
-  - "POW"
-  - "SSW"
-  - "SNE"
+  # - "POW"
+  # - "SSW"
+  # - "SNE"
 
 base_config:
   log.study_name: "XCM-Generalization-fine-tune"
