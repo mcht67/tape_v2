@@ -85,13 +85,12 @@ RANGE_METRIC_INFO = {
     "mean_interval_width": ("Mean Interval Width", "lower"),
     "support": ("Support", None),
 }
-RANGE_OVERVIEW_METRICS = ["range_mae", "range_accuracy", "off_by_one_range_accuracy", "qwk_vs_midpoint"]
+RANGE_OVERVIEW_METRICS = ["range_mae", "range_accuracy", "off_by_one_range_accuracy"]
 RANGE_DETAILED_METRICS = [
     "range_mae",
     "range_mse",
     "range_accuracy",
     "off_by_one_range_accuracy",
-    "qwk_vs_midpoint",
     "mean_interval_width",
     "support",
 ]
@@ -421,6 +420,69 @@ def build_overview_by_dataset_table(long_df: pd.DataFrame, source: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Overview table #2b: averaged over both models and heads, one row per dataset
+# ---------------------------------------------------------------------------
+
+def build_overview_by_dataset_all_heads_table(long_df: pd.DataFrame, source: str) -> str:
+    cfg = SOURCES[source]
+    metric_info = cfg["metric_info"]
+    overview_metrics = cfg["overview_metrics"]
+
+    sub = long_df[(long_df["source"] == source) & (long_df["metric"].isin(overview_metrics))]
+    if sub.empty:
+        return ""
+
+    grouped = sub.groupby(["dataset", "metric"])["value"]
+    avg = grouped.mean().unstack("metric").reindex(columns=overview_metrics)
+    std = grouped.std().unstack("metric").reindex(columns=overview_metrics)
+
+    datasets = sorted(sub["dataset"].unique())
+
+    n_cols = len(overview_metrics)
+    col_spec = "l" + "c" * n_cols
+    header = "Dataset & " + " & ".join(metric_header_cells(metric_info, overview_metrics)) + r" \\"
+
+    best_masks = {
+        metric: best_mask(avg[metric], metric_info[metric][1]) if metric in avg else None
+        for metric in overview_metrics
+    }
+
+    src_desc = cfg["table_desc"]
+
+    lines = []
+    lines.append(r"\begin{table}[t]")
+    lines.append(r"\centering")
+    lines.append(
+        rf"\caption{{Results on {src_desc} data, averaged (mean $\pm$ std) across both models and "
+        rf"head/task types, for each dataset.}}"
+    )
+    lines.append(rf"\label{{tab:overview_by_dataset_all_heads_{source}}}")
+    lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
+    lines.append(r"\toprule")
+    lines.append(header)
+    lines.append(r"\midrule")
+
+    for dataset in datasets:
+        if dataset not in avg.index:
+            continue
+        row_vals = []
+        for metric in overview_metrics:
+            mean_val = avg.loc[dataset, metric] if metric in avg.columns else np.nan
+            std_val = std.loc[dataset, metric] if metric in std.columns else np.nan
+            cell = fmt_mean_std(mean_val, std_val)
+            mask = best_masks.get(metric)
+            if mask is not None and dataset in mask.index and mask.loc[dataset]:
+                cell = bold(cell)
+            row_vals.append(cell)
+        lines.append(f"{escape_latex(dataset)} & " + " & ".join(row_vals) + r" \\")
+
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
+    lines.append(r"\end{table}")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Overview table #3: averaged over both models and datasets, one row per head
 # ---------------------------------------------------------------------------
 
@@ -594,6 +656,11 @@ def build_document(target_dir: Path) -> str:
         t2 = build_overview_by_dataset_table(long_df, source)
         if t2:
             parts.append(t2)
+            parts.append("\n")
+
+        t2b = build_overview_by_dataset_all_heads_table(long_df, source)
+        if t2b:
+            parts.append(t2b)
             parts.append("\n")
 
         t3 = build_overview_grand_table(long_df, source)
