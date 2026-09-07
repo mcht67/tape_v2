@@ -256,7 +256,7 @@ if __name__ == "__main__":
     recompute_embeddings = False
     force_redownload = False
     run_on_gpu = False
-    force_exp_rerun = False
+    force_exp_rerun = True
 
     ##########################
     # Submit jobs
