@@ -240,7 +240,7 @@ def load_long_df(target_dir: Path, models):
 # ---------------------------------------------------------------------------
 
 def escape_latex(text: str) -> str:
-    return text.replace("_", r"\_").replace("%", r"\%")
+    return text.replace("_", r"\_").replace("%", r"\%").replace("#", r"\#")
 
 
 def fmt(value, decimals=2):
