@@ -34,6 +34,7 @@ soundscape_eval_output_to_archive/
 test_data/
 archive-old/
 results/
+plots/
 
 # Ignore tmp copies for experiments
 /tmp

@@ -29,6 +29,33 @@
         "--target_dir", "archive/Pooled-Embeddings",
         "--out", "results/pooled_embeddings.tex"
       ]
-    }
+    },
+
+    {
+    "name": "Python: birdset_embed",
+    "type": "debugpy",
+    "request": "launch",
+    "program": "${workspaceFolder}/source/birdset_embed_audio_stream.py",
+    "console": "integratedTerminal",
+    "args": [
+      "--huggingface_path", "mcht67/PolyBirdMix",
+      "--dataset_config", "polyphonic",
+      "--subset", "UHH",
+      "--input_features", "[\"audio\"]",
+      "--embeddings", "[\"Bird-MAE-huge\"]",
+      "--force_recompute"
+    ] 
+    },
+
+    {
+      "name": "Python: Launch with subprocess debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "subProcess": true
+    },
+ 
+
   ]
 }
