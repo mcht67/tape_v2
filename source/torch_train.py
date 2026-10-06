@@ -189,7 +189,12 @@ def compute_epoch_metrics(obj_name, y_pred, y_true, num_classes=None):
         yt = y_true[:, None]
         yp = y_pred[:, None, :] if is_class else y_pred[:, None]
 
-    result = compute_polyphony_metrics(yt, yp, cm_type=cm_type, num_classes=num_classes, per_species=False)
+    # print_cm=False: this runs once per epoch during training/validation, so
+    # the confusion-matrix/macro-MAE console dump added for the standalone
+    # evaluate_on_*.py scripts would otherwise spam the training log every
+    # epoch instead of just at final evaluation time.
+    result = compute_polyphony_metrics(yt, yp, cm_type=cm_type, num_classes=num_classes,
+                                        per_species=False, print_cm=False)
     return result["overall"]
 
 

@@ -328,26 +328,37 @@ def main():
         report = {}
         num_classes = cfg.dataset.max_polyphony + 1
 
+        # Confusion matrices (restricted to unambiguous ground truth, see
+        # compute_polyphony_range_metrics()) are saved as CSVs next to
+        # test_metrics.json (one per objective); rendering them into PNGs is
+        # left to source/scripts/render_confusion_matrices.py, run locally
+        # against a synced archive/ checkout.
+        def _cm_csv_path(objective):
+            return os.path.join(log_dir, f"{objective}_confusion_matrix.csv")
+
         if "polyphony_reg" in predictions:
             report["polyphony_reg"] = compute_polyphony_range_metrics(
                 y_true, predictions["polyphony_reg"][:, None], min_key="min_polyphony", max_key="max_polyphony",
-                cm_type="regression_round", per_species=False)
+                cm_type="regression_round", per_species=False, cm_csv_path=_cm_csv_path("polyphony_reg"))
 
         if "polyphony_class" in predictions:
             report["polyphony_class"] = compute_polyphony_range_metrics(
                 y_true, predictions["polyphony_class"][:, None], min_key="min_polyphony", max_key="max_polyphony",
-                cm_type="classification", num_classes=num_classes, per_species=False)
-            
+                cm_type="classification", num_classes=num_classes, per_species=False,
+                cm_csv_path=_cm_csv_path("polyphony_class"))
+
         if "species_polyphony_reg" in predictions:
             report["species_polyphony_reg"] = compute_polyphony_range_metrics(
                 y_true, predictions["species_polyphony_reg"], min_key="min_species_polyphony", max_key="max_species_polyphony",
-                cm_type="species_regression_round", per_species=False)
+                cm_type="species_regression_round", per_species=False,
+                cm_csv_path=_cm_csv_path("species_polyphony_reg"))
 
         if "species_polyphony_class" in predictions:
             report["species_polyphony_class"] = compute_polyphony_range_metrics(
                 y_true, predictions["species_polyphony_class"], min_key="min_species_polyphony", max_key="max_species_polyphony",
-                cm_type="species_classification", num_classes=num_classes, per_species=False)
-        
+                cm_type="species_classification", num_classes=num_classes, per_species=False,
+                cm_csv_path=_cm_csv_path("species_polyphony_class"))
+
         save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
 
         # # Save to metrics overview table

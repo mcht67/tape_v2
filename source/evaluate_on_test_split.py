@@ -341,27 +341,36 @@ def main():
     num_classes = cfg.dataset.max_polyphony + 1
     species_mapping = None #birdset_id2label #{i: (i, name) for i, name in enumerate(ebird_class_labels)}
 
+    # Confusion matrices are saved as CSVs next to test_metrics.json (one
+    # per objective); rendering them into PNGs is left to
+    # source/scripts/render_confusion_matrices.py, run locally against a
+    # synced archive/ checkout.
+    def _cm_csv_path(objective):
+        return os.path.join(log_dir, f"{objective}_confusion_matrix.csv")
+
     if "polyphony_reg" in predictions:
         report["polyphony_reg"] = compute_polyphony_metrics(
             y_true["polyphony"][:, None], predictions["polyphony_reg"][:, None],
-            cm_type="regression_round", per_species=False)
+            cm_type="regression_round", per_species=False, cm_csv_path=_cm_csv_path("polyphony_reg"))
 
     if "polyphony_class" in predictions:
         report["polyphony_class"] = compute_polyphony_metrics(
             y_true["polyphony"][:, None], predictions["polyphony_class"][:, None, :],
-            cm_type="classification", num_classes=num_classes, per_species=False)
-        
+            cm_type="classification", num_classes=num_classes, per_species=False,
+            cm_csv_path=_cm_csv_path("polyphony_class"))
+
     if "species_polyphony_reg" in predictions:
         report["species_polyphony_reg"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_reg"],
-            cm_type="species_regression_round", species_mapping=species_mapping, per_species=True)
+            cm_type="species_regression_round", species_mapping=species_mapping, per_species=True,
+            cm_csv_path=_cm_csv_path("species_polyphony_reg"))
 
     if "species_polyphony_class" in predictions:
         report["species_polyphony_class"] = compute_polyphony_metrics(
             y_true["species_polyphony"], predictions["species_polyphony_class"],
             cm_type="species_classification", species_mapping=species_mapping,
-            num_classes=num_classes, per_species=True)
-        
+            num_classes=num_classes, per_species=True, cm_csv_path=_cm_csv_path("species_polyphony_class"))
+
     save_to_report(report, os.path.join(log_dir, "test_metrics.json"))
 
     build_update_metrics_table(report, cfg, out_dir, table_name="test_metrics")
