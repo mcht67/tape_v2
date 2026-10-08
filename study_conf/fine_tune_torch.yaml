@@ -13,8 +13,8 @@ base_config:
   log.study_name: "Fine-Tuning-BirdMAE"
   # embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/PolyBirdMix"
-  dataset.max_polyphony: 12
-  dataset.min_snr: -10
+  dataset.max_polyphony: 8
+  dataset.min_snr:
   train.epochs: 100
   train.learning_rate: 0.001
   path.study_subfolder: ${model.name}/
