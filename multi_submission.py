@@ -136,6 +136,8 @@ def format_value(value):
     elif isinstance(value, list):
         items = ",".join(format_value(v) for v in value)
         return "[" + items + "]"
+    elif value is None:
+        return "null"  # DVC parses -S values as YAML: "null" -> None, "None" -> the string "None"
     else:
         return str(value)
 

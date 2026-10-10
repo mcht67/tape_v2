@@ -715,6 +715,19 @@ def add_min_max_polyphony(example, num_species=None):
     return example
 
 
+def none_if_str_none(value):
+    """
+    Map string placeholders for "no value" to None.
+
+    `dvc exp run -S key=None` (as built by multi_submission.py from a null
+    entry in the study config) stores the *string* "None" in params.yaml, so
+    `value is not None` checks on config entries would wrongly pass.
+    """
+    if isinstance(value, str) and value.strip().lower() in ('none', 'null', ''):
+        return None
+    return value
+
+
 def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
     """
     Filter the dataset based on polyphony degree and SNR range specified in the config.
@@ -781,9 +794,9 @@ def filter_dataset_by_polyphony_and_snr(dataset, cfg, num_workers=1):
     dataset : DatasetDict
         The filtered dataset.
     """
-    max_polyphony = cfg.dataset.get('max_polyphony', None)
-    snr_range = cfg.dataset.get('snr_range', None)
-    min_snr = cfg.dataset.get('min_snr', None)
+    max_polyphony = none_if_str_none(cfg.dataset.get('max_polyphony', None))
+    snr_range = none_if_str_none(cfg.dataset.get('snr_range', None))
+    min_snr = none_if_str_none(cfg.dataset.get('min_snr', None))
 
     # Nothing to do
     if max_polyphony is None and snr_range is None and min_snr is None:
