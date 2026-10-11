@@ -1,0 +1,35 @@
+# XCM-Generalization study config
+#
+# Tests the generalization of the XCM model to other datasets, 
+# by loading the model trained on XCM and evaluating it on other datasets.
+
+dataset_subsets: # iterated over in multi_submission.py, therefore not added to hyperparams
+  - "UHH"
+  - "HSN"
+  - "PER"
+  - "NES"
+  - "POW"
+  - "SSW"
+  - "SNE"
+
+base_config:
+  log.study_name: "XCM-Generalization-BirdMAE"
+  embeddings.dimension_type: pooled
+  dataset.huggingface_path: "mcht67/PolyBirdMix"
+  path.study_subfolder: ${model.name}/
+  log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
+    - polyphony_reg
+  train.backend: torch
+  head:
+    _target_: utils.torch_models.SimpleMLPHead
+    hidden_units: [512, 256]
+    dropout_rate: 0.3
+  evaluation.checkpoint_dir: "archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints"
+
+hyperparams:
+  model:
+    - "BirdSetBirdMAE"
+  train.input_feature:
+    - "audio"
+  objectives:
+    - "polyphony_reg"
