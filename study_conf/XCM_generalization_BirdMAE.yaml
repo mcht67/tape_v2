@@ -17,6 +17,7 @@ base_config:
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/PolyBirdMix"
   path.study_subfolder: ${model.name}/
+  dataset.max_polyphony: 12
   log.objectives_to_log:  # add all objectives used within the study to log their metrics in the hParam tab of tensorboard
     - polyphony_reg
   train.backend: torch
@@ -25,6 +26,8 @@ base_config:
     hidden_units: [512, 256]
     dropout_rate: 0.3
   evaluation.checkpoint_dir: "archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints"
+
+# max polyphony 12, min_snr -10
 
 hyperparams:
   model:
