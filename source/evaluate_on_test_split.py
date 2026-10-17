@@ -144,7 +144,7 @@ def main():
     # print("Dataset loaded. Converting to in-memory format for processing...")
     # test_dataset = Dataset.from_list(list(test_dataset.take(2)))
 
-    print("default_dir:", default_dir)
+    if default_dir: print("default_dir:", default_dir)
     print("train_config:", train_config)
     print("subset:", subset)
     local_data_dir = get_local_data_dir(dataset_config=train_config, subset=subset)
