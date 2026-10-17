@@ -45,7 +45,7 @@ def main():
 
     train_config = cfg.dataset.train_config
     subset = cfg.dataset.subset
-    checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.path else None
+    checkpoint_dir = cfg.evaluation.checkpoint_dir if 'checkpoint_dir' in cfg.evaluation else None
     run_from_checkpoint = True if checkpoint_dir else False
 
     log_paths = get_log_paths(cfg)
