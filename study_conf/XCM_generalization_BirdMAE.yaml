@@ -25,7 +25,7 @@ base_config:
     _target_: utils.torch_models.SimpleMLPHead
     hidden_units: [512, 256]
     dropout_rate: 0.3
-  evaluation.checkpoint_dir: "archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints"
 
 # max polyphony 12, min_snr -10
 
