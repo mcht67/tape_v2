@@ -13,7 +13,7 @@ dataset_subsets: # iterated over in multi_submission.py, therefore not added to 
   - "SNE"
 
 base_config:
-  log.study_name: "XCM-Generalization-BirdMAE"
+  log.study_name: "XCM-Generalization-BirdMAE-SNR-full"
   embeddings.dimension_type: pooled
   dataset.huggingface_path: "mcht67/PolyBirdMix"
   path.study_subfolder: ${model.name}/
@@ -25,9 +25,10 @@ base_config:
     _target_: utils.torch_models.SimpleMLPHead
     hidden_units: [512, 256]
     dropout_rate: 0.3
-  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints"
+  evaluation.checkpoint_dir: "/beegfs/scratch/cohrt/tape_v2/archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261010_193651_choky-newt/checkpoints"
 
 # max polyphony 12, min_snr -10: archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261007_175504_bendy-cyma/checkpoints
+# full SNR range: archive/Fine-Tuning-BirdMAE/BirdSetBirdMAE/20261010_193651_choky-newt/checkpoints
 
 hyperparams:
   model:
