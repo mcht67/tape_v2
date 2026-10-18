@@ -15,7 +15,7 @@
 
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=500GB
-#SBATCH --time=24:00:00
+#SBATCH --time=76:00:00
 #SBATCH --partition=standard
 
 # Get email notifications for job status
