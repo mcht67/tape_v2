@@ -91,6 +91,9 @@ SOUNDSCAPE_SUBSETS = ["UHH", "HSN", "POW", "NES", "PER", "SSW", "SNE"]
 DEFAULT_MAX_POLYPHONY = 8
 DEFAULT_MIN_SNR = -10
 SEED = 42
+# Species info in the synthetic sets, in the order utils.evaluation.collect_predictions uses.
+SPECIES_COLUMNS = ["species_polyphony", "birdset_code_multilabel", "birdset_id_multilabel",
+                   "ebird_code_multilabel", "sources_birdset_id"]
 
 # Reference categorical palette (dataviz skill, light mode), fixed order.
 C_BLUE, C_ORANGE, C_AQUA, C_YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
@@ -125,8 +128,16 @@ def load_synthetic(archive_root: Path, data_root: Path, subset: str, pkl_path: P
 
     max_poly, min_snr = _filter_params(study_dir, subset)
     ds_dir = data_root / get_local_data_dir(dataset_config=f"{subset}_polyphonic", subset=subset)
-    meta = (load_from_disk(str(ds_dir))["test"]
-            .select_columns(["polyphony", "species_polyphony", "snr_dB"]).to_pandas())
+    test = load_from_disk(str(ds_dir))["test"]
+    # Older dataset versions (e.g. XCM) use 'polyphony_degree' and carry
+    # per-source species ids instead of a species_polyphony vector.
+    poly_col = "polyphony" if "polyphony" in test.column_names else "polyphony_degree"
+    sp_col = next((c for c in SPECIES_COLUMNS if c in test.column_names), None)
+    if sp_col is None:
+        raise RuntimeError(f"{subset}: none of {SPECIES_COLUMNS} in dataset columns {test.column_names}.")
+    print(f"[INFO] {subset}: individual count from '{poly_col}', species count from '{sp_col}'.")
+    meta = (test.select_columns([poly_col, sp_col, "snr_dB"]).to_pandas()
+            .rename(columns={poly_col: "polyphony", sp_col: "species"}))
     if max_poly is not None:
         meta = meta[meta.polyphony <= max_poly]
     if min_snr is not None:
@@ -141,9 +152,15 @@ def load_synthetic(archive_root: Path, data_root: Path, subset: str, pkl_path: P
         raise RuntimeError(f"{subset}: snr_dB column of dataset and pkl not aligned.")
 
     n_ind = meta.polyphony.to_numpy()
-    n_sp = meta.species_polyphony.apply(lambda v: int(np.count_nonzero(v))).to_numpy()
+    if sp_col == "species_polyphony":  # per-species count vector
+        n_sp = meta.species.apply(lambda v: int(np.count_nonzero(v))).to_numpy()
+    else:  # one species id per source
+        n_sp = meta.species.apply(lambda v: len(set(v)) if v is not None else 0).to_numpy()
     if np.any(n_sp > n_ind):
         raise RuntimeError(f"{subset}: species count exceeds individual count for some rows.")
+    if np.any((n_sp == 0) & (n_ind > 0)):
+        raise RuntimeError(f"{subset}: {int(np.sum((n_sp == 0) & (n_ind > 0)))} rows with individuals "
+                           f"but no species labels in '{sp_col}'.")
     return pd.DataFrame({
         "subset": subset, "n_ind": n_ind, "n_sp": n_sp,
         "extra": n_ind - n_sp, "pred": res["predictions.polyphony_reg"].to_numpy(),
